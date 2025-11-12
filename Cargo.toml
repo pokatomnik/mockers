@@ -1,0 +1,12 @@
+[package]
+name = "mockers"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokio = { version = "1.48.0", features = ["full"] }
+hyper = { version = "1.8.0", features = ["full"] }
+tree_magic_mini = "3.2.0"
+http-body-util = "0.1"
+hyper-util = { version = "0.1", features = ["full"] }
+clap = { version = "4.5.51", features = ["derive"] }
