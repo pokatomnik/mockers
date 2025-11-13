@@ -24,6 +24,7 @@ pub async fn start_server(
         .unwrap_or_else(get_default_socket_addr);
 
     let listener = TcpListener::bind(socket_addr).await?;
+
     println!("Server has started at {}:{}", params.host, params.port);
 
     let params = Arc::new(params.clone());
