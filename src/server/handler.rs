@@ -6,6 +6,7 @@ use hyper::body::Bytes;
 use hyper::{Request, Response, StatusCode};
 use tokio::fs;
 
+use super::get_mime::get_mime;
 use super::params::ServerParams;
 
 pub async fn hello(
@@ -37,10 +38,19 @@ pub async fn hello(
     }
 
     return match fs::read(&target_file_path).await {
-        Ok(_) => Ok(Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .body(Full::new(Bytes::from("")))
-            .unwrap()),
+        Ok(data) => {
+            let mime = get_mime(&data);
+
+            if params.verbose {
+                println!("File mime: {}", &mime)
+            }
+
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .header("Content-Type", mime)
+                .body(Full::from(data))
+                .unwrap())
+        }
         Err(_) => Ok(Response::builder()
             .status(StatusCode::NOT_FOUND)
             .body(Full::new(Bytes::from("")))
