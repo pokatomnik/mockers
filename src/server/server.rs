@@ -24,6 +24,7 @@ pub async fn start_server(
         .unwrap_or_else(get_default_socket_addr);
 
     let listener = TcpListener::bind(socket_addr).await?;
+
     println!("Server has started at {}:{}", params.host, params.port);
 
     let params = Arc::new(params.clone());
@@ -35,7 +36,7 @@ pub async fn start_server(
 
         tokio::task::spawn(async move {
             if let Err(err) = http1::Builder::new()
-                .serve_connection(io, service_fn(|req| hello(req, &params)))
+                .serve_connection(io, service_fn(|req| hello(req, params.clone())))
                 .await
             {
                 eprintln!("Error serving connection: {:?}", err);
