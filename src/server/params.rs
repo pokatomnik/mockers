@@ -1,7 +1,7 @@
 use clap::{Args, arg};
 use std::fs::metadata;
 use std::io::ErrorKind;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub const DEFAULT_HOST: &str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 8080;
@@ -23,7 +23,7 @@ pub struct ServerParams {
 }
 
 impl ServerParams {
-    fn check_mocks_path(&self) -> Result<(), Box<dyn std::error::Error>> {
+    fn check_mocks_path(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         let path = Path::new(&self.mocks);
         let metadata = metadata(path)?;
         if !metadata.is_dir() {
@@ -37,7 +37,20 @@ impl ServerParams {
         return Ok(());
     }
 
-    pub fn test(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn get_absolute_mocks_path(
+        &self,
+    ) -> Result<PathBuf, Box<dyn std::error::Error + Sync + Send>> {
+        let path = Path::new(&self.mocks).to_owned();
+        match path.is_absolute() {
+            true => Ok(path),
+            false => {
+                let cwd = std::env::current_dir()?;
+                return Ok(cwd.join(&self.mocks));
+            }
+        }
+    }
+
+    pub fn test(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         let mocks_path_err = self.check_mocks_path();
         if mocks_path_err.is_err() {
             return mocks_path_err;

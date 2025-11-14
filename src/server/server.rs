@@ -36,7 +36,7 @@ pub async fn start_server(
 
         tokio::task::spawn(async move {
             if let Err(err) = http1::Builder::new()
-                .serve_connection(io, service_fn(|req| hello(req, &params)))
+                .serve_connection(io, service_fn(|req| hello(req, params.clone())))
                 .await
             {
                 eprintln!("Error serving connection: {:?}", err);

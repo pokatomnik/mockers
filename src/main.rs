@@ -11,7 +11,7 @@ use crate::cmd::commands::Commands;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
-    let result = match cli.command {
+    let result: Result<_, Box<dyn std::error::Error>> = match cli.command {
         Commands::Serve { params } => match params.test() {
             Err(err) => Err(err),
             Ok(_) => start_server(&params)
