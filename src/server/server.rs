@@ -10,6 +10,12 @@ use hyper::service::service_fn;
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 
+async fn shutdown_signal() {
+    tokio::signal::ctrl_c()
+        .await
+        .expect("failed to install CTRL+C signal handler");
+}
+
 fn get_default_socket_addr() -> SocketAddr {
     let as_str = format!("{}:{}", DEFAULT_HOST, DEFAULT_PORT);
     return as_str.to_socket_addrs().unwrap().next().unwrap();
@@ -24,23 +30,34 @@ pub async fn start_server(
         .unwrap_or_else(get_default_socket_addr);
 
     let listener = TcpListener::bind(socket_addr).await?;
+    let http = http1::Builder::new();
+    let graceful = hyper_util::server::graceful::GracefulShutdown::new();
+    let mut signal = std::pin::pin!(shutdown_signal());
 
     println!("Server has started at {}:{}", params.host, params.port);
 
     let params = Arc::new(params.clone());
 
     loop {
-        let (stream, _) = listener.accept().await?;
-        let io = TokioIo::new(stream);
-        let params = params.clone();
+        tokio::select! {
+            Ok((stream, _addr)) = listener.accept() => {
+                let io = TokioIo::new(stream);
+                let params = params.clone();
+                let conn = http.serve_connection(io, service_fn(move |req| hello(req, params.clone())));
+                let fut = graceful.watch(conn);
+                tokio::spawn(async move {
+                    if let Err(e) = fut.await {
+                        eprintln!("Error serving connection: {:?}", e);
+                    }
+                });
+            },
 
-        tokio::task::spawn(async move {
-            if let Err(err) = http1::Builder::new()
-                .serve_connection(io, service_fn(|req| hello(req, params.clone())))
-                .await
-            {
-                eprintln!("Error serving connection: {:?}", err);
+            _ = &mut signal => {
+                drop(listener);
+                eprintln!("graceful shutdown signal received");
+                break;
             }
-        });
+        }
     }
+    Ok(())
 }
