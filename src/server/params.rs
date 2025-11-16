@@ -9,17 +9,20 @@ pub const DEFAULT_MOCKS_DIR: &str = "mocks";
 
 #[derive(Args, Debug, Clone)]
 pub struct ServerParams {
-    #[arg(long, default_value = DEFAULT_HOST)]
+    #[arg(long, default_value = DEFAULT_HOST, help = "Host to listen on")]
     pub host: String,
 
-    #[arg(long, short, default_value_t = DEFAULT_PORT)]
+    #[arg(long, short, default_value_t = DEFAULT_PORT, help = "Port to listen on")]
     pub port: u16,
 
-    #[arg(long, short, default_value_t = false)]
+    #[arg(long, short, default_value_t = false, help = "Enable verbose logging")]
     pub verbose: bool,
 
-    #[arg(long, short, default_value = DEFAULT_MOCKS_DIR)]
+    #[arg(long, short, default_value = DEFAULT_MOCKS_DIR, help = "Path to the directory containing mock files")]
     pub mocks: String,
+
+    #[arg(long, short, default_value_t = false, help = "Enable CORS headers")]
+    pub cors: bool,
 }
 
 impl ServerParams {

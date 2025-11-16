@@ -9,7 +9,7 @@ use tokio::fs;
 use super::get_mime::get_mime;
 use super::params::ServerParams;
 
-pub async fn hello(
+pub async fn mock_handler(
     req: Request<hyper::body::Incoming>,
     params: Arc<ServerParams>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
@@ -42,18 +42,31 @@ pub async fn hello(
             let mime = get_mime(&data);
 
             if params.verbose {
-                println!("File mime: {}", &mime)
+                println!("File mime: {}", &mime);
             }
 
-            Ok(Response::builder()
+            let mut builder = Response::builder()
                 .status(StatusCode::OK)
-                .header("Content-Type", mime)
-                .body(Full::from(data))
-                .unwrap())
+                .header("Content-Type", mime);
+            if params.cors {
+                builder = builder
+                    .header("Access-Control-Allow-Origin", "*")
+                    .header("Access-Control-Allow-Methods", "*");
+            }
+            let response = builder.body(Full::from(data)).unwrap();
+
+            Ok(response)
         }
-        Err(_) => Ok(Response::builder()
-            .status(StatusCode::NOT_FOUND)
-            .body(Full::new(Bytes::from("")))
-            .unwrap()),
+        Err(_) => {
+            let mut builder = Response::builder().status(StatusCode::NOT_FOUND);
+
+            if params.cors {
+                builder = builder
+                    .header("Access-Control-Allow-Origin", "*")
+                    .header("Access-Control-Allow-Methods", "*");
+            }
+            let response = builder.body(Full::new(Bytes::from(""))).unwrap();
+            Ok(response)
+        }
     };
 }
