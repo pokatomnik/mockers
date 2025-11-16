@@ -1,5 +1,6 @@
 use std::convert::Infallible;
 use std::sync::Arc;
+use std::time::Duration;
 
 use http_body_util::Full;
 use hyper::body::Bytes;
@@ -8,11 +9,18 @@ use tokio::fs;
 
 use super::get_mime::get_mime;
 use super::params::ServerParams;
+use super::query_params::QueryParams;
 
 pub async fn mock_handler(
     req: Request<hyper::body::Incoming>,
     params: Arc<ServerParams>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
+    let delay = req
+        .uri()
+        .query()
+        .and_then(|q| q.parse::<QueryParams>().ok())
+        .and_then(|qp| qp.get("delay")?.get(0)?.parse().ok())
+        .unwrap_or(0);
     if params.verbose {
         println!("Serving {}", &req.uri());
     }
@@ -54,6 +62,8 @@ pub async fn mock_handler(
                     .header("Access-Control-Allow-Methods", "*");
             }
             let response = builder.body(Full::from(data)).unwrap();
+
+            tokio::time::sleep(Duration::from_millis(delay)).await;
 
             Ok(response)
         }
