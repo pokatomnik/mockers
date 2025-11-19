@@ -4,9 +4,12 @@ use super::params::{DEFAULT_HOST, DEFAULT_PORT};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 
-use super::handler::mock_handler;
+use super::handler::Router;
+use http_body_util::Full;
+use hyper::body::Bytes;
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
+use hyper::{Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use tokio::net::TcpListener;
 
@@ -22,7 +25,7 @@ fn get_default_socket_addr() -> SocketAddr {
 }
 
 pub async fn start_server(
-    params: &ServerParams,
+    params: ServerParams,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let socket_addr = format!("{}:{}", params.host, params.port)
         .to_socket_addrs()?
@@ -36,14 +39,31 @@ pub async fn start_server(
 
     println!("Server has started at {}:{}", params.host, params.port);
 
-    let params = Arc::new(params.clone());
+    let router = Arc::new(Router::new(params).route(
+        "/health".to_string(),
+        Arc::new(|_, params| {
+            Box::pin(async move {
+                let mut builder = Response::builder().status(StatusCode::OK);
+
+                if params.cors {
+                    builder = builder
+                        .header("Access-Control-Allow-Origin", "*")
+                        .header("Access-Control-Allow-Methods", "*");
+                }
+                let response = builder.body(Full::new(Bytes::from("OK"))).unwrap();
+                Ok(response)
+            })
+        }),
+    ));
 
     loop {
         tokio::select! {
             Ok((stream, _addr)) = listener.accept() => {
                 let io = TokioIo::new(stream);
-                let params = params.clone();
-                let conn = http.serve_connection(io, service_fn(move |req| mock_handler(req, params.clone())));
+                let router = router.clone();
+                let conn = http.serve_connection(io, service_fn(move |req| {
+                    router.clone().handle(req)
+                }));
                 let fut = graceful.watch(conn);
                 tokio::spawn(async move {
                     if let Err(e) = fut.await {

@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::convert::Infallible;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -10,6 +12,47 @@ use tokio::fs;
 use super::get_mime::get_mime;
 use super::params::ServerParams;
 use super::query_params::QueryParams;
+
+type HandlerFuture =
+    Pin<Box<dyn Future<Output = Result<Response<Full<Bytes>>, Infallible>> + Send>>;
+
+type Handler =
+    Arc<dyn Fn(Request<hyper::body::Incoming>, Arc<ServerParams>) -> HandlerFuture + Send + Sync>;
+
+pub struct Router {
+    params: Arc<ServerParams>,
+    handlers: HashMap<String, Handler>,
+}
+
+impl Router {
+    pub fn new(params: ServerParams) -> Router {
+        let router = Router {
+            params: Arc::new(params),
+            handlers: HashMap::new(),
+        };
+
+        return router;
+    }
+
+    pub fn route(mut self, pattern: String, handler: Handler) -> Self {
+        self.handlers.insert(pattern, handler);
+        self
+    }
+
+    pub async fn handle(
+        self: Arc<Self>,
+        req: Request<hyper::body::Incoming>,
+    ) -> Result<Response<Full<Bytes>>, Infallible> {
+        let handler = self.handlers.get(req.uri().path());
+        if handler.is_some() {
+            let handler = handler.unwrap();
+            let result = handler(req, self.params.clone());
+            return result.await;
+        }
+
+        return mock_handler(req, self.params.clone()).await;
+    }
+}
 
 pub async fn mock_handler(
     req: Request<hyper::body::Incoming>,
