@@ -9,9 +9,9 @@ use hyper::body::Bytes;
 use hyper::{Request, Response, StatusCode};
 use tokio::fs;
 
-use super::get_mime::get_mime;
+use super::super::libs::get_mime::get_mime;
+use super::super::libs::query_params::QueryParams;
 use super::params::ServerParams;
-use super::query_params::QueryParams;
 
 type HandlerFuture =
     Pin<Box<dyn Future<Output = Result<Response<Full<Bytes>>, Infallible>> + Send>>;
