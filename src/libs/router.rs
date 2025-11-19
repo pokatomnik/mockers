@@ -1,22 +1,17 @@
-use std::collections::HashMap;
-use std::convert::Infallible;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{collections::HashMap, convert::Infallible, pin::Pin, sync::Arc, time::Duration};
 
 use http_body_util::Full;
-use hyper::body::Bytes;
-use hyper::{Request, Response, StatusCode};
+use hyper::{Request, Response, StatusCode, body::Bytes};
 use tokio::fs;
 
-use super::super::libs::get_mime::get_mime;
-use super::super::libs::query_params::QueryParams;
-use super::params::ServerParams;
+use super::get_mime::get_mime;
+use super::query_params::QueryParams;
+use crate::server::params::ServerParams;
 
-type HandlerFuture =
+pub type HandlerFuture =
     Pin<Box<dyn Future<Output = Result<Response<Full<Bytes>>, Infallible>> + Send>>;
 
-type Handler =
+pub type Handler =
     Arc<dyn Fn(Request<hyper::body::Incoming>, Arc<ServerParams>) -> HandlerFuture + Send + Sync>;
 
 pub struct Router {
