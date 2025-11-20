@@ -14,8 +14,8 @@ use routerify_ng::RouterService;
 pub async fn start_server(
     params: ServerParams,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let http = http1::Builder::new();
-    let graceful = hyper_util::server::graceful::GracefulShutdown::new();
+    let http = Arc::new(http1::Builder::new());
+    let graceful = Arc::new(hyper_util::server::graceful::GracefulShutdown::new());
     let listener = listener(&params).await?;
     let mut shutdown_signal = make_signal();
     let router = mockers_router(&params);
@@ -27,12 +27,15 @@ pub async fn start_server(
         tokio::select! {
             Ok((stream, _)) = listener.accept() => {
                 let router_service = Arc::clone(&router_service);
-                let request_service = router_service.call(&stream).await.unwrap();
-                let io = TokioIo::new(stream);
+                let graceful = graceful.clone();
+                let http = http.clone();
 
-                let conn = http.serve_connection(io, request_service);
-                let fut = graceful.watch(conn);
                 tokio::spawn(async move {
+                    let request_service = router_service.call(&stream).await.unwrap();
+                    let io = TokioIo::new(stream);
+
+                    let conn = http.serve_connection(io, request_service);
+                    let fut = graceful.watch(conn);
                     if let Err(e) = fut.await {
                         eprintln!("Error serving connection: {:?}", e);
                     }
