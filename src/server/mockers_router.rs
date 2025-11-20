@@ -1,25 +1,23 @@
+use std::convert::Infallible;
 use std::sync::Arc;
 
-use http_body_util::Full;
-use hyper::{Response, StatusCode, body::Bytes};
+use routerify_ng::Middleware;
+use routerify_ng::Router;
 
-use crate::{libs::router::Router, server::params::ServerParams};
+use crate::controllers::error::error_handler;
+use crate::controllers::get_health::health_handler;
+use crate::controllers::mock_handler::mock_handler;
+use crate::middlewares::logger::logger;
+use crate::server::params::ServerParams;
 
-pub fn mockers_router(params: &ServerParams) -> Router {
-    return Router::new(params.clone()).route(
-        "/health".to_string(),
-        Arc::new(|_, params| {
-            Box::pin(async move {
-                let mut builder = Response::builder().status(StatusCode::OK);
-
-                if params.cors {
-                    builder = builder
-                        .header("Access-Control-Allow-Origin", "*")
-                        .header("Access-Control-Allow-Methods", "*");
-                }
-                let response = builder.body(Full::new(Bytes::from("OK"))).unwrap();
-                Ok(response)
-            })
-        }),
-    );
+pub fn mockers_router(params: &ServerParams) -> Router<Infallible> {
+    let router = Router::builder()
+        .data(Arc::new(params.clone()))
+        .middleware(Middleware::pre(logger))
+        .get("/health", health_handler)
+        .any(mock_handler)
+        .err_handler_with_info(error_handler)
+        .build()
+        .unwrap();
+    return router;
 }

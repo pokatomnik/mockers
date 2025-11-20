@@ -1,71 +1,36 @@
-use std::{collections::HashMap, convert::Infallible, pin::Pin, sync::Arc, time::Duration};
+use std::{convert::Infallible, sync::Arc, time::Duration};
 
 use http_body_util::Full;
 use hyper::{Request, Response, StatusCode, body::Bytes};
+use routerify_ng::ext::RequestExt;
 use tokio::fs;
 
-use super::get_mime::get_mime;
-use super::query_params::QueryParams;
-use crate::server::params::ServerParams;
+use crate::{
+    libs::{get_mime::get_mime, query_params::QueryParams},
+    server::params::ServerParams,
+};
 
-pub type HandlerFuture =
-    Pin<Box<dyn Future<Output = Result<Response<Full<Bytes>>, Infallible>> + Send>>;
-
-pub type Handler =
-    Arc<dyn Fn(Request<hyper::body::Incoming>, Arc<ServerParams>) -> HandlerFuture + Send + Sync>;
-
-pub struct Router {
-    params: Arc<ServerParams>,
-    handlers: HashMap<String, Handler>,
-}
-
-impl Router {
-    pub fn new(params: ServerParams) -> Router {
-        let router = Router {
-            params: Arc::new(params),
-            handlers: HashMap::new(),
-        };
-
-        return router;
-    }
-
-    pub fn route(mut self, pattern: String, handler: Handler) -> Self {
-        self.handlers.insert(pattern, handler);
-        self
-    }
-
-    pub async fn handle(
-        self: Arc<Self>,
-        req: Request<hyper::body::Incoming>,
-    ) -> Result<Response<Full<Bytes>>, Infallible> {
-        let handler = self.handlers.get(req.uri().path());
-        if handler.is_some() {
-            let handler = handler.unwrap();
-            let result = handler(req, self.params.clone());
-            return result.await;
-        }
-
-        return mock_handler(req, self.params.clone()).await;
-    }
-}
-
-pub async fn mock_handler(
-    req: Request<hyper::body::Incoming>,
-    params: Arc<ServerParams>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
+pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Bytes>>, Infallible> {
     let delay = req
         .uri()
         .query()
         .and_then(|q| q.parse::<QueryParams>().ok())
         .and_then(|qp| qp.get("delay")?.get(0)?.parse().ok())
         .unwrap_or(0);
-    if params.verbose {
+
+    let params = req.data::<Arc<ServerParams>>();
+    let verbose = params.map(|params| params.verbose).unwrap_or(false);
+    let cors = params.map(|params| params.cors).unwrap_or(false);
+    let mocks_dir = params
+        .map(|params| params.get_absolute_mocks_path())
+        .unwrap_or(Err(Box::from("Params not specified")));
+
+    if verbose {
         println!("Serving {}", &req.uri());
     }
     let method = req.method().to_string().to_lowercase();
     let uri_pathname = req.uri().path().to_string();
 
-    let mocks_dir = params.get_absolute_mocks_path();
     if mocks_dir.is_err() {
         return Ok(Response::builder()
             .status(StatusCode::FORBIDDEN)
@@ -75,7 +40,7 @@ pub async fn mock_handler(
     let mocks_dir = mocks_dir.unwrap();
     let target_file_path = mocks_dir.join(format!("{}.{}", uri_pathname[1..].to_string(), method));
 
-    if params.verbose {
+    if verbose {
         println!("Mocks dir: {}", &mocks_dir.display().to_string());
         println!(
             "Requested file: {}",
@@ -87,14 +52,14 @@ pub async fn mock_handler(
         Ok(data) => {
             let mime = get_mime(&data);
 
-            if params.verbose {
+            if verbose {
                 println!("File mime: {}", &mime);
             }
 
             let mut builder = Response::builder()
                 .status(StatusCode::OK)
                 .header("Content-Type", mime);
-            if params.cors {
+            if cors {
                 builder = builder
                     .header("Access-Control-Allow-Origin", "*")
                     .header("Access-Control-Allow-Methods", "*");
@@ -108,7 +73,7 @@ pub async fn mock_handler(
         Err(_) => {
             let mut builder = Response::builder().status(StatusCode::NOT_FOUND);
 
-            if params.cors {
+            if cors {
                 builder = builder
                     .header("Access-Control-Allow-Origin", "*")
                     .header("Access-Control-Allow-Methods", "*");

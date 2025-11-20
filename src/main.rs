@@ -1,5 +1,7 @@
 mod cmd;
+mod controllers;
 mod libs;
+mod middlewares;
 mod server;
 
 use clap::Parser;
