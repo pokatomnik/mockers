@@ -10,6 +10,7 @@ http-body-util = "0.1"
 hyper-util = { version = "0.1", features = ["full"] }
 clap = { version = "4.5.51", features = ["derive"] }
 mimetype-detector = "0.2.8"
+routerify_ng = "0.3.0"
 
 [profile.release]
 opt-level = "z"

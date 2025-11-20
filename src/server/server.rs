@@ -1,49 +1,36 @@
+use crate::server::mockers_router::mockers_router;
+use crate::server::signal::make_signal;
+
 use super::params::ServerParams;
 
-use super::params::{DEFAULT_HOST, DEFAULT_PORT};
-use std::net::{SocketAddr, ToSocketAddrs};
+use super::listener::listener;
 use std::sync::Arc;
 
-use super::handler::mock_handler;
 use hyper::server::conn::http1;
-use hyper::service::service_fn;
+use hyper::service::Service;
 use hyper_util::rt::TokioIo;
-use tokio::net::TcpListener;
-
-async fn shutdown_signal() {
-    tokio::signal::ctrl_c()
-        .await
-        .expect("failed to install CTRL+C signal handler");
-}
-
-fn get_default_socket_addr() -> SocketAddr {
-    let as_str = format!("{}:{}", DEFAULT_HOST, DEFAULT_PORT);
-    return as_str.to_socket_addrs().unwrap().next().unwrap();
-}
+use routerify_ng::RouterService;
 
 pub async fn start_server(
-    params: &ServerParams,
+    params: ServerParams,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let socket_addr = format!("{}:{}", params.host, params.port)
-        .to_socket_addrs()?
-        .next()
-        .unwrap_or_else(get_default_socket_addr);
-
-    let listener = TcpListener::bind(socket_addr).await?;
     let http = http1::Builder::new();
     let graceful = hyper_util::server::graceful::GracefulShutdown::new();
-    let mut signal = std::pin::pin!(shutdown_signal());
+    let listener = listener(&params).await?;
+    let mut shutdown_signal = make_signal();
+    let router = mockers_router(&params);
+    let router_service = Arc::new(RouterService::new(router).unwrap());
 
     println!("Server has started at {}:{}", params.host, params.port);
 
-    let params = Arc::new(params.clone());
-
     loop {
         tokio::select! {
-            Ok((stream, _addr)) = listener.accept() => {
+            Ok((stream, _)) = listener.accept() => {
+                let router_service = Arc::clone(&router_service);
+                let request_service = router_service.call(&stream).await.unwrap();
                 let io = TokioIo::new(stream);
-                let params = params.clone();
-                let conn = http.serve_connection(io, service_fn(move |req| mock_handler(req, params.clone())));
+
+                let conn = http.serve_connection(io, request_service);
                 let fut = graceful.watch(conn);
                 tokio::spawn(async move {
                     if let Err(e) = fut.await {
@@ -52,7 +39,7 @@ pub async fn start_server(
                 });
             },
 
-            _ = &mut signal => {
+            _ = &mut shutdown_signal => {
                 drop(listener);
                 eprintln!("graceful shutdown signal received");
                 break;
