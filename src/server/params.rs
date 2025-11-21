@@ -6,6 +6,9 @@ use std::path::{Path, PathBuf};
 pub const DEFAULT_HOST: &str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 8080;
 pub const DEFAULT_MOCKS_DIR: &str = "mocks";
+pub const DEFAULT_MOCKS_RESPONSE_DELAY: u64 = 0;
+pub const DEFAULT_CORS_ENABLED: bool = false;
+pub const DEFAULT_VERBOSE_ENABLED: bool = false;
 
 #[derive(Args, Debug, Clone)]
 pub struct ServerParams {
@@ -23,6 +26,9 @@ pub struct ServerParams {
 
     #[arg(long, short, default_value_t = false, help = "Enable CORS headers")]
     pub cors: bool,
+
+    #[arg(long, short, default_value_t = 0, help = "Mocks response delay")]
+    pub delay_ms: u64,
 }
 
 impl ServerParams {

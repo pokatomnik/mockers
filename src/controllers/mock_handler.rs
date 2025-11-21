@@ -3,24 +3,26 @@ use std::{convert::Infallible, sync::Arc, time::Duration};
 use http_body_util::Full;
 use hyper::{Request, Response, StatusCode, body::Bytes};
 use routerify_ng::ext::RequestExt;
-use tokio::fs;
+use tokio::{fs, time::sleep};
 
 use crate::{
-    libs::{get_mime::get_mime, query_params::QueryParams},
-    server::params::ServerParams,
+    libs::get_mime::get_mime,
+    server::params::{
+        DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY, DEFAULT_VERBOSE_ENABLED, ServerParams,
+    },
 };
 
 pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Bytes>>, Infallible> {
-    let delay = req
-        .uri()
-        .query()
-        .and_then(|q| q.parse::<QueryParams>().ok())
-        .and_then(|qp| qp.get("delay")?.get(0)?.parse().ok())
-        .unwrap_or(0);
-
     let params = req.data::<Arc<ServerParams>>();
-    let verbose = params.map(|params| params.verbose).unwrap_or(false);
-    let cors = params.map(|params| params.cors).unwrap_or(false);
+    let verbose = params
+        .map(|params| params.verbose)
+        .unwrap_or(DEFAULT_VERBOSE_ENABLED);
+    let cors = params
+        .map(|params| params.cors)
+        .unwrap_or(DEFAULT_CORS_ENABLED);
+    let delay = params
+        .map(|params| params.delay_ms)
+        .unwrap_or(DEFAULT_MOCKS_RESPONSE_DELAY);
     let mocks_dir = params
         .map(|params| params.get_absolute_mocks_path())
         .unwrap_or(Err(Box::from("Params not specified")));
@@ -66,7 +68,7 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
             }
             let response = builder.body(Full::from(data)).unwrap();
 
-            tokio::time::sleep(Duration::from_millis(delay)).await;
+            sleep(Duration::from_millis(delay)).await;
 
             Ok(response)
         }
