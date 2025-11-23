@@ -1,10 +1,10 @@
-# Mockers - Simple HTTP Mock Server in Rust
+# Mockers - Simple HTTP Mock Server in Rust 🎯
 
 `Mockers` is a lightweight HTTP server written in Rust for serving mock responses from files. It is designed for testing, prototyping, or any scenario where you need a quick mock backend.
 
 ---
 
-## Installation
+## Installation 🚀
 
 Build from source using Cargo:
 
@@ -12,7 +12,7 @@ Build from source using Cargo:
 cargo build --release
 ```
 
-## Usage
+## Usage 🚀
 
 Run the server using the `serve` command:
 
@@ -20,7 +20,7 @@ Run the server using the `serve` command:
 mockers serve [OPTIONS]
 ```
 
-## Command-line Options
+## Command-line Options 🚀
 
 | Flag              | Default     | Description                                            |
 | ----------------- | ----------- | ------------------------------------------------------ |
@@ -31,18 +31,18 @@ mockers serve [OPTIONS]
 | `--cors`          | `false`     | Enable CORS headers (`Access-Control-Allow-Origin: *`) |
 | `--delay-ms`      | `0`         | Delay (in milliseconds) for serving mock responses     |
 
-## Mock File Structure
+## Mock File Structure 🚀
 
-- All files inside the mocks directory are used as responses.
-- File names determine the HTTP method:
+- 💡 All files inside the mocks directory are used as responses.
+- 💡 File names determine the HTTP method:
 
 ```
 user.get       -> responds to GET /user
 login.post     -> responds to POST /login
 ```
 
-- The path inside the file name (before the dot) corresponds to the URL path.
-- Both relative and absolute paths are supported for the `--mocks` flag.
+- 💡 The path inside the file name (before the dot) corresponds to the URL path.
+- 💡 Both relative and absolute paths are supported for the `--mocks` flag.
 
 Example:
 
@@ -55,11 +55,11 @@ mocks/
 
 This will create the following endpoints:
 
-- `GET /user`
-- `POST /login`
-- `PUT /config`
+- 💡 `GET /user`
+- 💡 `POST /login`
+- 💡 `PUT /config`
 
-## Examples
+## Examples 🚀
 
 Run the server on default settings:
 
@@ -79,12 +79,12 @@ Serve mocks from a custom directory with CORS enabled and 500ms response delay:
 mockers serve --mocks ./api_mocks --cors --delay_ms 500
 ```
 
-## Per-Directory Mock Configuration
+## Per-Directory Mock Configuration 🚀
 
 Some endpoints may require custom behavior — a delayed response, a non-200 status code, or custom headers.
 To support this, any mock directory may optionally contain a mock-config.json file describing additional response parameters.
 
-### Example
+### Example 🔧
 
 ```json
 {
@@ -106,18 +106,18 @@ GET http://localhost:8080/test
 
 will produce:
 
-- **5000 ms delay**
-- **HTTP 201 status**
-- **Header** `X-Server: Mockers`
-- **Body** — the content of test.get (or any corresponding mock file)
+- 💡 **5000 ms delay**
+- 💡 **HTTP 201 status**
+- 💡 **Header** `X-Server: Mockers`
+- 💡 **Body** — the content of test.get (or any corresponding mock file)
 
-### Rules
+### Rules 🔧
 
-- The config file is optional.
-- If it doesn't exist, default behavior applies (status 200, no delay, no custom headers).
-- Keys in the config file must match mock filenames in the same directory.
-- For example, test.get configures the file test.get.
-- All fields inside each entry are optional:
+- 💡 The config file is optional.
+- 💡 If it doesn't exist, default behavior applies (status 200, no delay, no custom headers).
+- 💡 Keys in the config file must match mock filenames in the same directory.
+- 💡 For example, test.get configures the file test.get.
+- 💡 All fields inside each entry are optional:
 
 | Field        | Type                    | Description                                  |
 | ------------ | ----------------------- | -------------------------------------------- |
@@ -125,7 +125,7 @@ will produce:
 | `statusCode` | `number` (u16)          | HTTP status code                             |
 | `headers`    | `Record<string,string>` | Additional headers to append to the response |
 
-### Example Behavior
+### Example Behavior 🔧
 
 If only some fields are provided, the server fills in the rest with defaults.
 For example:
@@ -140,23 +140,23 @@ For example:
 
 This results in:
 
-- 404 status
-- no delay
-- no custom headers
-- body loaded from `user.get`
+- 💡 404 status
+- 💡 no delay
+- 💡 no custom headers
+- 💡 body loaded from `user.get`
 
-## Notes
+## Notes 🚀
 
-- The server automatically resolves relative paths for mocks based on the current working directory.
-- If the specified mocks directory does not exist or is not a directory, the server will return an error.
-- Response delay can be used to simulate slow network responses.
+- 💡 The server automatically resolves relative paths for mocks based on the current working directory.
+- 💡 If the specified mocks directory does not exist or is not a directory, the server will return an error.
+- 💡 Response delay can be used to simulate slow network responses.
 
-## Shout-out
+## Shout-out 🚀
 
 Huge thanks to [@Caik](https://github.com/Caik)
 , whose [Go version](https://github.com/Caik/go-mock-server) sparked the idea for this project.
 I rewrote the whole thing in Rust because apparently I enjoy suffering — and because I wanted features the original never asked for.
 
-## License
+## License 🚀
 
 MIT License
