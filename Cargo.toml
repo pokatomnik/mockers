@@ -11,6 +11,8 @@ hyper-util = { version = "0.1", features = ["full"] }
 clap = { version = "4.5.51", features = ["derive"] }
 mimetype-detector = "0.2.8"
 routerify_ng = "0.3.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
 
 [profile.release]
 opt-level = "z"
