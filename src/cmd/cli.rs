@@ -4,6 +4,7 @@ use clap::{Parser, command};
 #[derive(Parser)]
 #[command(name = "Mockers")]
 #[command(about = "Simple mock server written in Rust")]
+#[command(version)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
