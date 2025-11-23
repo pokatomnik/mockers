@@ -1,0 +1,18 @@
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, path::PathBuf};
+use tokio::fs::read_to_string;
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MockConfig {
+    pub delay_ms: Option<u64>,
+    pub status_code: Option<u16>,
+    pub headers: Option<HashMap<String, String>>,
+}
+
+pub async fn read_config(path: &PathBuf) -> Option<HashMap<String, MockConfig>> {
+    read_to_string(path)
+        .await
+        .ok()
+        .and_then(|contents| serde_json::from_str::<HashMap<String, MockConfig>>(&contents).ok())
+}
