@@ -1,5 +1,7 @@
 # Mockers - Simple HTTP Mock Server in Rust 🎯
 
+[![Rust](https://github.com/pokatomnik/mockers/actions/workflows/rust.yml/badge.svg)](https://github.com/pokatomnik/mockers/actions/workflows/rust.yml)
+
 `Mockers` is a lightweight HTTP server written in Rust for serving mock responses from files. It is designed for testing, prototyping, or any scenario where you need a quick mock backend.
 
 ---
