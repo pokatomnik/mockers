@@ -29,6 +29,9 @@ pub struct ServerParams {
 
     #[arg(long, short, default_value_t = 0, help = "Mocks response delay")]
     pub delay_ms: u64,
+
+    #[arg(long, short, help = "Origin server where")]
+    pub origin: Option<String>,
 }
 
 impl ServerParams {
