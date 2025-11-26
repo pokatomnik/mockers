@@ -1,4 +1,3 @@
-use core::fmt;
 use std::{collections::HashMap, convert::Infallible, sync::Arc, time::Duration};
 
 use http::response::Builder;
