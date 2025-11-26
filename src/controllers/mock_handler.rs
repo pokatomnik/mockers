@@ -145,13 +145,13 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
 fn get_502_response(cors: bool, custom_headers: &HashMap<String, String>) -> Response<Full<Bytes>> {
     let mut builder = Response::builder().status(StatusCode::BAD_GATEWAY);
     builder = add_headers(builder, cors, &custom_headers);
-    builder.body(Full::new(Bytes::from(""))).unwrap()
+    builder.body(Full::new(Bytes::new())).unwrap()
 }
 
 fn get_404_response(cors: bool, custom_headers: &HashMap<String, String>) -> Response<Full<Bytes>> {
     let mut builder = Response::builder().status(StatusCode::NOT_FOUND);
     builder = add_headers(builder, cors, &custom_headers);
-    builder.body(Full::new(Bytes::from(""))).unwrap()
+    builder.body(Full::new(Bytes::new())).unwrap()
 }
 
 fn add_headers(
