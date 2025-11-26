@@ -1,3 +1,4 @@
+use core::fmt;
 use std::{collections::HashMap, convert::Infallible, sync::Arc, time::Duration};
 
 use http::response::Builder;
@@ -93,6 +94,14 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
             if let Some(origin) = origin
                 && let Some(client) = client
             {
+                if verbose {
+                    print!(
+                        "Mock is missing, proxying request to {}{}",
+                        origin,
+                        req.uri()
+                    );
+                }
+
                 let target_url = format!("{}{}", origin, req.uri());
 
                 let response = client
@@ -105,7 +114,12 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
                     .await;
 
                 return match response {
-                    Err(_) => Ok(get_502_response(cors, &custom_headers)),
+                    Err(_) => {
+                        if verbose {
+                            println!("No response from origin")
+                        }
+                        Ok(get_502_response(cors, &custom_headers))
+                    }
                     Ok(resp) => {
                         let resp_headers = resp.headers().clone();
                         let resp_status = resp.status().clone();
