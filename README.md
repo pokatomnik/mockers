@@ -32,6 +32,7 @@ mockers serve [OPTIONS]
 | `--mocks`, `-m`   | `mocks`     | Path to the directory containing mock files            |
 | `--cors`          | `false`     | Enable CORS headers (`Access-Control-Allow-Origin: *`) |
 | `--delay-ms`      | `0`         | Delay (in milliseconds) for serving mock responses     |
+| `--origin`        | [unset]     | Forward requests to another server when mock is missing by requested URL |
 
 ## Mock File Structure 🚀
 
