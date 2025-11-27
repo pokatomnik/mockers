@@ -93,19 +93,18 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
             if let Some(origin) = origin
                 && let Some(client) = client
             {
+                let target_url = join_origin_and_path(&origin, &uri_pathname);
                 if verbose {
-                    print!(
-                        "Mock is missing, proxying request to {}{}",
-                        origin,
-                        req.uri()
-                    );
+                    println!("Mock is missing, proxying request to {}", target_url);
                 }
 
-                let target_url = format!("{}{}", origin, req.uri());
+                let mut headers = req.headers().to_owned().clone();
+                headers.remove(hyper::header::HOST);
+                headers.remove(hyper::header::CONTENT_LENGTH);
 
                 let response = client
-                    .request(req.method().to_owned(), target_url)
-                    .headers(req.headers().to_owned())
+                    .request(req.method().to_owned(), &target_url)
+                    .headers(headers)
                     .body(reqwest::Body::wrap_stream(
                         req.body().clone().into_data_stream(),
                     ))
@@ -115,7 +114,7 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
                 return match response {
                     Err(_) => {
                         if verbose {
-                            println!("No response from origin")
+                            eprintln!("No response from origin: {}", &target_url)
                         }
                         Ok(get_502_response(cors, &custom_headers))
                     }
@@ -139,6 +138,12 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
             }
         }
     };
+}
+
+fn join_origin_and_path(origin: &str, path: &str) -> String {
+    let origin = origin.trim_end_matches("/");
+    let path = path.trim_start_matches("/");
+    return format!("{}/{}", origin, path);
 }
 
 fn get_502_response(cors: bool, custom_headers: &HashMap<String, String>) -> Response<Full<Bytes>> {
