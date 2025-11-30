@@ -6,7 +6,6 @@ use routerify_ng::Middleware;
 use routerify_ng::Router;
 
 use crate::controllers::error::error_handler;
-use crate::controllers::get_health::health_handler;
 use crate::controllers::mock_handler::mock_handler;
 use crate::middlewares::logger::logger;
 use crate::server::mockers_context::MockersContext;
@@ -19,7 +18,6 @@ pub fn mockers_router(params: &ServerParams) -> Router<Infallible> {
             server_params: params.clone(),
         }))
         .middleware(Middleware::pre(logger))
-        .get("/health", health_handler)
         .any(mock_handler)
         .err_handler_with_info(error_handler)
         .build()
