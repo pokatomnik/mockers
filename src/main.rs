@@ -6,6 +6,7 @@ mod server;
 
 use clap::Parser;
 use cmd::cli::Cli;
+use libs::create_mock::create_mock;
 use server::server::start_server;
 
 use crate::cmd::commands::Commands;
@@ -18,6 +19,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Serve { params } => match params.test() {
             Err(err) => Err(err),
             Ok(_) => start_server(params)
+                .await
+                .map_err(|err| -> Box<dyn std::error::Error> { err }),
+        },
+        Commands::Create(params) => match params.test() {
+            Err(err) => Err(err),
+            Ok(_) => create_mock(params)
                 .await
                 .map_err(|err| -> Box<dyn std::error::Error> { err }),
         },
