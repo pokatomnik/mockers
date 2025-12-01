@@ -93,7 +93,7 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
             if let Some(origin) = origin
                 && let Some(client) = client
             {
-                let target_url = join_origin_and_path(&origin, &uri_pathname);
+                let target_url = join_origin_and_path(&origin, &uri_pathname, req.uri().query());
                 if verbose {
                     println!("Mock is missing, proxying request to {}", target_url);
                 }
@@ -140,10 +140,13 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
     };
 }
 
-fn join_origin_and_path(origin: &str, path: &str) -> String {
+fn join_origin_and_path(origin: &str, path: &str, query: Option<&str>) -> String {
     let origin = origin.trim_end_matches("/");
     let path = path.trim_start_matches("/");
-    return format!("{}/{}", origin, path);
+    return match query {
+        Some(params_str) => format!("{}/{}?{}", origin, path, params_str),
+        None => format!("{}/{}", origin, path),
+    };
 }
 
 fn get_502_response(cors: bool, custom_headers: &HashMap<String, String>) -> Response<Full<Bytes>> {
