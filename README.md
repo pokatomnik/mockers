@@ -160,6 +160,8 @@ Huge thanks to [@Caik](https://github.com/Caik)
 , whose [Go version](https://github.com/Caik/go-mock-server) sparked the idea for this project.
 I rewrote the whole thing in Rust because apparently I enjoy suffering — and because I wanted features the original never asked for.
 
+Special thanks to [bloodvez](https://github.com/bloodvez) who helped me with finding issues.
+
 ## License 🚀
 
 MIT License
