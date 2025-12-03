@@ -1,6 +1,8 @@
 use std::fs::{File, create_dir_all};
 use std::io::Write;
 
+use serde::{Deserialize, Serialize};
+
 use crate::libs::create_params::CreateParams;
 
 pub async fn create_mock(
@@ -51,6 +53,21 @@ pub async fn create_mock(
             )
         }
     })?;
+    file.write(
+        serde_json::to_string(&DefaultMockContents {
+            hello: "world".to_string(),
+        })
+        .unwrap_or("".to_string())
+        .as_bytes(),
+    )
+    .inspect_err(|_| {
+        if verbose {
+            println!(
+                "Failed to write file contents to file: '{}'",
+                &full_destination_file_path.display()
+            )
+        }
+    })?;
     file.flush().inspect_err(|_| {
         if verbose {
             println!(
@@ -61,4 +78,9 @@ pub async fn create_mock(
     })?;
 
     return Ok(());
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct DefaultMockContents {
+    hello: String,
 }
