@@ -1,13 +1,15 @@
-use std::{collections::HashMap, convert::Infallible, sync::Arc, time::Duration};
+use std::{collections::HashMap, convert::Infallible, path::PathBuf, sync::Arc, time::Duration};
 
-use http::response::Builder;
 use http_body_util::{BodyExt, Full};
-use hyper::{Request, Response, StatusCode, body::Bytes, http};
+use hyper::{Request, Response, StatusCode, body::Bytes};
 use routerify_ng::ext::RequestExt;
 use tokio::{fs, time::sleep};
 
 use crate::{
-    libs::{get_mime::get_mime, mock_config::read_config},
+    controllers::utils::{
+        add_headers, get_404_response, get_502_response, join_origin_and_path, write_mock,
+    },
+    libs::{cache_mode::CacheMode, get_mime::get_mime, mock_config::read_config},
     server::{
         mockers_context::MockersContext,
         params::{DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY, DEFAULT_VERBOSE_ENABLED},
@@ -25,7 +27,7 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
     let global_delay_ms = context
         .map(|context| context.server_params.delay_ms)
         .unwrap_or(DEFAULT_MOCKS_RESPONSE_DELAY);
-    let mocks_dir = context
+    let absolute_mocks_dir = context
         .map(|context| context.server_params.get_absolute_mocks_path())
         .unwrap_or(Err(Box::from("Params not specified")));
     let origin = context.and_then(|context| context.clone().server_params.origin.clone());
@@ -37,41 +39,81 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
     let method = req.method().to_string().to_lowercase();
     let uri_pathname = req.uri().path().to_string();
 
-    if mocks_dir.is_err() {
+    if absolute_mocks_dir.is_err() {
         return Ok(Response::builder()
             .status(StatusCode::FORBIDDEN)
             .body(Full::new(Bytes::from("")))
             .unwrap());
     }
-    let mocks_dir = mocks_dir.unwrap();
-    let mock_file_name = format!("{}.{}", uri_pathname[1..].to_string(), method);
-    let target_file_path = mocks_dir.join(&mock_file_name);
-    let config_file_path = mocks_dir.join("config.json");
+    /*
+     * Example:
+     * `/home/username/.cargo/bin/mocks`
+     */
+    let absolute_mocks_dir = absolute_mocks_dir.unwrap();
+    /*
+     * Example:
+     * `/foo/bar/baz.get`
+     */
+    let relative_mock_file_name = format!("{}.{}", uri_pathname[1..].to_string(), method);
+    /*
+     * Example:
+     * `/home/username/.cargo/bin/mocks/foo/bar/baz.get`
+     */
+    let absolute_mock_file_name = absolute_mocks_dir.join(&relative_mock_file_name);
+    /*
+     * Example:
+     * `baz.get`
+     */
+    let mock_config_entry_name = relative_mock_file_name.split("/").last().unwrap_or("");
+    /*
+     * Example:
+     * `/foo/bar/`
+     */
+    let relative_current_mock_config_dir = {
+        let mut pathbuf = PathBuf::from(uri_pathname[1..].to_string());
+        pathbuf.pop();
+        pathbuf
+    };
+    /*
+     * Example:
+     * `/home/username/.cargo/bin/mocks/foo/baz/config.json`
+     */
+    let config_file_path = absolute_mocks_dir
+        .join(relative_current_mock_config_dir)
+        .join("config.json");
     let config = read_config(&config_file_path).await;
 
     let delay = config
         .as_ref()
-        .and_then(|c| c.get(&mock_file_name).and_then(|x| x.delay_ms))
+        .and_then(|c| c.get(mock_config_entry_name).and_then(|x| x.delay_ms))
         .unwrap_or(global_delay_ms);
     let custom_headers = config
         .as_ref()
-        .and_then(|c| c.get(&mock_file_name).and_then(|x| x.headers.clone()))
+        .and_then(|c| {
+            c.get(mock_config_entry_name)
+                .and_then(|x| x.headers.clone())
+        })
         .unwrap_or_else(|| HashMap::new());
     let status_if_file_found = config
         .as_ref()
-        .and_then(|c| c.get(&mock_file_name).and_then(|x| x.status_code))
+        .and_then(|c| c.get(mock_config_entry_name).and_then(|x| x.status_code))
         .map(|status_code| StatusCode::from_u16(status_code).unwrap_or(StatusCode::OK))
         .unwrap_or(StatusCode::OK);
+    let cache_mode = config
+        .as_ref()
+        .and_then(|c| c.get(mock_config_entry_name))
+        .and_then(|x| x.cache_mode.clone())
+        .unwrap_or(CacheMode::NoCache);
 
     if verbose {
-        println!("Mocks dir: {}", &mocks_dir.display().to_string());
+        println!("Mocks dir: {}", &absolute_mocks_dir.display().to_string());
         println!(
             "Requested file: {}",
-            &target_file_path.display().to_string()
+            &absolute_mock_file_name.display().to_string()
         );
     }
 
-    return match fs::read(&target_file_path).await {
+    return match fs::read(&absolute_mock_file_name).await {
         Ok(data) => {
             let mime = get_mime(&data);
 
@@ -130,6 +172,14 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
                         }
                         builder = add_headers(builder, cors, &custom_headers);
 
+                        if cache_mode == CacheMode::Overwrite {
+                            write_mock(
+                                &absolute_mock_file_name.display().to_string(),
+                                &response_bytes,
+                                verbose,
+                            );
+                        }
+
                         Ok(builder.body(Full::new(response_bytes)).unwrap())
                     }
                 };
@@ -138,44 +188,4 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
             }
         }
     };
-}
-
-fn join_origin_and_path(origin: &str, path: &str, query: Option<&str>) -> String {
-    let origin = origin.trim_end_matches("/");
-    let path = path.trim_start_matches("/");
-    return match query {
-        Some(params_str) => format!("{}/{}?{}", origin, path, params_str),
-        None => format!("{}/{}", origin, path),
-    };
-}
-
-fn get_502_response(cors: bool, custom_headers: &HashMap<String, String>) -> Response<Full<Bytes>> {
-    let mut builder = Response::builder().status(StatusCode::BAD_GATEWAY);
-    builder = add_headers(builder, cors, &custom_headers);
-    builder.body(Full::new(Bytes::new())).unwrap()
-}
-
-fn get_404_response(cors: bool, custom_headers: &HashMap<String, String>) -> Response<Full<Bytes>> {
-    let mut builder = Response::builder().status(StatusCode::NOT_FOUND);
-    builder = add_headers(builder, cors, &custom_headers);
-    builder.body(Full::new(Bytes::new())).unwrap()
-}
-
-fn add_headers(
-    mut builder: Builder,
-    add_cors: bool,
-    custom_headers: &HashMap<String, String>,
-) -> Builder {
-    if add_cors {
-        let headers = builder.headers_mut().unwrap();
-        headers.insert("Access-Control-Allow-Methods", "*".parse().unwrap());
-        headers.insert("Access-Control-Allow-Origin", "*".parse().unwrap());
-        headers.insert("Access-Control-Allow-Headers", "*".parse().unwrap());
-    }
-
-    for (header, header_value) in custom_headers.iter() {
-        builder = builder.header(header, header_value);
-    }
-
-    return builder;
 }
