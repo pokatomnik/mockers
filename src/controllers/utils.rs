@@ -38,9 +38,10 @@ pub fn add_headers(
     custom_headers: &HashMap<String, String>,
 ) -> Builder {
     if add_cors {
-        builder = builder
-            .header("Access-Control-Allow-Origin", "*")
-            .header("Access-Control-Allow-Methods", "*")
+        let headers = builder.headers_mut().unwrap();
+        headers.insert("Access-Control-Allow-Methods", "*".parse().unwrap());
+        headers.insert("Access-Control-Allow-Origin", "*".parse().unwrap());
+        headers.insert("Access-Control-Allow-Headers", "*".parse().unwrap());
     }
 
     for (header, header_value) in custom_headers.iter() {
