@@ -96,7 +96,8 @@ To support this, any mock directory may optionally contain a mock-config.json fi
     "statusCode": 201,
     "headers": {
       "X-Server": "Mockers"
-    }
+    },
+    "cacheMode": "Overwrite"
   }
 }
 ```
@@ -112,7 +113,8 @@ will produce:
 - 💡 **5000 ms delay**
 - 💡 **HTTP 201 status**
 - 💡 **Header** `X-Server: Mockers`
-- 💡 **Body** — the content of test.get (or any corresponding mock file)
+- 💡 **Body** — the content of `test.get` (or any corresponding mock file)
+- 💡 The response body will be cached into `test.get` if file `test.get` is missing (asynchronously). 
 
 ### Rules 🔧
 
@@ -122,11 +124,12 @@ will produce:
 - 💡 For example, test.get configures the file test.get.
 - 💡 All fields inside each entry are optional:
 
-| Field        | Type                    | Description                                  |
-| ------------ | ----------------------- | -------------------------------------------- |
-| `delayMs`    | `number`                | Artificial response delay in milliseconds    |
-| `statusCode` | `number` (u16)          | HTTP status code                             |
-| `headers`    | `Record<string,string>` | Additional headers to append to the response |
+| Field        | Type                     | Description                                                                                                                                                                                         |
+|--------------|--------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `delayMs`    | `number`                 | Artificial response delay in milliseconds                                                                                                                                                           |
+| `statusCode` | `number` (u16)           | HTTP status code                                                                                                                                                                                    |
+| `headers`    | `Record<string,string>`  | Additional headers to append to the response                                                                                                                                                        |
+| `cacheMode`  | `Overwrite` or `NoCache` | If you specify the Overwrite parameter, if the mock file is missing, the request will be sent to the origin url and the body of the origin server response will be written to the missing mock file |
 
 ### Example Behavior 🔧
 
