@@ -27,7 +27,7 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
     let global_delay_ms = context
         .map(|context| context.server_params.delay_ms)
         .unwrap_or(DEFAULT_MOCKS_RESPONSE_DELAY);
-    let mocks_dir = context
+    let absolute_mocks_dir = context
         .map(|context| context.server_params.get_absolute_mocks_path())
         .unwrap_or(Err(Box::from("Params not specified")));
     let origin = context.and_then(|context| context.clone().server_params.origin.clone());
@@ -39,19 +39,48 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
     let method = req.method().to_string().to_lowercase();
     let uri_pathname = req.uri().path().to_string();
 
-    if mocks_dir.is_err() {
+    if absolute_mocks_dir.is_err() {
         return Ok(Response::builder()
             .status(StatusCode::FORBIDDEN)
             .body(Full::new(Bytes::from("")))
             .unwrap());
     }
-    let mocks_dir = mocks_dir.unwrap();
-    let mock_file_name = format!("{}.{}", uri_pathname[1..].to_string(), method);
-    let target_file_path = mocks_dir.join(&mock_file_name);
-    let mock_config_entry_name = mock_file_name.split("/").last().unwrap_or("");
-    let mut current_mock_config_dir = PathBuf::from(uri_pathname[1..].to_string());
-    current_mock_config_dir.pop();
-    let config_file_path = mocks_dir.join(current_mock_config_dir).join("config.json");
+    /*
+     * Example:
+     * `/home/username/.cargo/bin/mocks`
+     */
+    let absolute_mocks_dir = absolute_mocks_dir.unwrap();
+    /*
+     * Example:
+     * `/foo/bar/baz.get`
+     */
+    let relative_mock_file_name = format!("{}.{}", uri_pathname[1..].to_string(), method);
+    /*
+     * Example:
+     * `/home/username/.cargo/bin/mocks/foo/bar/baz.get`
+     */
+    let absolute_mock_file_name = absolute_mocks_dir.join(&relative_mock_file_name);
+    /*
+     * Example:
+     * `baz.get`
+     */
+    let mock_config_entry_name = relative_mock_file_name.split("/").last().unwrap_or("");
+    /*
+     * Example:
+     * `/foo/bar/`
+     */
+    let relative_current_mock_config_dir = {
+        let mut pathbuf = PathBuf::from(uri_pathname[1..].to_string());
+        pathbuf.pop();
+        pathbuf
+    };
+    /*
+     * Example:
+     * `/home/username/.cargo/bin/mocks/foo/baz/config.json`
+     */
+    let config_file_path = absolute_mocks_dir
+        .join(relative_current_mock_config_dir)
+        .join("config.json");
     let config = read_config(&config_file_path).await;
 
     let delay = config
@@ -77,14 +106,14 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
         .unwrap_or(CacheMode::NoCache);
 
     if verbose {
-        println!("Mocks dir: {}", &mocks_dir.display().to_string());
+        println!("Mocks dir: {}", &absolute_mocks_dir.display().to_string());
         println!(
             "Requested file: {}",
-            &target_file_path.display().to_string()
+            &absolute_mock_file_name.display().to_string()
         );
     }
 
-    return match fs::read(&target_file_path).await {
+    return match fs::read(&absolute_mock_file_name).await {
         Ok(data) => {
             let mime = get_mime(&data);
 
@@ -145,7 +174,7 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
 
                         if cache_mode == CacheMode::Overwrite {
                             write_mock(
-                                &target_file_path.display().to_string(),
+                                &absolute_mock_file_name.display().to_string(),
                                 &response_bytes,
                                 verbose,
                             );
