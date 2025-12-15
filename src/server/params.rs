@@ -1,4 +1,4 @@
-use clap::{Args, arg};
+use clap::{arg, Args};
 use std::fs::metadata;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -32,9 +32,25 @@ pub struct ServerParams {
 
     #[arg(long, short, help = "Origin server where")]
     pub origin: Option<String>,
+
+    #[arg(long, short, help = "Admin base URL. The entry point for all admin URLs. Disabled by default")]
+    pub admin_base_url: Option<String>,
 }
 
 impl ServerParams {
+    fn check_admin_base_url(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+        let path = &self.admin_base_url.clone().map(|path| {
+            return PathBuf::from(&path);
+        });
+        match path {
+            Some(path) => match path.is_absolute() {
+                true => Ok(()),
+                false => Err(format!("Admin base URL should be absolute path: \"{}\"", path.to_string_lossy().to_string()).into()),
+            }
+            None => Ok(())
+        }
+    }
+
     fn check_mocks_path(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         let path = Path::new(&self.mocks);
         let metadata = metadata(path)?;
@@ -49,9 +65,7 @@ impl ServerParams {
         return Ok(());
     }
 
-    pub fn get_absolute_mocks_path(
-        &self,
-    ) -> Result<PathBuf, Box<dyn std::error::Error + Sync + Send>> {
+    pub fn get_absolute_mocks_path(&self) -> Result<PathBuf, Box<dyn std::error::Error + Sync + Send>> {
         let path = Path::new(&self.mocks).to_owned();
         match path.is_absolute() {
             true => Ok(path),
@@ -63,10 +77,14 @@ impl ServerParams {
     }
 
     pub fn test(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-        let mocks_path_err = self.check_mocks_path();
-        if mocks_path_err.is_err() {
-            return mocks_path_err;
+        if let Err(e) = self.check_mocks_path() {
+            return Err(e);
         }
+
+        if let Err(e) = self.check_admin_base_url() {
+            return Err(e);
+        }
+
         return Ok(());
     }
 }
