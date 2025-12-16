@@ -711,6 +711,7 @@ dependencies = [
 name = "mockers"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "clap",
  "http-body-util",
  "hyper",

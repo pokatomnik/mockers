@@ -9,10 +9,6 @@ use std::sync::Arc;
 pub async fn admin_page_handler(
     req: Request<Full<Bytes>>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
-    let context = req
-        .data::<Arc<MockersContext>>()
-        .map(|c| c.clone().response_cache.clone());
-    
     return Ok(Response::builder()
         .status(StatusCode::OK)
         // TODO send SPA HTML here
