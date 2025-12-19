@@ -42,7 +42,7 @@ impl InMemoryMocks {
     /// Get all mocks by specified path
     pub async fn get_by_path<P>(&self, path: P) -> Option<HashMap<String, CachedResponse>>
     where
-        P: Into<String>
+        P: Into<String>,
     {
         let guard = self.mocks.write().await;
         let mocks = guard.lock().await;
@@ -50,10 +50,10 @@ impl InMemoryMocks {
     }
 
     /// Get response from in-memory cache
-    pub async fn get<M, P>(&self, method: M, path: P) -> Option<CachedResponse>
+    pub async fn get_mock_by_path_and_method<M, P>(&self, path: P, method: M) -> Option<CachedResponse>
     where
         M: Into<String>,
-        P: Into<String>
+        P: Into<String>,
     {
         let guard = self.mocks.read().await;
         let mocks = guard.lock().await;
@@ -72,7 +72,7 @@ impl InMemoryMocks {
     ) -> ()
     where
         M: Into<String>,
-        P: Into<String>
+        P: Into<String>,
     {
         let guard = self.mocks.write().await;
         let mut mocks = guard.lock().await;

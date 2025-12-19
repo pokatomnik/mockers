@@ -7,6 +7,7 @@ use routerify_ng::Router;
 use crate::controllers::api::admin_page_handler::admin_page_handler;
 use crate::controllers::api::get_all_mocks::get_all_mocks;
 use crate::controllers::api::get_mocks_by_path::get_all_mocks_by_path;
+use crate::controllers::api::get_mocks_by_path_and_method::get_mocks_by_path_and_method;
 use crate::controllers::api::post_create_mock::post_create_mock;
 use crate::controllers::error::error_handler;
 use crate::controllers::mocks::mock_handler::mock_handler;
@@ -20,6 +21,7 @@ pub fn admin_router(_params: &ServerParams) -> Router<Infallible> {
         .get("/", admin_page_handler)
         .get("/api/v1/mocks", get_all_mocks)
         .get("/api/v1/mocks/:path_encoded", get_all_mocks_by_path)
+        .get("/api/v1/mocks/:path_encoded/:method", get_mocks_by_path_and_method)
         .post("/api/v1/mocks", post_create_mock)
         .build()
         .unwrap()
