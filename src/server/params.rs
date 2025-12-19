@@ -1,4 +1,4 @@
-use clap::{arg, Args};
+use clap::{Args};
 use std::fs::metadata;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};

@@ -1,5 +1,5 @@
 use super::commands::Commands;
-use clap::{command, Parser};
+use clap::Parser;
 
 #[derive(Parser)]
 #[command(name = "Mockers")]
