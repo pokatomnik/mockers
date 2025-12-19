@@ -46,8 +46,8 @@ pub async fn get_mocks_by_path_and_method(
                 .unwrap_or(Bytes::from(Bytes::new()));
             Ok(Response::builder()
                 .status(&status_code)
-                .body(Full::new(bytes)))
-                .unwrap()
+                .body(Full::new(bytes))
+                .unwrap())
         }
         None => {
             let json = serde_json::to_string(&Err::<
@@ -56,9 +56,10 @@ pub async fn get_mocks_by_path_and_method(
             >(
                 "GET_MOCKS_BY_PATH_AND_METHOD_FAILED".to_string()
             ));
+            let bytes = json.map(|s| Bytes::from(s)).unwrap_or(Bytes::new());
             Ok(Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(Full::new(Bytes::from(json.unwrap_or("".to_string()))))
+                .body(Full::new(Bytes::from(bytes)))
                 .unwrap())
         }
     }

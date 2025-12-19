@@ -47,9 +47,10 @@ pub async fn get_all_mocks_by_path(
                 HashMap<String, HashMap<String, CachedResponse>>,
                 String,
             >("GET_MOCKS_BY_PATH_FAILED".to_string()));
+            let bytes = json.map(|s| Bytes::from(s)).unwrap_or(Bytes::new());
             Ok(Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(Full::new(Bytes::from(json.unwrap_or("".to_string()))))
+                .body(Full::new(Bytes::from(bytes)))
                 .unwrap())
         }
     }
