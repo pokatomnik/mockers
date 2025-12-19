@@ -48,7 +48,9 @@ pub async fn post_create_mock(
                             )
                             .await;
                     });
-                    Ok(Response::builder().body(Full::new("".into())).unwrap())
+                    Ok(Response::builder()
+                        .body(Full::new(Bytes::from(Bytes::new())))
+                        .unwrap())
                 }
                 Err(_) => {
                     let json = serde_json::to_string(&Err::<

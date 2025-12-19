@@ -16,13 +16,13 @@ use crate::server::mockers_context::MockersContext;
 use crate::server::params::ServerParams;
 
 pub fn admin_router(_params: &ServerParams) -> Router<Infallible> {
-    return Router::builder()
+    Router::builder()
         .get("/", admin_page_handler)
         .get("/api/v1/mocks", get_all_mocks)
         .get("/api/v1/mocks/:path_encoded", get_all_mocks_by_path)
         .post("/api/v1/mocks", post_create_mock)
         .build()
-        .unwrap();
+        .unwrap()
 }
 
 pub fn mockers_router(params: &ServerParams) -> Router<Infallible> {

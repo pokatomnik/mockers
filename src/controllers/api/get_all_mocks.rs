@@ -21,9 +21,16 @@ pub async fn get_all_mocks(
                 HashMap<String, HashMap<String, CachedResponse>>,
                 String,
             >(all_mocks));
+            let status_code = json
+                .as_ref()
+                .map(|_| StatusCode::OK)
+                .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+            let bytes = json
+                .map(|str| Bytes::from(str))
+                .unwrap_or(Bytes::from(Bytes::new()));
             Ok(Response::builder()
-                .status(StatusCode::OK)
-                .body(Full::new(Bytes::from(json.unwrap_or("".to_string()))))
+                .status(status_code)
+                .body(Full::new(bytes))
                 .unwrap())
         }
         None => {
