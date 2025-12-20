@@ -35,22 +35,28 @@ pub async fn post_create_mock(
             match create_mock_params {
                 Ok(mock_params) => {
                     // do not wait, respond immediately
+                    let path = mock_params.path.clone();
+                    let method = mock_params.method.clone();
                     tokio::spawn(async move {
-                        cache
-                            .upsert(
-                                mock_params.method,
-                                mock_params.path,
-                                &CachedResponse {
-                                    status_code: mock_params.status_code,
-                                    headers: mock_params.headers,
-                                    body: mock_params.body,
-                                },
-                            )
-                            .await;
+                        let response = &CachedResponse {
+                            status_code: mock_params.status_code,
+                            headers: mock_params.headers,
+                            body: mock_params.body,
+                        };
+                        cache.upsert(path, method, response).await;
                     });
+                    let json = serde_json::to_string(&Ok::<String, String>(format!(
+                        "Mock inserted for path: '{}' and method: '{}'",
+                        mock_params.path, mock_params.method
+                    )));
+                    let status = json
+                        .as_ref()
+                        .map(|_| StatusCode::OK)
+                        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+                    let bytes = json.map(|str| Bytes::from(str)).unwrap_or(Bytes::new());
                     Ok(Response::builder()
-                        .status(StatusCode::OK)
-                        .body(Full::new(Bytes::from(Bytes::new())))
+                        .status(status)
+                        .body(Full::new(Bytes::from(bytes)))
                         .unwrap())
                 }
                 Err(_) => {

@@ -2,11 +2,13 @@ use std::convert::Infallible;
 use std::sync::Arc;
 
 use crate::controllers::api::admin_page_handler::admin_page_handler;
+use crate::controllers::api::delete_remove_mock_by_path_and_method::delete_remove_mock_by_path_and_method;
 use crate::controllers::api::get_all_mocks::get_all_mocks;
 use crate::controllers::api::get_mocks_by_path::get_all_mocks_by_path;
 use crate::controllers::api::get_mocks_by_path_and_method::get_mocks_by_path_and_method;
 use crate::controllers::api::post_create_mock::post_create_mock;
 use crate::controllers::error::error_handler;
+use crate::controllers::mock_handler::mock_handler;
 use crate::libs::response_cache::InMemoryMocks;
 use crate::middlewares::logger::logger;
 use crate::server::mockers_context::MockersContext;
@@ -14,7 +16,7 @@ use crate::server::params::ServerParams;
 use reqwest::Client;
 use routerify_ng::Middleware;
 use routerify_ng::Router;
-use crate::controllers::mock_handler::mock_handler;
+use crate::controllers::api::delete_remove_mocks_by_path::delete_remove_mocks_by_path;
 
 pub fn admin_router(_params: &ServerParams) -> Router<Infallible> {
     Router::builder()
@@ -26,6 +28,11 @@ pub fn admin_router(_params: &ServerParams) -> Router<Infallible> {
             get_mocks_by_path_and_method,
         )
         .post("/api/v1/mocks", post_create_mock)
+        .delete(
+            "/api/v1/mocks/:path_encoded/:method",
+            delete_remove_mock_by_path_and_method,
+        )
+        .delete("/api/v1/mocks/:path_encoded", delete_remove_mocks_by_path)
         .build()
         .unwrap()
 }

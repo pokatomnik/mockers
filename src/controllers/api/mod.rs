@@ -1,5 +1,7 @@
 pub mod admin_page_handler;
+pub mod delete_remove_mock_by_path_and_method;
+pub mod delete_remove_mocks_by_path;
 pub mod get_all_mocks;
 pub mod get_mocks_by_path;
-pub mod post_create_mock;
 pub mod get_mocks_by_path_and_method;
+pub mod post_create_mock;

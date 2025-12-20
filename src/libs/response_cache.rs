@@ -50,7 +50,11 @@ impl InMemoryMocks {
     }
 
     /// Get response from in-memory cache
-    pub async fn get_mock_by_path_and_method<M, P>(&self, path: P, method: M) -> Option<CachedResponse>
+    pub async fn get_mock_by_path_and_method<M, P>(
+        &self,
+        path: P,
+        method: M,
+    ) -> Option<CachedResponse>
     where
         M: Into<String>,
         P: Into<String>,
@@ -64,12 +68,7 @@ impl InMemoryMocks {
     }
 
     /// Set response to in-memory cache
-    pub async fn upsert<M, P>(
-        &self,
-        method: M,
-        path: P,
-        response: &CachedResponse,
-    ) -> ()
+    pub async fn upsert<M, P>(&self, path: P, method: M, response: &CachedResponse) -> ()
     where
         M: Into<String>,
         P: Into<String>,
@@ -83,8 +82,8 @@ impl InMemoryMocks {
         method_map.insert(method.clone(), response.clone());
     }
 
-    /// Remove cached response from in-memory cache
-    pub async fn remove<M, P>(&self, method: M, path: P)
+    /// Remove cached response from in-memory cache by path and method
+    pub async fn remove_by_path_and_method<M, P>(&self, path: P, method: M)
     where
         M: Into<String>,
         P: Into<String>,
@@ -101,6 +100,17 @@ impl InMemoryMocks {
                 mocks.shrink_to_fit();
             }
         }
+    }
+
+    /// Remove cached responses by path
+    pub async fn remove_by_path<P>(&self, path: P)
+    where
+        P: Into<String>,
+    {
+        let guard = self.mocks.write().await;
+        let mut mocks = guard.lock().await;
+        let path = path.into().normalize_path();
+        mocks.remove(&path);
     }
 }
 
