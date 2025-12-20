@@ -1,0 +1,9 @@
+pub mod get_swagger_html;
+pub mod get_swagger_ui_css;
+pub mod static_files;
+pub mod get_index_css;
+pub mod get_favicon_32;
+pub mod get_favicon_16;
+pub mod get_swagger_ui_bundle_js;
+pub mod get_swagger_ui_standalone_preset;
+pub mod get_swagger_initializer_js;
