@@ -7,6 +7,7 @@ use hyper::{Request, Response, StatusCode};
 use routerify_ng::ext::RequestExt;
 use std::convert::Infallible;
 use std::sync::Arc;
+use crate::libs::protocol_result::ProtocolResult;
 
 pub async fn delete_remove_mock_by_path_and_method(
     req: Request<Full<Bytes>>,
@@ -37,16 +38,14 @@ pub async fn delete_remove_mock_by_path_and_method(
             let p = path.clone();
             let m = method.clone();
             tokio::spawn(async move {
-                cache
-                    .remove_by_path_and_method(p, m)
-                    .await;
+                cache.remove_by_path_and_method(p, m).await;
             });
-            let json = serde_json::to_string(&Ok::<String, String>(
+            let json = serde_json::to_string(&ProtocolResult::Ok::<String, String>(
                 format!(
                     "Removed mocks for path: '{}' and method: '{}'",
                     path, method
                 )
-                    .to_string(),
+                .to_string(),
             ));
             let status = json
                 .as_ref()
@@ -59,7 +58,7 @@ pub async fn delete_remove_mock_by_path_and_method(
                 .unwrap())
         }
         None => {
-            let json = serde_json::to_string(&Err::<String, String>(
+            let json = serde_json::to_string(&ProtocolResult::Err::<String, String>(
                 "REMOVE_MOCKS_FAILED_BY_PATH_AND_METHOD".to_string(),
             ));
             let bytes = json.map(|str| Bytes::from(str)).unwrap_or(Bytes::new());

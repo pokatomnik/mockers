@@ -1,3 +1,4 @@
+use crate::libs::protocol_result::ProtocolResult;
 use crate::libs::response_cache::CachedResponse;
 use crate::server::mockers_context::MockersContext;
 use base64::prelude::BASE64_STANDARD;
@@ -36,7 +37,9 @@ pub async fn get_mocks_by_path_and_method(
     match response_cache {
         Some(cache) => {
             let mocks_by_path_and_method = cache.get_mock_by_path_and_method(path, method).await;
-            let json = serde_json::to_string(&mocks_by_path_and_method);
+            let json = serde_json::to_string(
+                &ProtocolResult::Ok::<Option<CachedResponse>, String>(mocks_by_path_and_method),
+            );
             let status_code = json
                 .as_ref()
                 .map(|_| StatusCode::OK)
@@ -50,7 +53,7 @@ pub async fn get_mocks_by_path_and_method(
                 .unwrap())
         }
         None => {
-            let json = serde_json::to_string(&Err::<
+            let json = serde_json::to_string(&ProtocolResult::Err::<
                 HashMap<String, HashMap<String, CachedResponse>>,
                 String,
             >(

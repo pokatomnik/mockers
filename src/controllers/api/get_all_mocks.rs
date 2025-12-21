@@ -7,6 +7,7 @@ use routerify_ng::ext::RequestExt;
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::sync::Arc;
+use crate::libs::protocol_result::ProtocolResult;
 
 pub async fn get_all_mocks(req: Request<Full<Bytes>>) -> Result<Response<Full<Bytes>>, Infallible> {
     let response_cache = req
@@ -15,7 +16,7 @@ pub async fn get_all_mocks(req: Request<Full<Bytes>>) -> Result<Response<Full<By
     match response_cache {
         Some(cache) => {
             let all_mocks = cache.get_all().await;
-            let json = serde_json::to_string(&Ok::<
+            let json = serde_json::to_string(&ProtocolResult::Ok::<
                 HashMap<String, HashMap<String, CachedResponse>>,
                 String,
             >(all_mocks));
@@ -32,7 +33,7 @@ pub async fn get_all_mocks(req: Request<Full<Bytes>>) -> Result<Response<Full<By
                 .unwrap())
         }
         None => {
-            let json = serde_json::to_string(&Err::<
+            let json = serde_json::to_string(&ProtocolResult::Err::<
                 HashMap<String, HashMap<String, CachedResponse>>,
                 String,
             >("GET_ALL_MOCKS_FAILED".to_string()));

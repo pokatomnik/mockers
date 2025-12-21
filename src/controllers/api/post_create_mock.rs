@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::sync::Arc;
+use crate::libs::protocol_result::ProtocolResult;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,7 +46,7 @@ pub async fn post_create_mock(
                         };
                         cache.upsert(path, method, response).await;
                     });
-                    let json = serde_json::to_string(&Ok::<String, String>(format!(
+                    let json = serde_json::to_string(&ProtocolResult::Ok::<String, String>(format!(
                         "Mock inserted for path: '{}' and method: '{}'",
                         mock_params.path, mock_params.method
                     )));
@@ -60,7 +61,7 @@ pub async fn post_create_mock(
                         .unwrap())
                 }
                 Err(_) => {
-                    let json = serde_json::to_string(&Err::<
+                    let json = serde_json::to_string(&ProtocolResult::Err::<
                         HashMap<String, HashMap<String, CachedResponse>>,
                         String,
                     >(
@@ -75,7 +76,7 @@ pub async fn post_create_mock(
             }
         }
         None => {
-            let json = serde_json::to_string(&Err::<
+            let json = serde_json::to_string(&ProtocolResult::Err::<
                 HashMap<String, HashMap<String, CachedResponse>>,
                 String,
             >("GET_ALL_MOCKS_FAILED".to_string()));
