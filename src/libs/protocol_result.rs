@@ -14,7 +14,7 @@ pub trait HTTPResult<T, E> {
 impl<T, E> HTTPResult<T, E> for Result<T, E> {
     /// Convert `Result` to `ProtocolResult` for HTTP transmission
     fn to_protocol(self) -> ProtocolResult<T, E> {
-        match (self) {
+        match self {
             Ok(v) => ProtocolResult::Ok(v),
             Err(e) => ProtocolResult::Err(e),
         }
