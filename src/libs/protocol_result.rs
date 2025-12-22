@@ -7,6 +7,20 @@ pub enum ProtocolResult<T, E> {
     Err(E),
 }
 
+pub trait HTTPResult<T, E> {
+    fn to_protocol(self) -> ProtocolResult<T, E>;
+}
+
+impl<T, E> HTTPResult<T, E> for Result<T, E> {
+    /// Convert `Result` to `ProtocolResult` for HTTP transmission
+    fn to_protocol(self) -> ProtocolResult<T, E> {
+        match (self) {
+            Ok(v) => ProtocolResult::Ok(v),
+            Err(e) => ProtocolResult::Err(e)
+        }
+    }
+}
+
 impl<T, E> ProtocolResult<T, E> {
     fn from(r: Result<T, E>) -> Self {
         match r {

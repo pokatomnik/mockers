@@ -1,3 +1,4 @@
+use crate::libs::protocol_result::HTTPResult;
 use crate::libs::response_cache::CachedResponse;
 use crate::server::mockers_context::MockersContext;
 use http_body_util::{BodyExt, Full};
@@ -8,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::sync::Arc;
-use crate::libs::protocol_result::ProtocolResult;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -46,10 +46,13 @@ pub async fn post_create_mock(
                         };
                         cache.upsert(path, method, response).await;
                     });
-                    let json = serde_json::to_string(&ProtocolResult::Ok::<String, String>(format!(
-                        "Mock inserted for path: '{}' and method: '{}'",
-                        mock_params.path, mock_params.method
-                    )));
+                    let json = serde_json::to_string(
+                        &Ok::<String, String>(format!(
+                            "Mock inserted for path: '{}' and method: '{}'",
+                            mock_params.path, mock_params.method
+                        ))
+                        .to_protocol(),
+                    );
                     let status = json
                         .as_ref()
                         .map(|_| StatusCode::OK)
@@ -61,12 +64,12 @@ pub async fn post_create_mock(
                         .unwrap())
                 }
                 Err(_) => {
-                    let json = serde_json::to_string(&ProtocolResult::Err::<
-                        HashMap<String, HashMap<String, CachedResponse>>,
-                        String,
-                    >(
-                        "ADD_MOCK_FAILED".to_string()
-                    ));
+                    let json = serde_json::to_string(
+                        &Err::<HashMap<String, HashMap<String, CachedResponse>>, String>(
+                            "ADD_MOCK_FAILED".to_string(),
+                        )
+                        .to_protocol(),
+                    );
                     let bytes = json.map(|s| Bytes::from(s)).unwrap_or(Bytes::new());
                     Ok(Response::builder()
                         .status(StatusCode::INTERNAL_SERVER_ERROR)
@@ -76,10 +79,12 @@ pub async fn post_create_mock(
             }
         }
         None => {
-            let json = serde_json::to_string(&ProtocolResult::Err::<
-                HashMap<String, HashMap<String, CachedResponse>>,
-                String,
-            >("GET_ALL_MOCKS_FAILED".to_string()));
+            let json = serde_json::to_string(
+                &Err::<HashMap<String, HashMap<String, CachedResponse>>, String>(
+                    "GET_ALL_MOCKS_FAILED".to_string(),
+                )
+                .to_protocol(),
+            );
             let bytes = json.map(|s| Bytes::from(s)).unwrap_or(Bytes::new());
             Ok(Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)

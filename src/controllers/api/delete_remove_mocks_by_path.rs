@@ -1,3 +1,4 @@
+use crate::libs::protocol_result::HTTPResult;
 use crate::server::mockers_context::MockersContext;
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
@@ -7,7 +8,6 @@ use hyper::{Request, Response, StatusCode};
 use routerify_ng::ext::RequestExt;
 use std::convert::Infallible;
 use std::sync::Arc;
-use crate::libs::protocol_result::ProtocolResult;
 
 pub async fn delete_remove_mocks_by_path(
     req: Request<Full<Bytes>>,
@@ -33,9 +33,10 @@ pub async fn delete_remove_mocks_by_path(
             tokio::spawn(async move {
                 cache.remove_by_path(path).await;
             });
-            let json = serde_json::to_string(&ProtocolResult::Ok::<String, String>(
-                format!("Removed mocks for path: '{}'", p).to_string(),
-            ));
+            let json = serde_json::to_string(
+                &Ok::<String, String>(format!("Removed mocks for path: '{}'", p).to_string())
+                    .to_protocol(),
+            );
             let status = json
                 .as_ref()
                 .map(|_| StatusCode::OK)
@@ -47,9 +48,9 @@ pub async fn delete_remove_mocks_by_path(
                 .unwrap())
         }
         None => {
-            let json = serde_json::to_string(&ProtocolResult::Err::<String, String>(
-                "REMOVE_MOCKS_FAILED_BY_PATH".to_string(),
-            ));
+            let json = serde_json::to_string(
+                &Err::<String, String>("REMOVE_MOCKS_FAILED_BY_PATH".to_string()).to_protocol(),
+            );
             let bytes = json.map(|str| Bytes::from(str)).unwrap_or(Bytes::new());
             Ok(Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)

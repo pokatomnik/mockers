@@ -1,4 +1,4 @@
-use crate::libs::protocol_result::ProtocolResult;
+use crate::libs::protocol_result::HTTPResult;
 use crate::libs::response_cache::CachedResponse;
 use crate::server::mockers_context::MockersContext;
 use base64::prelude::BASE64_STANDARD;
@@ -38,7 +38,7 @@ pub async fn get_mocks_by_path_and_method(
         Some(cache) => {
             let mocks_by_path_and_method = cache.get_mock_by_path_and_method(path, method).await;
             let json = serde_json::to_string(
-                &ProtocolResult::Ok::<Option<CachedResponse>, String>(mocks_by_path_and_method),
+                &Ok::<Option<CachedResponse>, String>(mocks_by_path_and_method).to_protocol(),
             );
             let status_code = json
                 .as_ref()
@@ -53,12 +53,12 @@ pub async fn get_mocks_by_path_and_method(
                 .unwrap())
         }
         None => {
-            let json = serde_json::to_string(&ProtocolResult::Err::<
-                HashMap<String, HashMap<String, CachedResponse>>,
-                String,
-            >(
-                "GET_MOCKS_BY_PATH_AND_METHOD_FAILED".to_string()
-            ));
+            let json = serde_json::to_string(
+                &Err::<HashMap<String, HashMap<String, CachedResponse>>, String>(
+                    "GET_MOCKS_BY_PATH_AND_METHOD_FAILED".to_string(),
+                )
+                .to_protocol(),
+            );
             let bytes = json.map(|s| Bytes::from(s)).unwrap_or(Bytes::new());
             Ok(Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
