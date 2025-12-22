@@ -1,4 +1,4 @@
-use crate::libs::protocol_result::HTTPResult;
+use crate::libs::protocol_result::ProtocolResultConverter;
 use crate::libs::response_cache::CachedResponse;
 use crate::server::mockers_context::MockersContext;
 use base64::prelude::BASE64_STANDARD;
