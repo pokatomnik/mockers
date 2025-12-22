@@ -16,15 +16,6 @@ impl<T, E> HTTPResult<T, E> for Result<T, E> {
     fn to_protocol(self) -> ProtocolResult<T, E> {
         match (self) {
             Ok(v) => ProtocolResult::Ok(v),
-            Err(e) => ProtocolResult::Err(e)
-        }
-    }
-}
-
-impl<T, E> ProtocolResult<T, E> {
-    fn from(r: Result<T, E>) -> Self {
-        match r {
-            Ok(v) => ProtocolResult::Ok(v),
             Err(e) => ProtocolResult::Err(e),
         }
     }
