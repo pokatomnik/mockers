@@ -1,7 +1,7 @@
 use crate::libs::create_params::CreateParams;
 
 use super::super::server::params::ServerParams;
-use clap::{Subcommand, command};
+use clap::Subcommand;
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {

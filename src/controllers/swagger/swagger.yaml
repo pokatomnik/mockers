@@ -1,0 +1,1015 @@
+---
+openapi: 3.0.0
+info:
+  description: "Mockers"
+  version: "0.1.0"
+  title: "Mockers"
+  termsOfService: "https://github.com/pokatomnik/mockers/LICENSE.md"
+  contact:
+    email: "pokatomnik@yandex.ru"
+  license:
+    name: "MIT"
+    url: "https://github.com/pokatomnik/mockers/LICENSE"
+
+tags:
+  - name: "admin"
+    description: "Mockers admin page"
+  - name: "mocks"
+    description: "Mocks routes"
+
+paths:
+  /:
+    get:
+      tags:
+        - admin
+      summary: "get admin page HTML (TBD)"
+      description: ""
+      responses:
+        200:
+          description: "Mockers admin page"
+          content:
+            text/html:
+              schema:
+                type: string
+  /api/v1/mocks:
+    get:
+      tags:
+        - admin
+      summary: "get all mocks at once"
+      description: ""
+      responses:
+        200:
+          description: "all mocks"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AllMocksOk"
+        500:
+          description: "failed to get all mocks"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AllMocksErr"
+    post:
+      tags:
+        - admin
+      summary: "create a new mock"
+      description: ""
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMockParams"
+      responses:
+        200:
+          description: "a new mock created"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksUpdateOperationOk"
+        500:
+          description: "failed to create a new mock"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MockUpdateOperationErr"
+  /api/v1/mocks/{path_encoded}:
+    get:
+      tags:
+        - admin
+      summary: "get all mocks by specified path"
+      parameters:
+        - name: path_encoded
+          in: path
+          required: true
+          description: "Base64-encoded pathname"
+      responses:
+        200:
+          description: "all mocks for specified path"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksByPathOk"
+        500:
+          description: "failed to get mocks by path"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksByPathErr"
+    delete:
+      tags:
+        - admin
+      summary: "delete all mocks by pathname"
+      parameters:
+        - name: "path_encoded"
+          in: path
+          required: true
+          description: "Base-64 encoded pathname"
+      responses:
+        200:
+          description: "mocks deleted by pathname"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksUpdateOperationOk"
+        500:
+          description: "failed to delete mocks by pathname"
+          content: 
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/MockUpdateOperationErr"
+  /api/v1/mocks/{path_encoded}/{method}:
+    get:
+      tags:
+        - admin
+      summary: "get mock by path and method"
+      parameters:
+        - name: path_encoded
+          in: path
+          required: true
+          description: "Base64-encoded pathname"
+        - name: method
+          in: path
+          required: true
+          description: "HTTP method"
+      responses:
+        200:
+          description: "mock by pathname and method"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksByPathAndMethodOk"
+        500:
+          description: "failed to get mock by path and method"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksByPathAndMethodErr"
+    delete: 
+      tags:
+        - admin
+      summary: "delete mock by pathname and method"
+      parameters:
+        - name: path_encoded
+          in: path
+          required: true
+          description: "Base64-encoded pathname"
+        - name: method
+          in: path
+          required: true
+          description: HTTP method
+      responses:
+        200:
+          description: "mock removed by pathname and http method"
+          content:
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/MocksUpdateOperationOk"
+        500:
+          description: "failed to remove mock by pathname and http method"
+          content: 
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/MockUpdateOperationErr"
+
+components:
+  schemas:
+    MocksUpdateOperationOk:
+      type: object
+      description: "This response will be sent when mock created"
+      properties:
+        ok:
+          type: string
+    MockUpdateOperationErr:
+      type: object
+      description: "Faile to create mock"
+      properties:
+        err:
+          $ref: "#/components/schemas/MockersAdminErrors"
+    AllMocksOk:
+      type: object
+      description: "All mocks Ok response"
+      properties:
+        ok:
+          $ref: "#/components/schemas/AllMocks"
+    AllMocksErr:
+      type: object
+      description: "Failed to get all mocks"
+      properties:
+        err:
+          $ref: "#/components/schemas/MockersAdminErrors"
+    MocksByPathOk:
+      type: object
+      description: "mocks by path Ok response"
+      properties:
+        ok:
+          $ref: "#/components/schemas/MocksByURLMap"
+    MocksByPathErr:
+      type: object
+      description: "failed to get mocks by path"
+      properties:
+        err:
+          $ref: "#/components/schemas/MockersAdminErrors"
+    MocksByPathAndMethodOk:
+      type: object
+      description: "mocks by path and method OK response"
+      properties:
+        ok:
+          allOf:
+            - nullable: true
+            - $ref: "#/components/schemas/CachedResponse"
+    MocksByPathAndMethodErr:
+      type: object
+      description: "failed to get mocks by path and method"
+      properties:
+        err:
+          $ref: "#/components/schemas/MockersAdminErrors"
+    AllMocks:
+      type: object
+      description: "All mocks"
+      additionalProperties:
+        $ref: "#/components/schemas/MocksByURLMap"
+      example:
+        "foo/bar/baz":
+          get:
+            statusCode: 201
+            headers:
+              "Content-Type": "application/json"
+              "X-Server": "Mockers"
+            body: { "foo": "bar" }
+    MocksByURLMap:
+      nullable: true
+      type: object
+      description: "All mocks by method"
+      properties:
+        get:
+          $ref: "#/components/schemas/CachedResponse"
+        post:
+          $ref: "#/components/schemas/CachedResponse"
+        put:
+          $ref: "#/components/schemas/CachedResponse"
+        delete:
+          $ref: "#/components/schemas/CachedResponse"
+        patch:
+          $ref: "#/components/schemas/CachedResponse"
+        head:
+          $ref: "#/components/schemas/CachedResponse"
+        options:
+          $ref: "#/components/schemas/CachedResponse"
+        trace:
+          $ref: "#/components/schemas/CachedResponse"
+      example:
+        get:
+          statusCode: 201
+          headers:
+            "Content-Type": "application/json"
+            "X-Server": "Mockers"
+          body: { "foo": "bar" }
+        post:
+          statusCode: 202
+          headers:
+            "Content-Type": "application/json"
+            "X-Server": "Mockers"
+          body: { "foo": "baz" }
+    CachedResponse:
+      type: object
+      description: "Cached response"
+      required: [ statusCode, headers, body ]
+      properties:
+        statusCode:
+          type: integer
+          description: "HTTP response status code"
+          example: 201
+        headers:
+          $ref: "#/components/schemas/HeadersMap"
+        body:
+          type: string
+          description: "HTTP response body"
+          example: { "foo": "bar" }
+    HeadersMap:
+      type: object
+      additionalProperties:
+        type: string
+      example:
+        "Content-Type": "application/json"
+        "X-Server": "Mockers"
+    CreateMockParams:
+      type: object
+      properties:
+        path:
+          type: string
+          description: "url path to bind"
+        method:
+          $ref: "#/components/schemas/HTTPMethods"
+        statusCode:
+          type: integer
+          description: "HTTP status code to be sent"
+        headers:
+          $ref: "#/components/schemas/HeadersMap"
+        body:
+          type: string
+          description: "HTTP body to be sent"
+    MockersAdminErrors:
+      type: string
+      description: All mockers admin API errors
+      enum:
+        - REMOVE_MOCKS_FAILED_BY_PATH_AND_METHOD
+        - REMOVE_MOCKS_FAILED_BY_PATH
+        - GET_ALL_MOCKS_FAILED
+        - GET_MOCKS_BY_PATH_FAILED
+        - GET_MOCKS_BY_PATH_AND_METHOD_FAILED
+        - ADD_MOCK_FAILED
+    HTTPMethods:
+      type: string
+      description: "HTTP method"
+      enum:
+        - get
+        - post
+        - put
+        - delete
+        - patch
+        - head
+        - options
+        - trace
+
+
+
+
+
+
+
+
+
+
+
+#  /pet/{petId}/uploadImage:
+#    post:
+#      tags:
+#        - "pet"
+#      summary: "uploads an image"
+#      description: ""
+#      operationId: "uploadFile"
+#      consumes:
+#        - "multipart/form-data"
+#      produces:
+#        - "application/json"
+#      parameters:
+#        - name: "petId"
+#          in: "path"
+#          description: "ID of pet to update"
+#          required: true
+#          type: "integer"
+#          format: "int64"
+#        - name: "additionalMetadata"
+#          in: "formData"
+#          description: "Additional data to pass to server"
+#          required: false
+#          type: "string"
+#        - name: "file"
+#          in: "formData"
+#          description: "file to upload"
+#          required: false
+#          type: "file"
+#      responses:
+#        200:
+#          description: "successful operation"
+#          schema:
+#            $ref: "#/definitions/ApiResponse"
+#      security:
+#        - petstore_auth:
+#            - "write:pets"
+#            - "read:pets"
+#  /pet:
+#    post:
+#      tags:
+#        - "pet"
+#      summary: "Add a new pet to the store"
+#      description: ""
+#      operationId: "addPet"
+#      consumes:
+#        - "application/json"
+#        - "application/xml"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - in: "body"
+#          name: "body"
+#          description: "Pet object that needs to be added to the store"
+#          required: true
+#          schema:
+#            $ref: "#/definitions/Pet"
+#      responses:
+#        405:
+#          description: "Invalid input"
+#      security:
+#        - petstore_auth:
+#            - "write:pets"
+#            - "read:pets"
+#    put:
+#      tags:
+#        - "pet"
+#      summary: "Update an existing pet"
+#      description: ""
+#      operationId: "updatePet"
+#      consumes:
+#        - "application/json"
+#        - "application/xml"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - in: "body"
+#          name: "body"
+#          description: "Pet object that needs to be added to the store"
+#          required: true
+#          schema:
+#            $ref: "#/definitions/Pet"
+#      responses:
+#        400:
+#          description: "Invalid ID supplied"
+#        404:
+#          description: "Pet not found"
+#        405:
+#          description: "Validation exception"
+#      security:
+#        - petstore_auth:
+#            - "write:pets"
+#            - "read:pets"
+#  /pet/findByStatus:
+#    get:
+#      tags:
+#        - "pet"
+#      summary: "Finds Pets by status"
+#      description: "Multiple status values can be provided with comma separated strings"
+#      operationId: "findPetsByStatus"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - name: "status"
+#          in: "query"
+#          description: "Status values that need to be considered for filter"
+#          required: true
+#          type: "array"
+#          items:
+#            type: "string"
+#            enum:
+#              - "available"
+#              - "pending"
+#              - "sold"
+#            default: "available"
+#          collectionFormat: "multi"
+#      responses:
+#        200:
+#          description: "successful operation"
+#          schema:
+#            type: "array"
+#            items:
+#              $ref: "#/definitions/Pet"
+#        400:
+#          description: "Invalid status value"
+#      security:
+#        - petstore_auth:
+#            - "write:pets"
+#            - "read:pets"
+#  /pet/findByTags:
+#    get:
+#      tags:
+#        - "pet"
+#      summary: "Finds Pets by tags"
+#      description: "Multiple tags can be provided with comma separated strings. Use\
+#        \ tag1, tag2, tag3 for testing."
+#      operationId: "findPetsByTags"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - name: "tags"
+#          in: "query"
+#          description: "Tags to filter by"
+#          required: true
+#          type: "array"
+#          items:
+#            type: "string"
+#          collectionFormat: "multi"
+#      responses:
+#        200:
+#          description: "successful operation"
+#          schema:
+#            type: "array"
+#            items:
+#              $ref: "#/definitions/Pet"
+#        400:
+#          description: "Invalid tag value"
+#      security:
+#        - petstore_auth:
+#            - "write:pets"
+#            - "read:pets"
+#      deprecated: true
+#  /pet/{petId}:
+#    get:
+#      tags:
+#        - "pet"
+#      summary: "Find pet by ID"
+#      description: "Returns a single pet"
+#      operationId: "getPetById"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - name: "petId"
+#          in: "path"
+#          description: "ID of pet to return"
+#          required: true
+#          type: "integer"
+#          format: "int64"
+#      responses:
+#        200:
+#          description: "successful operation"
+#          schema:
+#            $ref: "#/definitions/Pet"
+#        400:
+#          description: "Invalid ID supplied"
+#        404:
+#          description: "Pet not found"
+#      security:
+#        - api_key: [ ]
+#    post:
+#      tags:
+#        - "pet"
+#      summary: "Updates a pet in the store with form data"
+#      description: ""
+#      operationId: "updatePetWithForm"
+#      consumes:
+#        - "application/x-www-form-urlencoded"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - name: "petId"
+#          in: "path"
+#          description: "ID of pet that needs to be updated"
+#          required: true
+#          type: "integer"
+#          format: "int64"
+#        - name: "name"
+#          in: "formData"
+#          description: "Updated name of the pet"
+#          required: false
+#          type: "string"
+#        - name: "status"
+#          in: "formData"
+#          description: "Updated status of the pet"
+#          required: false
+#          type: "string"
+#      responses:
+#        405:
+#          description: "Invalid input"
+#      security:
+#        - petstore_auth:
+#            - "write:pets"
+#            - "read:pets"
+#    delete:
+#      tags:
+#        - "pet"
+#      summary: "Deletes a pet"
+#      description: ""
+#      operationId: "deletePet"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - name: "api_key"
+#          in: "header"
+#          required: false
+#          type: "string"
+#        - name: "petId"
+#          in: "path"
+#          description: "Pet id to delete"
+#          required: true
+#          type: "integer"
+#          format: "int64"
+#      responses:
+#        400:
+#          description: "Invalid ID supplied"
+#        404:
+#          description: "Pet not found"
+#      security:
+#        - petstore_auth:
+#            - "write:pets"
+#            - "read:pets"
+#  /store/inventory:
+#    get:
+#      tags:
+#        - "store"
+#      summary: "Returns pet inventories by status"
+#      description: "Returns a map of status codes to quantities"
+#      operationId: "getInventory"
+#      produces:
+#        - "application/json"
+#      parameters: [ ]
+#      responses:
+#        200:
+#          description: "successful operation"
+#          schema:
+#            type: "object"
+#            additionalProperties:
+#              type: "integer"
+#              format: "int32"
+#      security:
+#        - api_key: [ ]
+#  /store/order:
+#    post:
+#      tags:
+#        - "store"
+#      summary: "Place an order for a pet"
+#      description: ""
+#      operationId: "placeOrder"
+#      consumes:
+#        - "application/json"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - in: "body"
+#          name: "body"
+#          description: "order placed for purchasing the pet"
+#          required: true
+#          schema:
+#            $ref: "#/definitions/Order"
+#      responses:
+#        200:
+#          description: "successful operation"
+#          schema:
+#            $ref: "#/definitions/Order"
+#        400:
+#          description: "Invalid Order"
+#  /store/order/{orderId}:
+#    get:
+#      tags:
+#        - "store"
+#      summary: "Find purchase order by ID"
+#      description: "For valid response try integer IDs with value >= 1 and <= 10.\
+#        \ Other values will generated exceptions"
+#      operationId: "getOrderById"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - name: "orderId"
+#          in: "path"
+#          description: "ID of pet that needs to be fetched"
+#          required: true
+#          type: "integer"
+#          maximum: 10
+#          minimum: 1
+#          format: "int64"
+#      responses:
+#        200:
+#          description: "successful operation"
+#          schema:
+#            $ref: "#/definitions/Order"
+#        400:
+#          description: "Invalid ID supplied"
+#        404:
+#          description: "Order not found"
+#    delete:
+#      tags:
+#        - "store"
+#      summary: "Delete purchase order by ID"
+#      description: "For valid response try integer IDs with positive integer value.\
+#        \ Negative or non-integer values will generate API errors"
+#      operationId: "deleteOrder"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - name: "orderId"
+#          in: "path"
+#          description: "ID of the order that needs to be deleted"
+#          required: true
+#          type: "integer"
+#          minimum: 1
+#          format: "int64"
+#      responses:
+#        400:
+#          description: "Invalid ID supplied"
+#        404:
+#          description: "Order not found"
+#  /user/createWithList:
+#    post:
+#      tags:
+#        - "user"
+#      summary: "Creates list of users with given input array"
+#      description: ""
+#      operationId: "createUsersWithListInput"
+#      consumes:
+#        - "application/json"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - in: "body"
+#          name: "body"
+#          description: "List of user object"
+#          required: true
+#          schema:
+#            type: "array"
+#            items:
+#              $ref: "#/definitions/User"
+#      responses:
+#        default:
+#          description: "successful operation"
+#  /user/{username}:
+#    get:
+#      tags:
+#        - "user"
+#      summary: "Get user by user name"
+#      description: ""
+#      operationId: "getUserByName"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - name: "username"
+#          in: "path"
+#          description: "The name that needs to be fetched. Use user1 for testing. "
+#          required: true
+#          type: "string"
+#      responses:
+#        200:
+#          description: "successful operation"
+#          schema:
+#            $ref: "#/definitions/User"
+#        400:
+#          description: "Invalid username supplied"
+#        404:
+#          description: "User not found"
+#    put:
+#      tags:
+#        - "user"
+#      summary: "Updated user"
+#      description: "This can only be done by the logged in user."
+#      operationId: "updateUser"
+#      consumes:
+#        - "application/json"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - name: "username"
+#          in: "path"
+#          description: "name that need to be updated"
+#          required: true
+#          type: "string"
+#        - in: "body"
+#          name: "body"
+#          description: "Updated user object"
+#          required: true
+#          schema:
+#            $ref: "#/definitions/User"
+#      responses:
+#        400:
+#          description: "Invalid user supplied"
+#        404:
+#          description: "User not found"
+#    delete:
+#      tags:
+#        - "user"
+#      summary: "Delete user"
+#      description: "This can only be done by the logged in user."
+#      operationId: "deleteUser"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - name: "username"
+#          in: "path"
+#          description: "The name that needs to be deleted"
+#          required: true
+#          type: "string"
+#      responses:
+#        400:
+#          description: "Invalid username supplied"
+#        404:
+#          description: "User not found"
+#  /user/login:
+#    get:
+#      tags:
+#        - "user"
+#      summary: "Logs user into the system"
+#      description: ""
+#      operationId: "loginUser"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - name: "username"
+#          in: "query"
+#          description: "The user name for login"
+#          required: true
+#          type: "string"
+#        - name: "password"
+#          in: "query"
+#          description: "The password for login in clear text"
+#          required: true
+#          type: "string"
+#      responses:
+#        200:
+#          description: "successful operation"
+#          headers:
+#            X-Expires-After:
+#              type: "string"
+#              format: "date-time"
+#              description: "date in UTC when token expires"
+#            X-Rate-Limit:
+#              type: "integer"
+#              format: "int32"
+#              description: "calls per hour allowed by the user"
+#          schema:
+#            type: "string"
+#        400:
+#          description: "Invalid username/password supplied"
+#  /user/logout:
+#    get:
+#      tags:
+#        - "user"
+#      summary: "Logs out current logged in user session"
+#      description: ""
+#      operationId: "logoutUser"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters: [ ]
+#      responses:
+#        default:
+#          description: "successful operation"
+#  /user/createWithArray:
+#    post:
+#      tags:
+#        - "user"
+#      summary: "Creates list of users with given input array"
+#      description: ""
+#      operationId: "createUsersWithArrayInput"
+#      consumes:
+#        - "application/json"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - in: "body"
+#          name: "body"
+#          description: "List of user object"
+#          required: true
+#          schema:
+#            type: "array"
+#            items:
+#              $ref: "#/definitions/User"
+#      responses:
+#        default:
+#          description: "successful operation"
+#  /user:
+#    post:
+#      tags:
+#        - "user"
+#      summary: "Create user"
+#      description: "This can only be done by the logged in user."
+#      operationId: "createUser"
+#      consumes:
+#        - "application/json"
+#      produces:
+#        - "application/json"
+#        - "application/xml"
+#      parameters:
+#        - in: "body"
+#          name: "body"
+#          description: "Created user object"
+#          required: true
+#          schema:
+#            $ref: "#/definitions/User"
+#      responses:
+#        default:
+#          description: "successful operation"
+
+#  ApiResponse:
+#    type: "object"
+#    properties:
+#      code:
+#        type: "integer"
+#        format: "int32"
+#      type:
+#        type: "string"
+#      message:
+#        type: "string"
+#  Category:
+#    type: "object"
+#    properties:
+#      id:
+#        type: "integer"
+#        format: "int64"
+#      name:
+#        type: "string"
+#    xml:
+#      name: "Category"
+#  Pet:
+#    type: "object"
+#    required:
+#      - "name"
+#      - "photoUrls"
+#    properties:
+#      id:
+#        type: "integer"
+#        format: "int64"
+#      category:
+#        $ref: "#/definitions/Category"
+#      name:
+#        type: "string"
+#        example: "doggie"
+#      photoUrls:
+#        type: "array"
+#        xml:
+#          wrapped: true
+#        items:
+#          type: "string"
+#          xml:
+#            name: "photoUrl"
+#      tags:
+#        type: "array"
+#        xml:
+#          wrapped: true
+#        items:
+#          xml:
+#            name: "tag"
+#          $ref: "#/definitions/Tag"
+#      status:
+#        type: "string"
+#        description: "pet status in the store"
+#        enum:
+#          - "available"
+#          - "pending"
+#          - "sold"
+#    xml:
+#      name: "Pet"
+#  Tag:
+#    type: "object"
+#    properties:
+#      id:
+#        type: "integer"
+#        format: "int64"
+#      name:
+#        type: "string"
+#    xml:
+#      name: "Tag"
+#  Order:
+#    type: "object"
+#    properties:
+#      id:
+#        type: "integer"
+#        format: "int64"
+#      petId:
+#        type: "integer"
+#        format: "int64"
+#      quantity:
+#        type: "integer"
+#        format: "int32"
+#      shipDate:
+#        type: "string"
+#        format: "date-time"
+#      status:
+#        type: "string"
+#        description: "Order Status"
+#        enum:
+#          - "placed"
+#          - "approved"
+#          - "delivered"
+#      complete:
+#        type: "boolean"
+#    xml:
+#      name: "Order"
+#  User:
+#    type: "object"
+#    properties:
+#      id:
+#        type: "integer"
+#        format: "int64"
+#      username:
+#        type: "string"
+#      firstName:
+#        type: "string"
+#      lastName:
+#        type: "string"
+#      email:
+#        type: "string"
+#      password:
+#        type: "string"
+#      phone:
+#        type: "string"
+#      userStatus:
+#        type: "integer"
+#        format: "int32"
+#        description: "User Status"
+#    xml:
+#      name: "User"
+

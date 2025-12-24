@@ -1,3 +1,4 @@
+pub mod api;
 pub mod error;
-pub mod mock_handler;
-pub mod utils;
+pub mod mocks;
+pub mod swagger;
