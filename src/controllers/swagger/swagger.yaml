@@ -1,5 +1,5 @@
 ---
-swagger: "2.0"
+openapi: 3.0.0
 info:
   description: "Mockers"
   version: "0.1.0"
@@ -11,17 +11,11 @@ info:
     name: "MIT"
     url: "https://github.com/pokatomnik/mockers/LICENSE"
 
-#host: ""
-basePath: "/__admin/"
-
 tags:
   - name: "admin"
     description: "Mockers admin page"
   - name: "mocks"
     description: "Mocks routes"
-
-schemes:
-  - "http"
 
 paths:
   /:
@@ -30,11 +24,323 @@ paths:
         - admin
       summary: "get admin page HTML (TBD)"
       description: ""
-      produces:
-        - "text/html"
       responses:
         200:
           description: "Mockers admin page"
+          content:
+            text/html:
+              schema:
+                type: string
+  /api/v1/mocks:
+    get:
+      tags:
+        - admin
+      summary: "get all mocks at once"
+      description: ""
+      responses:
+        200:
+          description: "all mocks"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AllMocksOk"
+        500:
+          description: "failed to get all mocks"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AllMocksErr"
+    post:
+      tags:
+        - admin
+      summary: "create a new mock"
+      description: ""
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMockParams"
+      responses:
+        200:
+          description: "a new mock created"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksUpdateOperationOk"
+        500:
+          description: "failed to create a new mock"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MockUpdateOperationErr"
+  /api/v1/mocks/{path_encoded}:
+    get:
+      tags:
+        - admin
+      summary: "get all mocks by specified path"
+      parameters:
+        - name: path_encoded
+          in: path
+          required: true
+          description: "Base64-encoded pathname"
+      responses:
+        200:
+          description: "all mocks for specified path"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksByPathOk"
+        500:
+          description: "failed to get mocks by path"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksByPathErr"
+    delete:
+      tags:
+        - admin
+      summary: "delete all mocks by pathname"
+      parameters:
+        - name: "path_encoded"
+          in: path
+          required: true
+          description: "Base-64 encoded pathname"
+      responses:
+        200:
+          description: "mocks deleted by pathname"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksUpdateOperationOk"
+        500:
+          description: "failed to delete mocks by pathname"
+          content: 
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/MockUpdateOperationErr"
+  /api/v1/mocks/{path_encoded}/{method}:
+    get:
+      tags:
+        - admin
+      summary: "get mock by path and method"
+      parameters:
+        - name: path_encoded
+          in: path
+          required: true
+          description: "Base64-encoded pathname"
+        - name: method
+          in: path
+          required: true
+          description: "HTTP method"
+      responses:
+        200:
+          description: "mock by pathname and method"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksByPathAndMethodOk"
+        500:
+          description: "failed to get mock by path and method"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksByPathAndMethodErr"
+    delete: 
+      tags:
+        - admin
+      summary: "delete mock by pathname and method"
+      parameters:
+        - name: path_encoded
+          in: path
+          required: true
+          description: "Base64-encoded pathname"
+        - name: method
+          in: path
+          required: true
+          description: HTTP method
+      responses:
+        200:
+          description: "mock removed by pathname and http method"
+          content:
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/MocksUpdateOperationOk"
+        500:
+          description: "failed to remove mock by pathname and http method"
+          content: 
+            application/json:
+              schema: 
+                $ref: "#/components/schemas/MockUpdateOperationErr"
+
+components:
+  schemas:
+    MocksUpdateOperationOk:
+      type: object
+      description: "This response will be sent when mock created"
+      properties:
+        ok:
+          type: string
+    MockUpdateOperationErr:
+      type: object
+      description: "Faile to create mock"
+      properties:
+        err:
+          $ref: "#/components/schemas/MockersAdminErrors"
+    AllMocksOk:
+      type: object
+      description: "All mocks Ok response"
+      properties:
+        ok:
+          $ref: "#/components/schemas/AllMocks"
+    AllMocksErr:
+      type: object
+      description: "Failed to get all mocks"
+      properties:
+        err:
+          $ref: "#/components/schemas/MockersAdminErrors"
+    MocksByPathOk:
+      type: object
+      description: "mocks by path Ok response"
+      properties:
+        ok:
+          $ref: "#/components/schemas/MocksByURLMap"
+    MocksByPathErr:
+      type: object
+      description: "failed to get mocks by path"
+      properties:
+        err:
+          $ref: "#/components/schemas/MockersAdminErrors"
+    MocksByPathAndMethodOk:
+      type: object
+      description: "mocks by path and method OK response"
+      properties:
+        ok:
+          allOf:
+            - nullable: true
+            - $ref: "#/components/schemas/CachedResponse"
+    MocksByPathAndMethodErr:
+      type: object
+      description: "failed to get mocks by path and method"
+      properties:
+        err:
+          $ref: "#/components/schemas/MockersAdminErrors"
+    AllMocks:
+      type: object
+      description: "All mocks"
+      additionalProperties:
+        $ref: "#/components/schemas/MocksByURLMap"
+      example:
+        "foo/bar/baz":
+          get:
+            statusCode: 201
+            headers:
+              "Content-Type": "application/json"
+              "X-Server": "Mockers"
+            body: { "foo": "bar" }
+    MocksByURLMap:
+      nullable: true
+      type: object
+      description: "All mocks by method"
+      properties:
+        get:
+          $ref: "#/components/schemas/CachedResponse"
+        post:
+          $ref: "#/components/schemas/CachedResponse"
+        put:
+          $ref: "#/components/schemas/CachedResponse"
+        delete:
+          $ref: "#/components/schemas/CachedResponse"
+        patch:
+          $ref: "#/components/schemas/CachedResponse"
+        head:
+          $ref: "#/components/schemas/CachedResponse"
+        options:
+          $ref: "#/components/schemas/CachedResponse"
+        trace:
+          $ref: "#/components/schemas/CachedResponse"
+      example:
+        get:
+          statusCode: 201
+          headers:
+            "Content-Type": "application/json"
+            "X-Server": "Mockers"
+          body: { "foo": "bar" }
+        post:
+          statusCode: 202
+          headers:
+            "Content-Type": "application/json"
+            "X-Server": "Mockers"
+          body: { "foo": "baz" }
+    CachedResponse:
+      type: object
+      description: "Cached response"
+      required: [ statusCode, headers, body ]
+      properties:
+        statusCode:
+          type: integer
+          description: "HTTP response status code"
+          example: 201
+        headers:
+          $ref: "#/components/schemas/HeadersMap"
+        body:
+          type: string
+          description: "HTTP response body"
+          example: { "foo": "bar" }
+    HeadersMap:
+      type: object
+      additionalProperties:
+        type: string
+      example:
+        "Content-Type": "application/json"
+        "X-Server": "Mockers"
+    CreateMockParams:
+      type: object
+      properties:
+        path:
+          type: string
+          description: "url path to bind"
+        method:
+          $ref: "#/components/schemas/HTTPMethods"
+        statusCode:
+          type: integer
+          description: "HTTP status code to be sent"
+        headers:
+          $ref: "#/components/schemas/HeadersMap"
+        body:
+          type: string
+          description: "HTTP body to be sent"
+    MockersAdminErrors:
+      type: string
+      description: All mockers admin API errors
+      enum:
+        - REMOVE_MOCKS_FAILED_BY_PATH_AND_METHOD
+        - REMOVE_MOCKS_FAILED_BY_PATH
+        - GET_ALL_MOCKS_FAILED
+        - GET_MOCKS_BY_PATH_FAILED
+        - GET_MOCKS_BY_PATH_AND_METHOD_FAILED
+        - ADD_MOCK_FAILED
+    HTTPMethods:
+      type: string
+      description: "HTTP method"
+      enum:
+        - get
+        - post
+        - put
+        - delete
+        - patch
+        - head
+        - options
+        - trace
+
+
+
+
+
+
+
+
+
 
 
 #  /pet/{petId}/uploadImage:
@@ -587,7 +893,6 @@ paths:
 #        default:
 #          description: "successful operation"
 
-definitions:
 #  ApiResponse:
 #    type: "object"
 #    properties:

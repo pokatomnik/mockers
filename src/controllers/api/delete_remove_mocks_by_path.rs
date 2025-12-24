@@ -1,10 +1,12 @@
+use crate::libs::mockers_errors::MockersErrors;
 use crate::libs::protocol_result::ProtocolResultConverter;
+use crate::libs::response_cache::{PathDecoder, PathNormalizer};
 use crate::server::mockers_context::MockersContext;
-use base64::prelude::BASE64_STANDARD;
-use base64::Engine;
 use http_body_util::Full;
 use hyper::body::Bytes;
+use hyper::header::CONTENT_TYPE;
 use hyper::{Request, Response, StatusCode};
+use mimetype_detector::APPLICATION_JSON;
 use routerify_ng::ext::RequestExt;
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -15,13 +17,9 @@ pub async fn delete_remove_mocks_by_path(
     let path = req
         .params()
         .get("path_encoded")
-        .map(|path_raw| {
-            BASE64_STANDARD
-                .decode(path_raw)
-                .map(|v| String::from_utf8(v).unwrap_or(String::new()))
-                .unwrap_or(String::new())
-        })
-        .unwrap_or(String::new());
+        .and_then(|str| str.decode_path().ok())
+        .unwrap_or(String::new())
+        .normalize_path();
 
     let response_cache = req
         .data::<Arc<MockersContext>>()
@@ -44,18 +42,21 @@ pub async fn delete_remove_mocks_by_path(
             let bytes = json.map(|str| Bytes::from(str)).unwrap_or(Bytes::new());
             Ok(Response::builder()
                 .status(status)
+                .header(CONTENT_TYPE, APPLICATION_JSON)
                 .body(Full::new(Bytes::from(bytes)))
-                .unwrap())
+                .unwrap_or(Response::default()))
         }
         None => {
             let json = serde_json::to_string(
-                &Err::<String, String>("REMOVE_MOCKS_FAILED_BY_PATH".to_string()).to_protocol(),
+                &Err::<String, String>(MockersErrors::RemoveMocksFailedByPath.to_string())
+                    .to_protocol(),
             );
             let bytes = json.map(|str| Bytes::from(str)).unwrap_or(Bytes::new());
             Ok(Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .header(CONTENT_TYPE, APPLICATION_JSON)
                 .body(Full::new(Bytes::from(bytes)))
-                .unwrap())
+                .unwrap_or(Response::default()))
         }
     }
 }

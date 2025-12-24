@@ -1,3 +1,5 @@
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::sync::{Mutex, RwLock};
@@ -114,7 +116,19 @@ impl InMemoryMocks {
     }
 }
 
-trait PathNormalizer {
+pub trait PathDecoder {
+    fn decode_path(&self) -> Result<String, Box<dyn std::error::Error>>;
+}
+
+impl PathDecoder for String {
+    fn decode_path(&self) -> Result<String, Box<dyn std::error::Error>> {
+        let bytes = BASE64_STANDARD.decode(self)?;
+        let str = String::from_utf8(bytes)?;
+        Ok(str)
+    }
+}
+
+pub trait PathNormalizer {
     fn normalize_path(&self) -> String;
 }
 
@@ -124,7 +138,7 @@ impl PathNormalizer for String {
     }
 }
 
-trait MethodNormalizer {
+pub trait MethodNormalizer {
     fn normalize_method(&self) -> String;
 }
 

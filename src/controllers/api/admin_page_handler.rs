@@ -11,5 +11,5 @@ pub async fn admin_page_handler(
         // TODO send SPA HTML here
         .header(http::header::CONTENT_TYPE, "text/html")
         .body(Full::new(Bytes::from("Hello world!")))
-        .unwrap());
+        .unwrap_or(Response::default()));
 }

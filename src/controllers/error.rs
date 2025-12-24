@@ -13,5 +13,5 @@ pub async fn error_handler(
             "Something went wrong: {}",
             err
         ))))
-        .unwrap()
+        .unwrap_or(Response::default())
 }

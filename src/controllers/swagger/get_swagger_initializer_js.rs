@@ -4,10 +4,12 @@ use hyper::body::Bytes;
 use hyper::{Request, Response};
 use reqwest::StatusCode;
 use std::convert::Infallible;
+use hyper::header::CONTENT_TYPE;
+use mimetype_detector::APPLICATION_JAVASCRIPT;
 
 pub async fn get_swagger_initializer_js(_: Request<Full<Bytes>>) -> Result<Response<Full<Bytes>>, Infallible> {
     Ok(Response::builder()
         .status(StatusCode::OK)
-        .header("Content-Type", "application/javascript")
+        .header(CONTENT_TYPE, APPLICATION_JAVASCRIPT)
         .body(Full::from(SWAGGER_INITIALIZER_JS)).unwrap())
 }

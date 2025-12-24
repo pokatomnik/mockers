@@ -1,11 +1,12 @@
+use crate::libs::mockers_errors::MockersErrors;
 use crate::libs::protocol_result::ProtocolResultConverter;
-use crate::libs::response_cache::CachedResponse;
+use crate::libs::response_cache::{CachedResponse, MethodNormalizer, PathDecoder, PathNormalizer};
 use crate::server::mockers_context::MockersContext;
-use base64::prelude::BASE64_STANDARD;
-use base64::Engine;
 use http_body_util::Full;
 use hyper::body::Bytes;
+use hyper::header::CONTENT_TYPE;
 use hyper::{Request, Response, StatusCode};
+use mimetype_detector::APPLICATION_JSON;
 use routerify_ng::ext::RequestExt;
 use std::collections::HashMap;
 use std::convert::Infallible;
@@ -17,18 +18,15 @@ pub async fn get_mocks_by_path_and_method(
     let path = req
         .params()
         .get("path_encoded")
-        .map(|path_raw| {
-            BASE64_STANDARD
-                .decode(path_raw)
-                .map(|v| String::from_utf8(v).unwrap_or(String::new()))
-                .unwrap_or(String::new())
-        })
-        .unwrap_or(String::new());
+        .and_then(|str| str.decode_path().ok())
+        .unwrap_or(String::new())
+        .normalize_path();
     let method = req
         .params()
         .get("method")
         .map(|v| v.to_owned())
-        .unwrap_or(String::new());
+        .unwrap_or(String::new())
+        .normalize_method();
 
     let response_cache = req
         .data::<Arc<MockersContext>>()
@@ -49,21 +47,23 @@ pub async fn get_mocks_by_path_and_method(
                 .unwrap_or(Bytes::from(Bytes::new()));
             Ok(Response::builder()
                 .status(&status_code)
+                .header(CONTENT_TYPE, APPLICATION_JSON)
                 .body(Full::new(bytes))
-                .unwrap())
+                .unwrap_or(Response::default()))
         }
         None => {
             let json = serde_json::to_string(
                 &Err::<HashMap<String, HashMap<String, CachedResponse>>, String>(
-                    "GET_MOCKS_BY_PATH_AND_METHOD_FAILED".to_string(),
+                    MockersErrors::GetMocksByPathAndMethodFailed.to_string(),
                 )
                 .to_protocol(),
             );
             let bytes = json.map(|s| Bytes::from(s)).unwrap_or(Bytes::new());
             Ok(Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .header(CONTENT_TYPE, APPLICATION_JSON)
                 .body(Full::new(Bytes::from(bytes)))
-                .unwrap())
+                .unwrap_or(Response::default()))
         }
     }
 }

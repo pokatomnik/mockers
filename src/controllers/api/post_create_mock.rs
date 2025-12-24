@@ -1,9 +1,12 @@
+use crate::libs::mockers_errors::MockersErrors;
 use crate::libs::protocol_result::ProtocolResultConverter;
 use crate::libs::response_cache::CachedResponse;
 use crate::server::mockers_context::MockersContext;
 use http_body_util::{BodyExt, Full};
 use hyper::body::Bytes;
+use hyper::header::CONTENT_TYPE;
 use hyper::{Request, Response, StatusCode};
+use mimetype_detector::APPLICATION_JSON;
 use routerify_ng::ext::RequestExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -60,36 +63,39 @@ pub async fn post_create_mock(
                     let bytes = json.map(|str| Bytes::from(str)).unwrap_or(Bytes::new());
                     Ok(Response::builder()
                         .status(status)
+                        .header(CONTENT_TYPE, APPLICATION_JSON)
                         .body(Full::new(Bytes::from(bytes)))
-                        .unwrap())
+                        .unwrap_or(Response::default()))
                 }
                 Err(_) => {
                     let json = serde_json::to_string(
                         &Err::<HashMap<String, HashMap<String, CachedResponse>>, String>(
-                            "ADD_MOCK_FAILED".to_string(),
+                            MockersErrors::AddMockFailed.to_string(),
                         )
                         .to_protocol(),
                     );
                     let bytes = json.map(|s| Bytes::from(s)).unwrap_or(Bytes::new());
                     Ok(Response::builder()
                         .status(StatusCode::INTERNAL_SERVER_ERROR)
+                        .header(CONTENT_TYPE, APPLICATION_JSON)
                         .body(Full::new(bytes))
-                        .unwrap())
+                        .unwrap_or(Response::default()))
                 }
             }
         }
         None => {
             let json = serde_json::to_string(
                 &Err::<HashMap<String, HashMap<String, CachedResponse>>, String>(
-                    "GET_ALL_MOCKS_FAILED".to_string(),
+                    MockersErrors::AddMockFailed.to_string(),
                 )
                 .to_protocol(),
             );
             let bytes = json.map(|s| Bytes::from(s)).unwrap_or(Bytes::new());
             Ok(Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .header(CONTENT_TYPE, APPLICATION_JSON)
                 .body(Full::new(Bytes::from(bytes)))
-                .unwrap())
+                .unwrap_or(Response::default()))
         }
     }
 }
