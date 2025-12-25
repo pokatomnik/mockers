@@ -25,7 +25,7 @@ use crate::server::params::ServerParams;
 use reqwest::Client;
 use routerify_ng::Middleware;
 use routerify_ng::Router;
-use crate::controllers::mocks::mock_handler::mock_handler;
+use crate::controllers::mock_handler::mock_handler;
 
 pub fn admin_router(_params: &ServerParams) -> Router<Infallible> {
     Router::builder()
@@ -79,9 +79,9 @@ pub fn mockers_router(params: &ServerParams) -> Router<Infallible> {
         router
     };
 
-    return router_builder
+    router_builder
         .any(mock_handler)
         .err_handler_with_info(error_handler)
         .build()
-        .unwrap();
+        .unwrap()
 }
