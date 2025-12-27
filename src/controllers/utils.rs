@@ -1,8 +1,10 @@
 use http_body_util::Full;
 
+use crate::libs::response_cache::InMemoryMocks;
 use http::response::Builder;
-use hyper::{Response, StatusCode, body::Bytes, http};
+use hyper::{body::Bytes, http, Response, StatusCode};
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::fs::write;
 
 pub fn join_origin_and_path(origin: &str, path: &str, query: Option<&str>) -> String {
@@ -61,4 +63,36 @@ pub fn write_mock(target_file_name: &str, data: &Bytes, verbose: bool) {
             }
         }
     });
+}
+
+pub async fn get_response_from_cache<P, M>(
+    cache: Option<Arc<InMemoryMocks>>,
+    pathname: P,
+    method: M,
+    cors: bool,
+) -> Option<Response<Full<Bytes>>>
+where
+    P: Into<String>,
+    M: Into<String>,
+{
+    if let None = cache {
+        return None;
+    }
+
+    let cache = cache.unwrap_or_else(|| Arc::new(InMemoryMocks::create()));
+
+    let cached = cache
+        .get_mock_by_path_and_method(pathname.into(), method.into())
+        .await;
+
+    cached.map(|c| {
+        let mut builder = Response::builder().status(
+            c.status_code
+                .try_into()
+                .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
+        );
+        builder = add_headers(builder, cors, &c.headers);
+
+        builder.body(c.body.into()).unwrap_or(Response::default())
+    })
 }
