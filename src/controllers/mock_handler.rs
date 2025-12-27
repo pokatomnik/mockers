@@ -1,8 +1,10 @@
 use std::{collections::HashMap, convert::Infallible, path::PathBuf, sync::Arc, time::Duration};
 
+use crate::controllers::utils;
 use crate::controllers::utils::{
     add_headers, get_404_response, get_502_response, join_origin_and_path, write_mock,
 };
+use crate::libs::response_cache::{MethodNormalizer, PathNormalizer};
 use crate::libs::{cache_mode::CacheMode, get_mime::get_mime, mock_config::read_config};
 use crate::server::mockers_context::MockersContext;
 use crate::server::params::{
@@ -15,6 +17,7 @@ use tokio::{fs, time::sleep};
 
 pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Bytes>>, Infallible> {
     let context = req.data::<Arc<MockersContext>>();
+    let mocks_cache = context.map(|ctx| ctx.clone().response_cache.clone());
     let verbose = context
         .map(|context| context.server_params.verbose)
         .unwrap_or(DEFAULT_VERBOSE_ENABLED);
@@ -110,6 +113,18 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
         );
     }
 
+    let cached_data = utils::get_response_from_cache(
+        mocks_cache,
+        req.uri().path().to_string().normalize_path(),
+        req.method().to_string().normalize_method(),
+        cors,
+    )
+    .await;
+
+    if let Some(response) = cached_data {
+        return Ok(response);
+    }
+
     match fs::read(&absolute_mock_file_name).await {
         Ok(data) => {
             let mime = get_mime(&data);
@@ -131,17 +146,18 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
             Ok(response)
         }
         Err(_) => {
-            if let Some(origin) = origin
-                && let Some(client) = client
-            {
+            if let Some((origin, client)) = origin.zip(client) {
                 let target_url = join_origin_and_path(&origin, &uri_pathname, req.uri().query());
                 if verbose {
                     println!("Mock is missing, proxying request to {}", target_url);
                 }
 
-                let mut headers = req.headers().to_owned().clone();
-                headers.remove(hyper::header::HOST);
-                headers.remove(hyper::header::CONTENT_LENGTH);
+                let headers = {
+                    let mut res = req.headers().to_owned().clone();
+                    res.remove(hyper::header::HOST);
+                    res.remove(hyper::header::CONTENT_LENGTH);
+                    res
+                };
 
                 let response = client
                     .request(req.method().to_owned(), &target_url)
