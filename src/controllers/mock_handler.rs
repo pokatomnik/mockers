@@ -1,20 +1,17 @@
 use std::{collections::HashMap, convert::Infallible, path::PathBuf, sync::Arc, time::Duration};
 
+use crate::controllers::utils::{
+    add_headers, get_404_response, get_502_response, join_origin_and_path, write_mock,
+};
+use crate::libs::{cache_mode::CacheMode, get_mime::get_mime, mock_config::read_config};
+use crate::server::mockers_context::MockersContext;
+use crate::server::params::{
+    DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY, DEFAULT_VERBOSE_ENABLED,
+};
 use http_body_util::{BodyExt, Full};
 use hyper::{body::Bytes, Request, Response, StatusCode};
 use routerify_ng::ext::RequestExt;
 use tokio::{fs, time::sleep};
-
-use crate::{
-    controllers::utils::{
-        add_headers, get_404_response, get_502_response, join_origin_and_path, write_mock,
-    },
-    libs::{cache_mode::CacheMode, get_mime::get_mime, mock_config::read_config},
-    server::{
-        mockers_context::MockersContext,
-        params::{DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY, DEFAULT_VERBOSE_ENABLED},
-    },
-};
 
 pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Bytes>>, Infallible> {
     let context = req.data::<Arc<MockersContext>>();
@@ -42,14 +39,14 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
     if absolute_mocks_dir.is_err() {
         return Ok(Response::builder()
             .status(StatusCode::FORBIDDEN)
-            .body(Full::new(Bytes::from("")))
-            .unwrap());
+            .body(Full::new(Bytes::new()))
+            .unwrap_or(Response::default()));
     }
     /*
      * Example:
      * `/home/username/.cargo/bin/mocks`
      */
-    let absolute_mocks_dir = absolute_mocks_dir.unwrap();
+    let absolute_mocks_dir = absolute_mocks_dir.expect("absolute_mocks_dir is missing");
     /*
      * Example:
      * `/foo/bar/baz.get`
@@ -113,7 +110,7 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
         );
     }
 
-    return match fs::read(&absolute_mock_file_name).await {
+    match fs::read(&absolute_mock_file_name).await {
         Ok(data) => {
             let mime = get_mime(&data);
 
@@ -125,9 +122,11 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
                 .status(status_if_file_found)
                 .header("Content-Type", mime);
             builder = add_headers(builder, cors, &custom_headers);
-            let response = builder.body(Full::from(data)).unwrap();
+            let response = builder
+                .body(Full::from(data))
+                .unwrap_or(Response::default());
 
-            sleep(Duration::from_millis(delay.to_owned())).await;
+            sleep(Duration::from_millis(delay)).await;
 
             Ok(response)
         }
@@ -153,7 +152,7 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
                     .send()
                     .await;
 
-                return match response {
+                match response {
                     Err(_) => {
                         if verbose {
                             eprintln!("No response from origin: {}", &target_url)
@@ -180,12 +179,14 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
                             );
                         }
 
-                        Ok(builder.body(Full::new(response_bytes)).unwrap())
+                        Ok(builder
+                            .body(Full::new(response_bytes))
+                            .unwrap_or(Response::default()))
                     }
-                };
+                }
             } else {
-                return Ok(get_404_response(cors, &custom_headers));
+                Ok(get_404_response(cors, &custom_headers))
             }
         }
-    };
+    }
 }
