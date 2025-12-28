@@ -89,10 +89,13 @@ where
 
     cached.map(|c| {
         let headers = {
-            let mut headers = c.headers.clone();
             let mime = get_mime(&Vec::from(c.body.clone()));
-            headers.insert(CONTENT_TYPE.to_string(), mime.parse().unwrap());
-            headers
+            let mut headers_map = HashMap::new();
+            headers_map.insert(CONTENT_TYPE.to_string(), mime.parse().unwrap());
+            for (header_key, header_value) in c.headers {
+                headers_map.insert(header_key, header_value);
+            }
+            headers_map
         };
         let mut builder = Response::builder().status(
             c.status_code
