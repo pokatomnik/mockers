@@ -13,5 +13,5 @@ pub async fn get_swagger_ui_css(
         .status(StatusCode::OK)
         .header(CONTENT_TYPE, "text/css")
         .body(Full::from(SWAGGER_UI_CSS))
-        .unwrap())
+        .unwrap_or(Response::default()))
 }

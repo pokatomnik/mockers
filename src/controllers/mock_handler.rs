@@ -12,6 +12,7 @@ use crate::server::params::{
 };
 use http_body_util::{BodyExt, Full};
 use hyper::{body::Bytes, Request, Response, StatusCode};
+use reqwest::header::CONTENT_TYPE;
 use routerify_ng::ext::RequestExt;
 use tokio::{fs, time::sleep};
 
@@ -135,7 +136,7 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
 
             let mut builder = Response::builder()
                 .status(status_if_file_found)
-                .header("Content-Type", mime);
+                .header(CONTENT_TYPE, mime);
             builder = add_headers(builder, cors, &custom_headers);
             let response = builder
                 .body(Full::from(data))
