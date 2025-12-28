@@ -14,5 +14,5 @@ pub async fn get_swagger_ui_standalone_preset(
         .status(StatusCode::OK)
         .header(CONTENT_TYPE, APPLICATION_JAVASCRIPT)
         .body(Full::from(SWAGGER_UI_STANDALONE_PRESET_JS))
-        .unwrap())
+        .unwrap_or(Response::default()))
 }

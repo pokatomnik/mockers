@@ -14,5 +14,5 @@ pub async fn get_swagger_html(
         .status(StatusCode::OK)
         .header(CONTENT_TYPE, TEXT_HTML)
         .body(Full::from(SWAGGER_HTML))
-        .unwrap())
+        .unwrap_or(Response::default()))
 }
