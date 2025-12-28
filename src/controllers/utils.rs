@@ -5,7 +5,9 @@ use http::response::Builder;
 use hyper::{body::Bytes, http, Response, StatusCode};
 use std::collections::HashMap;
 use std::sync::Arc;
+use reqwest::header::CONTENT_TYPE;
 use tokio::fs::write;
+use crate::libs::get_mime::get_mime;
 
 pub fn join_origin_and_path(origin: &str, path: &str, query: Option<&str>) -> String {
     let origin = origin.trim_end_matches("/");
@@ -86,12 +88,18 @@ where
         .await;
 
     cached.map(|c| {
+        let headers = {
+            let mut headers = c.headers.clone();
+            let mime = get_mime(&Vec::from(c.body.clone()));
+            headers.insert(CONTENT_TYPE.to_string(), mime.parse().unwrap());
+            headers
+        };
         let mut builder = Response::builder().status(
             c.status_code
                 .try_into()
                 .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
         );
-        builder = add_headers(builder, cors, &c.headers);
+        builder = add_headers(builder, cors, &headers);
 
         builder.body(c.body.into()).unwrap_or(Response::default())
     })
