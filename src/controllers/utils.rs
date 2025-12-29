@@ -3,19 +3,18 @@ use http_body_util::Full;
 use crate::libs::response_cache::InMemoryMocks;
 use http::response::Builder;
 use hyper::{body::Bytes, http, Response, StatusCode};
+use reqwest::header::CONTENT_TYPE;
 use std::collections::HashMap;
 use std::sync::Arc;
-use reqwest::header::CONTENT_TYPE;
 use tokio::fs::write;
-use crate::libs::get_mime::get_mime;
 
 pub fn join_origin_and_path(origin: &str, path: &str, query: Option<&str>) -> String {
     let origin = origin.trim_end_matches("/");
     let path = path.trim_start_matches("/");
-    return match query {
+    match query {
         Some(params_str) => format!("{}/{}?{}", origin, path, params_str),
         None => format!("{}/{}", origin, path),
-    };
+    }
 }
 
 pub fn get_502_response(
@@ -52,7 +51,7 @@ pub fn add_headers(
         builder = builder.header(header, header_value);
     }
 
-    return builder;
+    builder
 }
 
 pub fn write_mock(target_file_name: &str, data: &Bytes, verbose: bool) {
@@ -87,11 +86,10 @@ where
         .get_mock_by_path_and_method(pathname.into(), method.into())
         .await;
 
-    cached.map(|c| {
+    if let Some(c) = cached {
         let headers = {
-            let mime = get_mime(&Vec::from(c.body.clone()));
             let mut headers_map = HashMap::new();
-            headers_map.insert(CONTENT_TYPE.to_string(), mime.parse().unwrap());
+            headers_map.insert(CONTENT_TYPE.to_string(), c.get_mime().await);
             for (header_key, header_value) in c.headers {
                 headers_map.insert(header_key, header_value);
             }
@@ -104,6 +102,8 @@ where
         );
         builder = add_headers(builder, cors, &headers);
 
-        builder.body(c.body.into()).unwrap_or(Response::default())
-    })
+        return Some(builder.body(c.body.into()).unwrap_or(Response::default()))
+    }
+    
+    None
 }

@@ -42,11 +42,11 @@ pub async fn post_create_mock(
                     let path = mock_params.path.clone();
                     let method = mock_params.method.clone();
                     tokio::spawn(async move {
-                        let response = &CachedResponse {
-                            status_code: mock_params.status_code,
-                            headers: mock_params.headers,
-                            body: mock_params.body,
-                        };
+                        let response = &CachedResponse::new(
+                            mock_params.status_code,
+                            mock_params.headers,
+                            mock_params.body,
+                        );
                         cache.upsert(path, method, response).await;
                     });
                     let json = serde_json::to_string(

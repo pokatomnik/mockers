@@ -1,7 +1,9 @@
+use crate::libs::get_mime::get_mime;
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -9,6 +11,26 @@ pub struct CachedResponse {
     pub status_code: u16,
     pub headers: HashMap<String, String>,
     pub body: String,
+    #[serde(skip)]
+    mime: Arc<RwLock<Option<String>>>,
+}
+
+impl CachedResponse {
+    pub fn new(status_code: u16, headers: HashMap<String, String>, body: String) -> CachedResponse {
+        CachedResponse { status_code, headers, body, mime: Arc::new(RwLock::new(None)) }
+    }
+    
+    pub async fn get_mime(&self) -> String {
+        let read_guard = self.mime.read().await;
+        if let Some(mime) = read_guard.as_ref() {
+            return mime.clone();
+        }
+        drop(read_guard);
+        let mime = get_mime(&Vec::from(self.body.as_bytes()));
+        let mut write_guard = self.mime.write().await;
+        *write_guard = Some(mime.clone());
+        mime
+    }
 }
 
 pub struct InMemoryMocks {
