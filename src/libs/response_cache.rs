@@ -4,7 +4,7 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachedResponse {
@@ -17,9 +17,14 @@ pub struct CachedResponse {
 
 impl CachedResponse {
     pub fn new(status_code: u16, headers: HashMap<String, String>, body: String) -> CachedResponse {
-        CachedResponse { status_code, headers, body, mime: Arc::new(RwLock::new(None)) }
+        CachedResponse {
+            status_code,
+            headers,
+            body,
+            mime: Arc::new(RwLock::new(None)),
+        }
     }
-    
+
     pub async fn get_mime(&self) -> String {
         let read_guard = self.mime.read().await;
         if let Some(mime) = read_guard.as_ref() {
@@ -35,15 +40,13 @@ impl CachedResponse {
 
 pub struct InMemoryMocks {
     mocks: RwLock<
-        Mutex<
+        HashMap<
+            // pathname
+            String,
             HashMap<
-                // pathname
+                // method
                 String,
-                HashMap<
-                    // method
-                    String,
-                    CachedResponse,
-                >,
+                CachedResponse,
             >,
         >,
     >,
@@ -52,14 +55,13 @@ pub struct InMemoryMocks {
 impl InMemoryMocks {
     pub fn create() -> InMemoryMocks {
         InMemoryMocks {
-            mocks: RwLock::new(Mutex::new(HashMap::new())),
+            mocks: RwLock::new(HashMap::new()),
         }
     }
 
     /// Get all mocks
     pub async fn get_all(&self) -> HashMap<String, HashMap<String, CachedResponse>> {
-        let guard = self.mocks.read().await;
-        let mocks = guard.lock().await;
+        let mocks = self.mocks.read().await;
         mocks.clone()
     }
 
@@ -68,8 +70,7 @@ impl InMemoryMocks {
     where
         P: Into<String>,
     {
-        let guard = self.mocks.write().await;
-        let mocks = guard.lock().await;
+        let mocks = self.mocks.write().await;
         mocks.get(&path.into().normalize_path()).cloned()
     }
 
@@ -83,8 +84,7 @@ impl InMemoryMocks {
         M: Into<String>,
         P: Into<String>,
     {
-        let guard = self.mocks.read().await;
-        let mocks = guard.lock().await;
+        let mocks = self.mocks.read().await;
         let mocks_by_path = mocks.get(&path.into().normalize_path()).cloned()?;
         mocks_by_path
             .get(&method.into().normalize_method())
@@ -97,8 +97,7 @@ impl InMemoryMocks {
         M: Into<String>,
         P: Into<String>,
     {
-        let guard = self.mocks.write().await;
-        let mut mocks = guard.lock().await;
+        let mut mocks = self.mocks.write().await;
 
         let path = path.into().normalize_path();
         let method = method.into().normalize_method();
@@ -112,8 +111,7 @@ impl InMemoryMocks {
         M: Into<String>,
         P: Into<String>,
     {
-        let guard = self.mocks.write().await;
-        let mut mocks = guard.lock().await;
+        let mut mocks = self.mocks.write().await;
         let path = path.into().normalize_path();
         let method = method.into().normalize_method();
         let mut mocks_by_method = mocks.get_mut(&path);
@@ -131,8 +129,7 @@ impl InMemoryMocks {
     where
         P: Into<String>,
     {
-        let guard = self.mocks.write().await;
-        let mut mocks = guard.lock().await;
+        let mut mocks = self.mocks.write().await;
         let path = path.into().normalize_path();
         mocks.remove(&path);
     }
