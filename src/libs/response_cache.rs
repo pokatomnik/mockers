@@ -114,8 +114,8 @@ impl InMemoryMocks {
         let mut mocks = self.mocks.write().await;
         let path = path.into().normalize_path();
         let method = method.into().normalize_method();
-        let mut mocks_by_method = mocks.get_mut(&path);
-        if let Some(mocks_by_method) = &mut mocks_by_method {
+        let mocks_by_method = mocks.get_mut(&path);
+        if let Some(mocks_by_method) = mocks_by_method {
             mocks_by_method.remove(&method);
             if mocks_by_method.is_empty() {
                 mocks.remove(&path);
