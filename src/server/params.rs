@@ -4,9 +4,9 @@ use std::fs::metadata;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-pub const DEFAULT_HOST: &str = "127.0.0.1";
+pub const DEFAULT_HOST: &'static str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 8080;
-pub const DEFAULT_MOCKS_DIR: &str = "mocks";
+pub const DEFAULT_MOCKS_DIR: &'static str = "mocks";
 pub const DEFAULT_MOCKS_RESPONSE_DELAY: u64 = 0;
 pub const DEFAULT_CORS_ENABLED: bool = false;
 pub const DEFAULT_VERBOSE_ENABLED: bool = false;
