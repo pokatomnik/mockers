@@ -5,3 +5,4 @@ pub mod get_all_mocks;
 pub mod get_mocks_by_path;
 pub mod get_mocks_by_path_and_method;
 pub mod post_create_mock;
+pub mod post_dump_mock;

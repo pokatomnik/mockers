@@ -1,7 +1,3 @@
-// Project-local debug tasks
-//
-// For more documentation on how to configure debug tasks,
-// see: https://zed.dev/docs/debugger
 [
   {
     "label": "Debug Mockers",
@@ -11,7 +7,14 @@
       "args": ["build"],
     },
     "program": "$ZED_WORKTREE_ROOT/target/debug/mockers",
-    "args": ["serve", "--verbose", "--mocks", "mocks"],
+    "args": [
+      "serve",
+      "--verbose",
+      "--mocks",
+      "mocks",
+      "--admin-base-url",
+      "/__admin",
+    ],
     "request": "launch",
   },
 ]

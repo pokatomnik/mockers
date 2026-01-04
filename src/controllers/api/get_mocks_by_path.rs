@@ -1,8 +1,7 @@
 use crate::libs::mockers_errors::MockersErrors;
 use crate::libs::protocol_result::ProtocolResultConverter;
-use crate::libs::response_cache::{CachedResponse, PathNormalizer};
+use crate::libs::response_cache::{CachedResponse, PathDecoder, PathNormalizer};
 use crate::server::mockers_context::MockersContext;
-use base64::prelude::*;
 use http_body_util::Full;
 use hyper::body::Bytes;
 use hyper::header::CONTENT_TYPE;
@@ -19,13 +18,9 @@ pub async fn get_all_mocks_by_path(
     let path = req
         .params()
         .get("path_encoded")
-        .map(|path_raw| {
-            BASE64_STANDARD
-                .decode(path_raw)
-                .map(|v| String::from_utf8(v).unwrap_or(String::new()))
-                .unwrap_or(String::new())
-        })
-        .unwrap_or(String::new()).normalize_path();
+        .and_then(|str| str.decode_path().ok())
+        .unwrap_or(String::new())
+        .normalize_path();
 
     let response_cache = req
         .data::<Arc<MockersContext>>()

@@ -15,6 +15,10 @@ pub enum MockersErrors {
     GetMocksByPathAndMethodFailed,
     // ADD_MOCK_FAILED
     AddMockFailed,
+    // NO_SUCH_MOCK
+    NoSuchMock,
+    // MISSING_MOCKS_DIRECTORY
+    MissingMocksDirectory,
 }
 
 impl ToString for MockersErrors {
