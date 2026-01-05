@@ -2,7 +2,8 @@
 
 [![Rust](https://github.com/pokatomnik/mockers/actions/workflows/rust.yml/badge.svg)](https://github.com/pokatomnik/mockers/actions/workflows/rust.yml)
 
-`Mockers` is a lightweight HTTP server written in Rust for serving mock responses from files. It is designed for testing, prototyping, or any scenario where you need a quick mock backend.
+`Mockers` is a lightweight HTTP server written in Rust for serving mock responses from files. It is designed for
+testing, prototyping, or any scenario where you need a quick mock backend.
 
 ---
 
@@ -24,15 +25,16 @@ mockers serve [OPTIONS]
 
 ## Command-line Options 🚀
 
-| Flag              | Default     | Description                                            |
-| ----------------- | ----------- | ------------------------------------------------------ |
-| `--host`          | `127.0.0.1` | Host to listen on                                      |
-| `--port`, `-p`    | `8080`      | Port to listen on                                      |
-| `--verbose`, `-v` | `false`     | Enable verbose logging                                 |
-| `--mocks`, `-m`   | `mocks`     | Path to the directory containing mock files            |
-| `--cors`          | `false`     | Enable CORS headers (`Access-Control-Allow-Origin: *`) |
-| `--delay-ms`      | `0`         | Delay (in milliseconds) for serving mock responses     |
-| `--origin`        | [unset]     | Forward requests to another server when mock is missing by requested URL |
+| Flag               | Default     | Description                                                              |
+|--------------------|-------------|--------------------------------------------------------------------------|
+| `--host`           | `127.0.0.1` | Host to listen on                                                        |
+| `--port`, `-p`     | `8080`      | Port to listen on                                                        |
+| `--verbose`, `-v`  | `false`     | Enable verbose logging                                                   |
+| `--mocks`, `-m`    | `mocks`     | Path to the directory containing mock files                              |
+| `--cors`           | `false`     | Enable CORS headers (`Access-Control-Allow-Origin: *`)                   |
+| `--delay-ms`       | `0`         | Delay (in milliseconds) for serving mock responses                       |
+| `--origin`         | [unset]     | Forward requests to another server when mock is missing by requested URL |
+| `--admin-base-url` | [unset]     | Enable admin API (see admin unit)                                        |
 
 ## Mock File Structure 🚀
 
@@ -85,7 +87,8 @@ mockers serve --mocks ./api_mocks --cors --delay_ms 500
 ## Per-Directory Mock Configuration 🚀
 
 Some endpoints may require custom behavior — a delayed response, a non-200 status code, or custom headers.
-To support this, any mock directory may optionally contain a mock-config.json file describing additional response parameters.
+To support this, any mock directory may optionally contain a mock-config.json file describing additional response
+parameters.
 
 ### Example 🔧
 
@@ -114,7 +117,7 @@ will produce:
 - 💡 **HTTP 201 status**
 - 💡 **Header** `X-Server: Mockers`
 - 💡 **Body** — the content of `test.get` (or any corresponding mock file)
-- 💡 The response body will be cached into `test.get` if file `test.get` is missing (asynchronously). 
+- 💡 The response body will be cached into `test.get` if file `test.get` is missing (asynchronously).
 
 ### Rules 🔧
 
@@ -151,6 +154,23 @@ This results in:
 - 💡 no custom headers
 - 💡 body loaded from `user.get`
 
+# Admin pages and API
+
+It is also possible to manage moks in runtime. This is implemented using the REST API, which can be enabled using the
+launch flag `--admin-base-url`. Here you need to pass the absolute URL path, which cannot be used as a mock path, and in
+which the REST-endpoints and Swagger UI are located.
+Example:
+
+```sh
+mockers serve --admin-base-url /__admin
+```
+
+All endpoints will start from the specified admin base url. There are endpoints for creating mocks in runtime, deleting
+and modifying, as well as endpoints for saving mocks from RAM to a file.
+
+To open the Swagger UI (let's assume that we have launched `mockers` as mentioned above) you need to open the
+address http://localhost:8080/__admin/swagger
+
 ## Notes 🚀
 
 - 💡 The server automatically resolves relative paths for mocks based on the current working directory.
@@ -161,7 +181,8 @@ This results in:
 
 Huge thanks to [@Caik](https://github.com/Caik)
 , whose [Go version](https://github.com/Caik/go-mock-server) sparked the idea for this project.
-I rewrote the whole thing in Rust because apparently I enjoy suffering — and because I wanted features the original never asked for.
+I rewrote the whole thing in Rust because apparently I enjoy suffering — and because I wanted features the original
+never asked for.
 
 Special thanks to [bloodvez](https://github.com/bloodvez) who helped me with finding issues.
 
