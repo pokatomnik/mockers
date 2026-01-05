@@ -44,7 +44,7 @@ pub async fn post_dump_mock(
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .header(CONTENT_TYPE, APPLICATION_JSON)
             .body(Full::new(Bytes::from(bytes)))
-            .unwrap_or(Response::default()));
+            .unwrap_or_default());
     };
 
     let Some(cached) = cache.get_mock_by_path_and_method(&path, &method).await else {
@@ -60,7 +60,7 @@ pub async fn post_dump_mock(
             .status(status_code)
             .header(CONTENT_TYPE, APPLICATION_JSON)
             .body(Full::new(bytes))
-            .unwrap_or(Response::default()));
+            .unwrap_or_default());
     };
 
     let Some(absolute_mocks_dir) = req
@@ -77,7 +77,7 @@ pub async fn post_dump_mock(
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .header(CONTENT_TYPE, APPLICATION_JSON)
             .body(Full::new(bytes))
-            .unwrap_or(Response::default()));
+            .unwrap_or_default());
     };
 
     let target_file_path_without_extension =
@@ -96,7 +96,7 @@ pub async fn post_dump_mock(
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .header(CONTENT_TYPE, APPLICATION_JSON)
             .body(Full::new(Bytes::from(bytes)))
-            .unwrap_or(Response::default()));
+            .unwrap_or_default());
     };
 
     let (absolute_target_file_name, absolute_target_directory) =
@@ -122,7 +122,7 @@ pub async fn post_dump_mock(
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .header(CONTENT_TYPE, APPLICATION_JSON)
             .body(Full::new(Bytes::from(bytes)))
-            .unwrap_or(Response::default()));
+            .unwrap_or_default());
     }
 
     write_file_contents_and_get_response(&absolute_target_file_name, &cached.body).await
