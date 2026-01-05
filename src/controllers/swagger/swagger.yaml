@@ -172,7 +172,39 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MockUpdateOperationErr"
-
+  /api/v1/mocks/{path_encoded}/{method}/dump:
+    post:
+      tags:
+        - admin
+      summary: "dump existing mock to a file"
+      parameters:
+        - name: path_encoded
+          in: path
+          required: true
+          description: "Base64-encoded pathname"
+        - name: method
+          in: path
+          required: true
+          description: HTTP method
+      responses:
+        200:
+          description: "mock dumped"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksUpdateOperationOk"
+        500:
+          description: "failed to dump mock because of internal error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MockUpdateOperationErr"
+        404:
+          description: "failed to dump missing mock"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MockUpdateOperationErr"
 components:
   schemas:
     MocksUpdateOperationOk:
