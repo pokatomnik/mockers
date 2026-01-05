@@ -8,7 +8,9 @@ use crate::controllers::api::get_all_mocks::get_all_mocks;
 use crate::controllers::api::get_mocks_by_path::get_all_mocks_by_path;
 use crate::controllers::api::get_mocks_by_path_and_method::get_mocks_by_path_and_method;
 use crate::controllers::api::post_create_mock::post_create_mock;
+use crate::controllers::api::post_dump_mock::post_dump_mock;
 use crate::controllers::error::error_handler;
+use crate::controllers::mock_handler::mock_handler;
 use crate::controllers::swagger::get_favicon_16::get_favicon_16;
 use crate::controllers::swagger::get_favicon_32::get_favicon_32;
 use crate::controllers::swagger::get_index_css::get_index_css;
@@ -25,7 +27,6 @@ use crate::server::params::ServerParams;
 use reqwest::Client;
 use routerify_ng::Middleware;
 use routerify_ng::Router;
-use crate::controllers::mock_handler::mock_handler;
 
 pub fn admin_router(_params: &ServerParams) -> Router<Infallible> {
     Router::builder()
@@ -39,6 +40,7 @@ pub fn admin_router(_params: &ServerParams) -> Router<Infallible> {
             get_mocks_by_path_and_method,
         )
         .post("/api/v1/mocks", post_create_mock)
+        .post("/api/v1/mocks/:path_encoded/:method/dump", post_dump_mock)
         .delete(
             "/api/v1/mocks/:path_encoded/:method",
             delete_remove_mock_by_path_and_method,
