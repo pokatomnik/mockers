@@ -14,3 +14,8 @@ body {
     margin: 0;
     background: #fafafa;
 }
+
+.download-url-wrapper {
+    /* Hide swagger file selection bar */
+    visibility: hidden;
+}
