@@ -18,8 +18,8 @@ pub async fn start_server(
     let graceful = Arc::new(hyper_util::server::graceful::GracefulShutdown::new());
     let listener = listener(&params).await?;
     let mut shutdown_signal = make_signal();
-    let router = mockers_router(&params);
-    let router_service = Arc::new(RouterService::new(router).unwrap());
+    let router = mockers_router(&params)?;
+    let router_service = Arc::new(RouterService::new(router)?);
 
     println!("Server has started at {}:{}", params.host, params.port);
 
@@ -31,13 +31,17 @@ pub async fn start_server(
                 let http = http.clone();
 
                 tokio::spawn(async move {
-                    let request_service = router_service.call(&stream).await.unwrap();
-                    let io = TokioIo::new(stream);
+                    match router_service.call(&stream).await {
+                        Ok(request_service) => {
+                            let io = TokioIo::new(stream);
 
-                    let conn = http.serve_connection(io, request_service);
-                    let fut = graceful.watch(conn);
-                    if let Err(e) = fut.await {
-                        eprintln!("Error serving connection: {:?}", e);
+                            let conn = http.serve_connection(io, request_service);
+                            let fut = graceful.watch(conn);
+                            if let Err(e) = fut.await {
+                                eprintln!("Error serving connection: {:?}", e);
+                            }
+                        }
+                        Err(_) => {}
                     }
                 });
             },

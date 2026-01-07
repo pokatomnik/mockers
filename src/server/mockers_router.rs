@@ -25,10 +25,10 @@ use crate::middlewares::logger::logger;
 use crate::server::mockers_context::MockersContext;
 use crate::server::params::ServerParams;
 use reqwest::Client;
-use routerify_ng::Middleware;
 use routerify_ng::Router;
+use routerify_ng::{Middleware, RouteError};
 
-pub fn admin_router(_params: &ServerParams) -> Router<Infallible> {
+pub fn admin_router(_params: &ServerParams) -> Result<Router<Infallible>, RouteError> {
     Router::builder()
         // TODO web app routes
         .get("/", admin_page_handler)
@@ -63,10 +63,9 @@ pub fn admin_router(_params: &ServerParams) -> Router<Infallible> {
         )
         .get("/swagger/swagger.yaml", get_mockers_yaml)
         .build()
-        .unwrap()
 }
 
-pub fn mockers_router(params: &ServerParams) -> Router<Infallible> {
+pub fn mockers_router(params: &ServerParams) -> Result<Router<Infallible>, RouteError> {
     let router_builder = {
         let mut router = Router::builder()
             .data(Arc::new(MockersContext {
@@ -75,8 +74,8 @@ pub fn mockers_router(params: &ServerParams) -> Router<Infallible> {
                 response_cache: Arc::new(InMemoryMocks::create()),
             }))
             .middleware(Middleware::pre(logger));
-        if let Some(admin_base_url) = &params.admin_base_url {
-            router = router.scope(admin_base_url, admin_router(&params))
+        if let Some((admin_base_url, admin_router)) = params.admin_base_url.clone().zip(admin_router(&params).ok()) {
+            router = router.scope(admin_base_url, admin_router)
         }
         router
     };
@@ -85,5 +84,4 @@ pub fn mockers_router(params: &ServerParams) -> Router<Infallible> {
         .any(mock_handler)
         .err_handler_with_info(error_handler)
         .build()
-        .unwrap()
 }

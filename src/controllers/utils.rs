@@ -2,6 +2,7 @@ use http_body_util::Full;
 
 use crate::libs::response_cache::InMemoryMocks;
 use http::response::Builder;
+use hyper::http::HeaderValue;
 use hyper::{body::Bytes, http, Response, StatusCode};
 use reqwest::header::CONTENT_TYPE;
 use std::collections::HashMap;
@@ -23,7 +24,7 @@ pub fn get_502_response(
 ) -> Response<Full<Bytes>> {
     let mut builder = Response::builder().status(StatusCode::BAD_GATEWAY);
     builder = add_headers(builder, cors, &custom_headers);
-    builder.body(Full::new(Bytes::new())).unwrap()
+    builder.body(Full::new(Bytes::new())).unwrap_or_default()
 }
 
 pub fn get_404_response(
@@ -32,19 +33,28 @@ pub fn get_404_response(
 ) -> Response<Full<Bytes>> {
     let mut builder = Response::builder().status(StatusCode::NOT_FOUND);
     builder = add_headers(builder, cors, &custom_headers);
-    builder.body(Full::new(Bytes::new())).unwrap()
+    builder.body(Full::new(Bytes::new())).unwrap_or_default()
 }
+
+static CORS_HEADER_KEYS: &'static [&'static str] = &[
+    "Access-Control-Allow-Methods",
+    "Access-Control-Allow-Origin",
+    "Access-Control-Allow-Headers",
+];
+static CORS_HEADER_VALUE: &'static str = "*";
 
 pub fn add_headers(
     mut builder: Builder,
     add_cors: bool,
     custom_headers: &HashMap<String, String>,
 ) -> Builder {
-    if add_cors {
-        let headers = builder.headers_mut().unwrap();
-        headers.insert("Access-Control-Allow-Methods", "*".parse().unwrap());
-        headers.insert("Access-Control-Allow-Origin", "*".parse().unwrap());
-        headers.insert("Access-Control-Allow-Headers", "*".parse().unwrap());
+    if add_cors && let Some(headers) = builder.headers_mut() {
+        let anything_header: Result<HeaderValue, _> = CORS_HEADER_VALUE.parse();
+        if let Ok(header_val) = anything_header {
+            for header in CORS_HEADER_KEYS.iter() {
+                headers.insert(*header, header_val.clone());
+            }
+        }
     }
 
     for (header, header_value) in custom_headers.iter() {
@@ -102,8 +112,8 @@ where
         );
         builder = add_headers(builder, cors, &headers);
 
-        return Some(builder.body(c.body.into()).unwrap_or(Response::default()))
+        return Some(builder.body(c.body.into()).unwrap_or(Response::default()));
     }
-    
+
     None
 }
