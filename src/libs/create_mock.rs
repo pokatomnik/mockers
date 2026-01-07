@@ -42,7 +42,7 @@ pub async fn create_mock(
         }
     })?;
 
-    let last_path_part = last_path_part.unwrap();
+    let last_path_part = last_path_part.unwrap_or_default();
     let file_name = format!("{}.{}", last_path_part, params.method.to_lowercase());
     let full_destination_file_path = destination_directory.join(file_name);
     let mut file = File::create(&full_destination_file_path).inspect_err(|_| {

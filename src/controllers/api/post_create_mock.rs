@@ -32,7 +32,7 @@ pub async fn post_create_mock(
 
     match response_cache {
         Some(cache) => {
-            let body_bytes = req.body().clone().collect().await.unwrap().to_bytes();
+            let body_bytes = req.body().clone().collect().await.unwrap_or_default().to_bytes();
             let body_str = String::from_utf8(body_bytes.to_vec()).unwrap_or(String::new());
             let create_mock_params = serde_json::from_str::<CreateMockParams>(&body_str);
 
