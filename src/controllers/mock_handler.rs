@@ -114,6 +114,7 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
         );
     }
 
+    // Try respond from cache
     let cached_data = utils::get_response_from_cache(
         mocks_cache,
         req.uri().path().to_string().normalize_path(),
@@ -126,84 +127,97 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
         return Ok(response);
     }
 
-    match fs::read(&absolute_mock_file_name).await {
-        Ok(data) => {
-            let mime = get_mime(&data);
+    // Try respond from file-based mock
+    if let Ok(data) = fs::read(&absolute_mock_file_name).await {
+        let mime = get_mime(&data);
 
-            if verbose {
-                println!("File mime: {}", &mime);
-            }
+        if verbose {
+            println!("File mime: {}", &mime);
+        }
 
+        let response = {
             let mut builder = Response::builder()
                 .status(status_if_file_found)
                 .header(CONTENT_TYPE, mime);
             builder = add_headers(builder, cors, &custom_headers);
-            let response = builder
+            builder
                 .body(Full::from(data))
-                .unwrap_or(Response::default());
+                .unwrap_or(Response::default())
+        };
 
-            sleep(Duration::from_millis(delay)).await;
+        sleep(Duration::from_millis(delay)).await;
 
-            Ok(response)
+        return Ok(response);
+    }
+
+    // make request if remote server is specified
+    let request_params = origin.zip(client).map(|(origin, client)| {
+        let target_url = join_origin_and_path(&origin, &uri_pathname, req.uri().query());
+        if verbose {
+            println!("Mock is missing, proxying request to {}", target_url);
         }
-        Err(_) => {
-            if let Some((origin, client)) = origin.zip(client) {
-                let target_url = join_origin_and_path(&origin, &uri_pathname, req.uri().query());
-                if verbose {
-                    println!("Mock is missing, proxying request to {}", target_url);
-                }
 
-                let headers = {
-                    let mut res = req.headers().to_owned().clone();
-                    res.remove(hyper::header::HOST);
-                    res.remove(hyper::header::CONTENT_LENGTH);
-                    res
-                };
+        let headers = {
+            let mut res = req.headers().to_owned().clone();
+            res.remove(hyper::header::HOST);
+            res.remove(hyper::header::CONTENT_LENGTH);
+            res
+        };
 
-                let response = client
-                    .request(req.method().to_owned(), &target_url)
-                    .headers(headers)
-                    .body(reqwest::Body::wrap_stream(
-                        req.body().clone().into_data_stream(),
-                    ))
-                    .send()
-                    .await;
+        let request_builder = client
+            .request(req.method().to_owned(), &target_url)
+            .headers(headers)
+            .body(reqwest::Body::wrap_stream(
+                req.body().clone().into_data_stream(),
+            ));
 
-                match response {
-                    Err(_) => {
-                        if verbose {
-                            eprintln!("No response from origin: {}", &target_url)
-                        }
-                        Ok(get_502_response(cors, &custom_headers))
-                    }
-                    Ok(resp) => {
-                        let resp_headers = resp.headers().clone();
-                        let resp_status = resp.status().clone();
-                        let response_bytes = resp.bytes().await.unwrap_or(Bytes::new());
-                        let mut builder = Response::builder().status(resp_status);
-                        for (header_key, header_val) in resp_headers {
-                            if let Some(header_key) = header_key {
-                                builder = builder.header(header_key, header_val);
-                            }
-                        }
-                        builder = add_headers(builder, cors, &custom_headers);
+        (request_builder, target_url)
+    });
 
-                        if cache_mode == CacheMode::Overwrite {
-                            write_mock(
-                                &absolute_mock_file_name.display().to_string(),
-                                &response_bytes,
-                                verbose,
-                            );
-                        }
-
-                        Ok(builder
-                            .body(Full::new(response_bytes))
-                            .unwrap_or(Response::default()))
-                    }
-                }
-            } else {
-                Ok(get_404_response(cors, &custom_headers))
-            }
+    // Send response if remove server is specified
+    let response_params = async {
+        match request_params {
+            None => None,
+            Some((request, target_url)) => Some((request.send().await, target_url)),
         }
     }
+    .await;
+
+    // return 404 if no remote server specified
+    let Some((response_result, target_url)) = response_params else {
+        return Ok(get_404_response(cors, &custom_headers));
+    };
+
+    let Ok(resp) = response_result else {
+        if verbose {
+            eprintln!("No response from origin: '{}'", target_url)
+        }
+        return Ok(get_502_response(cors, &custom_headers));
+    };
+
+    let builder = {
+        let resp_headers = resp.headers().clone();
+        let resp_status = resp.status().clone();
+        let mut builder = Response::builder().status(resp_status);
+        for (header_key, header_val) in resp_headers {
+            if let Some(header_key) = header_key {
+                builder = builder.header(header_key, header_val);
+            }
+        }
+        builder = add_headers(builder, cors, &custom_headers);
+        builder
+    };
+    let response_bytes = resp.bytes().await.unwrap_or(Bytes::new());
+
+    if cache_mode == CacheMode::Overwrite {
+        write_mock(
+            &absolute_mock_file_name.display().to_string(),
+            &response_bytes,
+            verbose,
+        );
+    }
+
+    Ok(builder
+        .body(Full::new(response_bytes))
+        .unwrap_or(Response::default()))
 }
