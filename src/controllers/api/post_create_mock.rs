@@ -19,6 +19,7 @@ struct CreateMockParams {
     path: String,
     method: String,
     status_code: u16,
+    delay_ms: Option<u64>,
     headers: HashMap<String, String>,
     body: String,
 }
@@ -32,7 +33,13 @@ pub async fn post_create_mock(
 
     match response_cache {
         Some(cache) => {
-            let body_bytes = req.body().clone().collect().await.unwrap_or_default().to_bytes();
+            let body_bytes = req
+                .body()
+                .clone()
+                .collect()
+                .await
+                .unwrap_or_default()
+                .to_bytes();
             let body_str = String::from_utf8(body_bytes.to_vec()).unwrap_or(String::new());
             let create_mock_params = serde_json::from_str::<CreateMockParams>(&body_str);
 
@@ -44,6 +51,7 @@ pub async fn post_create_mock(
                     tokio::spawn(async move {
                         let response = &CachedResponse::new(
                             mock_params.status_code,
+                            mock_params.delay_ms.unwrap_or(0),
                             mock_params.headers,
                             mock_params.body,
                         );

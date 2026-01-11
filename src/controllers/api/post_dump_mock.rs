@@ -1,7 +1,9 @@
+use crate::libs::mock_config::MockConfig;
 use crate::libs::mockers_errors::MockersErrors;
 use crate::libs::protocol_result::ProtocolResultConverter;
 use crate::libs::response_cache::{MethodNormalizer, PathDecoder, PathNormalizer};
 use crate::server::mockers_context::MockersContext;
+use crate::server::params::CONFIG_FILE_NAME;
 use http_body_util::Full;
 use hyper::body::Bytes;
 use hyper::header::CONTENT_TYPE;
@@ -9,10 +11,11 @@ use hyper::{Request, Response, StatusCode};
 use mimetype_detector::APPLICATION_JSON;
 use path_absolutize::Absolutize;
 use routerify_ng::ext::RequestExt;
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::fs::{create_dir_all, metadata, write};
+use tokio::fs::{self, create_dir_all, metadata, write};
 
 pub async fn post_dump_mock(
     req: Request<Full<Bytes>>,
@@ -99,16 +102,47 @@ pub async fn post_dump_mock(
             .unwrap_or_default());
     };
 
-    let (absolute_target_file_name, absolute_target_directory) =
-        (absolute_target_file_name.to_path_buf().clone(), {
+    let (
+        absolute_target_file_name,
+        absolute_target_directory,
+        absolute_target_config_file_name,
+        config_entry_name,
+    ) = (
+        absolute_target_file_name.to_path_buf().clone(),
+        {
             let mut result = absolute_target_file_name.to_path_buf().clone();
             result.pop();
             result
-        });
+        },
+        {
+            let mut result = absolute_target_file_name.to_path_buf().clone();
+            result.pop();
+            result.join(CONFIG_FILE_NAME)
+        },
+        {
+            absolute_target_file_name
+                .to_path_buf()
+                .clone()
+                .iter()
+                .last()
+                .map(|s| s.to_string_lossy().to_string())
+        },
+    );
 
     if let Ok(md) = metadata(&absolute_target_directory).await
         && md.is_dir()
     {
+        if let Some(config_entry_name) = config_entry_name {
+            // TODO: add logging here
+            let _result = write_mock_config(
+                absolute_target_config_file_name,
+                config_entry_name,
+                cached.delay_ms,
+                cached.status_code,
+                &cached.headers,
+            )
+            .await;
+        }
         return write_file_contents_and_get_response(&absolute_target_file_name, &cached.body)
             .await;
     }
@@ -125,7 +159,56 @@ pub async fn post_dump_mock(
             .unwrap_or_default());
     }
 
+    if let Some(config_entry_name) = config_entry_name {
+        // TODO: add logging here
+        let _result = write_mock_config(
+            absolute_target_config_file_name,
+            config_entry_name,
+            cached.delay_ms,
+            cached.status_code,
+            &cached.headers,
+        )
+        .await;
+    }
+
     write_file_contents_and_get_response(&absolute_target_file_name, &cached.body).await
+}
+
+async fn write_mock_config(
+    to: impl AsRef<Path>,
+    entry_name: impl Into<String>,
+    delay_ms: u64,
+    status_code: u16,
+    headers: &HashMap<String, String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mock_config = MockConfig {
+        headers: match headers.is_empty() {
+            true => None,
+            false => Some(headers.clone()),
+        },
+        status_code: Some(status_code),
+        delay_ms: match delay_ms {
+            0 => None,
+            _ => Some(delay_ms),
+        },
+        cache_mode: None,
+    };
+    let existing_config = fs::read(&to).await.ok().and_then(|contents| {
+        serde_json::from_slice::<HashMap<String, MockConfig>>(&contents.as_ref()).ok()
+    });
+
+    if let Some(mut existing_config) = existing_config {
+        existing_config.insert(entry_name.into(), mock_config);
+        let updated = serde_json::to_string(&existing_config)?;
+        fs::write(to, updated).await?;
+    } else {
+        let mut new_map = HashMap::with_capacity(1);
+        new_map.insert(entry_name.into(), mock_config);
+        let json = serde_json::to_string(&new_map)?;
+        fs::write(to, json).await?;
+    }
+
+    Ok(())
 }
 
 async fn write_file_contents_and_get_response(

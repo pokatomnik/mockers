@@ -8,7 +8,7 @@ use crate::libs::response_cache::{MethodNormalizer, PathNormalizer};
 use crate::libs::{cache_mode::CacheMode, get_mime::get_mime, mock_config::read_config};
 use crate::server::mockers_context::MockersContext;
 use crate::server::params::{
-    DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY, DEFAULT_VERBOSE_ENABLED,
+    CONFIG_FILE_NAME, DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY, DEFAULT_VERBOSE_ENABLED,
 };
 use http_body_util::{BodyExt, Full};
 use hyper::{body::Bytes, Request, Response, StatusCode};
@@ -81,7 +81,7 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
      */
     let config_file_path = absolute_mocks_dir
         .join(relative_current_mock_config_dir)
-        .join("config.json");
+        .join(CONFIG_FILE_NAME);
     let config = read_config(&config_file_path).await;
 
     let delay = config
@@ -123,7 +123,8 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
     )
     .await;
 
-    if let Some(response) = cached_data {
+    if let Some((response, delay_ms)) = cached_data {
+        sleep(Duration::from_millis(delay_ms)).await;
         return Ok(response);
     }
 

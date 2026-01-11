@@ -307,12 +307,16 @@ components:
     CachedResponse:
       type: object
       description: "Cached response"
-      required: [statusCode, headers, body]
+      required: [statusCode, delayMs, headers, body]
       properties:
         statusCode:
           type: integer
           description: "HTTP response status code"
           example: 201
+        delayMs:
+          type: integer
+          description: "Time to wait before respond in milliseconds"
+          example: 1000
         headers:
           $ref: "#/components/schemas/HeadersMap"
         body:
@@ -328,6 +332,7 @@ components:
         "X-Server": "Mockers"
     CreateMockParams:
       type: object
+      required: [path, method, statusCode, headers, body]
       properties:
         path:
           type: string
@@ -337,6 +342,10 @@ components:
         statusCode:
           type: integer
           description: "HTTP status code to be sent"
+        delayMs:
+          type: integer
+          description: "Time in milliseconds before respond"
+          nullable: true
         headers:
           $ref: "#/components/schemas/HeadersMap"
         body:

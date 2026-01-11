@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::Path};
 use tokio::fs::read_to_string;
 
 use crate::libs::cache_mode::CacheMode;
@@ -13,7 +13,7 @@ pub struct MockConfig {
     pub cache_mode: Option<CacheMode>,
 }
 
-pub async fn read_config(path: &PathBuf) -> Option<HashMap<String, MockConfig>> {
+pub async fn read_config(path: impl AsRef<Path>) -> Option<HashMap<String, MockConfig>> {
     read_to_string(path)
         .await
         .ok()
