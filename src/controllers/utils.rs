@@ -81,7 +81,7 @@ pub async fn get_response_from_cache<P, M>(
     pathname: P,
     method: M,
     cors: bool,
-) -> Option<Response<Full<Bytes>>>
+) -> Option<(Response<Full<Bytes>>, u64)>
 where
     P: Into<String>,
     M: Into<String>,
@@ -112,7 +112,7 @@ where
         );
         builder = add_headers(builder, cors, &headers);
 
-        return Some(builder.body(c.body.into()).unwrap_or(Response::default()));
+        return Some((builder.body(c.body.into()).unwrap_or(Response::default()), c.delay_ms));
     }
 
     None

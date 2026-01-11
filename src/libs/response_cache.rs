@@ -9,6 +9,7 @@ use tokio::sync::RwLock;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachedResponse {
     pub status_code: u16,
+    pub delay_ms: u64,
     pub headers: HashMap<String, String>,
     pub body: String,
     #[serde(skip)]
@@ -16,9 +17,10 @@ pub struct CachedResponse {
 }
 
 impl CachedResponse {
-    pub fn new(status_code: u16, headers: HashMap<String, String>, body: String) -> CachedResponse {
+    pub fn new(status_code: u16, delay_ms: u64, headers: HashMap<String, String>, body: String) -> CachedResponse {
         CachedResponse {
             status_code,
+            delay_ms,
             headers,
             body,
             mime: Arc::new(RwLock::new(None)),

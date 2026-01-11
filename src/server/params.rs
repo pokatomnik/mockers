@@ -10,6 +10,7 @@ pub const DEFAULT_MOCKS_DIR: &'static str = "mocks";
 pub const DEFAULT_MOCKS_RESPONSE_DELAY: u64 = 0;
 pub const DEFAULT_CORS_ENABLED: bool = false;
 pub const DEFAULT_VERBOSE_ENABLED: bool = false;
+pub const CONFIG_FILE_NAME: &'static str = "config.json";
 
 #[derive(Args, Debug, Clone)]
 pub struct ServerParams {
