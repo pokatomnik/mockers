@@ -23,7 +23,7 @@ paths:
       tags:
         - admin
       summary: "get admin page HTML (TBD)"
-      description: ""
+      operationId: getAdminPage
       responses:
         200:
           description: "Mockers admin page"
@@ -36,7 +36,7 @@ paths:
       tags:
         - admin
       summary: "get all mocks at once"
-      description: ""
+      operationId: getAllMocks
       responses:
         200:
           description: "all mocks"
@@ -54,7 +54,7 @@ paths:
       tags:
         - admin
       summary: "create a new mock"
-      description: ""
+      operationId: createNewMock
       requestBody:
         required: true
         content:
@@ -79,11 +79,14 @@ paths:
       tags:
         - admin
       summary: "get all mocks by specified path"
+      operationId: getMocksByPath
       parameters:
         - name: path_encoded
           in: path
           required: true
           description: "Base64-encoded pathname"
+          schema:
+            type: string
       responses:
         200:
           description: "all mocks for specified path"
@@ -101,11 +104,14 @@ paths:
       tags:
         - admin
       summary: "delete all mocks by pathname"
+      operationId: deleteMocksByPath
       parameters:
         - name: "path_encoded"
           in: path
           required: true
           description: "Base-64 encoded pathname"
+          schema:
+            type: string
       responses:
         200:
           description: "mocks deleted by pathname"
@@ -124,15 +130,20 @@ paths:
       tags:
         - admin
       summary: "get mock by path and method"
+      description: getMockByPathAndMethod
       parameters:
         - name: path_encoded
           in: path
           required: true
           description: "Base64-encoded pathname"
+          schema:
+            type: string
         - name: method
           in: path
           required: true
           description: "HTTP method"
+          schema:
+            $ref: "#/components/schemas/HTTPMethods"
       responses:
         200:
           description: "mock by pathname and method"
@@ -150,15 +161,20 @@ paths:
       tags:
         - admin
       summary: "delete mock by pathname and method"
+      operationId: deleteMockByPathAndMethod
       parameters:
         - name: path_encoded
           in: path
           required: true
           description: "Base64-encoded pathname"
+          schema:
+            type: string
         - name: method
           in: path
           required: true
           description: HTTP method
+          schema:
+            $ref: "#/components/schemas/HTTPMethods"
       responses:
         200:
           description: "mock removed by pathname and http method"
@@ -177,15 +193,20 @@ paths:
       tags:
         - admin
       summary: "dump existing mock to a file"
+      operationId: dumpMockByPathAndMethod
       parameters:
         - name: path_encoded
           in: path
           required: true
           description: "Base64-encoded pathname"
+          schema:
+            type: string
         - name: method
           in: path
           required: true
           description: HTTP method
+          schema:
+            $ref: "#/components/schemas/HTTPMethods"
       responses:
         200:
           description: "mock dumped"
@@ -248,8 +269,8 @@ components:
       description: "mocks by path and method OK response"
       properties:
         ok:
+          nullable: true
           allOf:
-            - nullable: true
             - $ref: "#/components/schemas/CachedResponse"
     MocksByPathAndMethodErr:
       type: object
@@ -266,6 +287,7 @@ components:
         "foo/bar/baz":
           get:
             statusCode: 201
+            delayMs: 0
             headers:
               "Content-Type": "application/json"
               "X-Server": "Mockers"
@@ -362,6 +384,7 @@ components:
         - GET_MOCKS_BY_PATH_AND_METHOD_FAILED
         - ADD_MOCK_FAILED
         - NO_SUCH_MOCK
+        - MISSING_MOCKS_DIRECTORY
     HTTPMethods:
       type: string
       description: "HTTP method"
