@@ -57,12 +57,12 @@ pub fn admin_router(_params: &ServerParams) -> Result<Router<Infallible>, RouteE
         // GraphQL mock API routes
         .get("/api/v1/graphql/mocks", get_all_graphql_mocks)
         .get(
-            "/api/v1/graphql/mocks/:path_encoded/:operation_name/:operation_type",
+            "/api/v1/graphql/mocks/:path_encoded/:query_hash",
             get_graphql_mock,
         )
         .post("/api/v1/graphql/mocks", post_create_graphql_mock)
         .delete(
-            "/api/v1/graphql/mocks/:path_encoded/:operation_name/:operation_type",
+            "/api/v1/graphql/mocks/:path_encoded/:query_hash",
             delete_graphql_mock,
         )
         .delete(

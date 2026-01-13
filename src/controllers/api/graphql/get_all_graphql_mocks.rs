@@ -20,8 +20,10 @@ use crate::server::mockers_context::MockersContext;
 #[serde(rename_all = "camelCase")]
 pub struct GraphQLMockResponse {
     pub path: String,
-    pub operation_name: String,
-    pub operation_type: GraphQLOperationType,
+    pub query_hash: String,
+    pub operation_name: Option<String>,
+    pub operation_type: Option<GraphQLOperationType>,
+    pub original_query: Option<String>,
     pub status_code: u16,
     pub delay_ms: u64,
     pub data: serde_json::Value,
@@ -29,16 +31,13 @@ pub struct GraphQLMockResponse {
 }
 
 impl GraphQLMockResponse {
-    pub fn from_cached(
-        path: String,
-        operation_name: String,
-        operation_type: GraphQLOperationType,
-        cached: &GraphQLCachedResponse,
-    ) -> Self {
+    pub fn from_cached(path: String, query_hash: u64, cached: &GraphQLCachedResponse) -> Self {
         Self {
             path,
-            operation_name,
-            operation_type,
+            query_hash: format!("{:016x}", query_hash),
+            operation_name: cached.operation_name.clone(),
+            operation_type: cached.operation_type,
+            original_query: cached.original_query.clone(),
             status_code: cached.status_code,
             delay_ms: cached.delay_ms,
             data: cached.data.clone(),
@@ -55,7 +54,10 @@ impl GraphQLMockResponse {
 pub async fn get_all_graphql_mocks(
     req: Request<Full<Bytes>>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
-    let Some(cache) = req.data::<Arc<MockersContext>>().map(|ctx| ctx.graphql_cache.clone()) else {
+    let Some(cache) = req
+        .data::<Arc<MockersContext>>()
+        .map(|ctx| ctx.graphql_cache.clone())
+    else {
         let json = serde_json::to_string(
             &Err::<Vec<GraphQLMockResponse>, _>(MockersErrors::GetAllMocksFailed.to_string())
                 .to_protocol(),
@@ -73,9 +75,7 @@ pub async fn get_all_graphql_mocks(
         .get_all()
         .await
         .into_iter()
-        .map(|(key, response)| {
-            GraphQLMockResponse::from_cached(key.path, key.operation_name, key.operation_type, &response)
-        })
+        .map(|(key, response)| GraphQLMockResponse::from_cached(key.path, key.query_hash, &response))
         .collect();
 
     let json = serde_json::to_string(&Ok::<_, String>(mocks).to_protocol());
