@@ -55,46 +55,35 @@ impl GraphQLMockResponse {
 pub async fn get_all_graphql_mocks(
     req: Request<Full<Bytes>>,
 ) -> Result<Response<Full<Bytes>>, Infallible> {
-    let graphql_cache = req
-        .data::<Arc<MockersContext>>()
-        .map(|ctx| ctx.graphql_cache.clone());
+    let Some(cache) = req.data::<Arc<MockersContext>>().map(|ctx| ctx.graphql_cache.clone()) else {
+        let json = serde_json::to_string(
+            &Err::<Vec<GraphQLMockResponse>, _>(MockersErrors::GetAllMocksFailed.to_string())
+                .to_protocol(),
+        );
+        let bytes = json.map(Bytes::from).unwrap_or_default();
 
-    match graphql_cache {
-        Some(cache) => {
-            let all_mocks = cache.get_all().await;
-            let mocks: Vec<GraphQLMockResponse> = all_mocks
-                .into_iter()
-                .map(|(key, response)| {
-                    GraphQLMockResponse::from_cached(
-                        key.path,
-                        key.operation_name,
-                        key.operation_type,
-                        &response,
-                    )
-                })
-                .collect();
+        return Ok(Response::builder()
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
+            .header(CONTENT_TYPE, APPLICATION_JSON)
+            .body(Full::new(bytes))
+            .unwrap_or_default());
+    };
 
-            let json = serde_json::to_string(&Ok::<_, String>(mocks).to_protocol());
-            let bytes = json.map(Bytes::from).unwrap_or_default();
+    let mocks: Vec<GraphQLMockResponse> = cache
+        .get_all()
+        .await
+        .into_iter()
+        .map(|(key, response)| {
+            GraphQLMockResponse::from_cached(key.path, key.operation_name, key.operation_type, &response)
+        })
+        .collect();
 
-            Ok(Response::builder()
-                .status(StatusCode::OK)
-                .header(CONTENT_TYPE, APPLICATION_JSON)
-                .body(Full::new(bytes))
-                .unwrap_or_default())
-        }
-        None => {
-            let json = serde_json::to_string(
-                &Err::<Vec<GraphQLMockResponse>, _>(MockersErrors::GetAllMocksFailed.to_string())
-                    .to_protocol(),
-            );
-            let bytes = json.map(Bytes::from).unwrap_or_default();
+    let json = serde_json::to_string(&Ok::<_, String>(mocks).to_protocol());
+    let bytes = json.map(Bytes::from).unwrap_or_default();
 
-            Ok(Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .header(CONTENT_TYPE, APPLICATION_JSON)
-                .body(Full::new(bytes))
-                .unwrap_or_default())
-        }
-    }
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_TYPE, APPLICATION_JSON)
+        .body(Full::new(bytes))
+        .unwrap_or_default())
 }

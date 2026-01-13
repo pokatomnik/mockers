@@ -62,30 +62,24 @@ pub async fn graphql_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<
         .map(|buf| buf.to_bytes())
         .unwrap_or_default();
 
-    let body_str = match String::from_utf8(body_bytes.to_vec()) {
-        Ok(s) => s,
-        Err(_) => {
-            return Ok(build_graphql_error_response(
-                StatusCode::BAD_REQUEST,
-                "Invalid UTF-8 in request body",
-                cors,
-            ));
-        }
+    let Ok(body_str) = String::from_utf8(body_bytes.to_vec()) else {
+        return Ok(build_graphql_error_response(
+            StatusCode::BAD_REQUEST,
+            "Invalid UTF-8 in request body",
+            cors,
+        ));
     };
 
     // Parse GraphQL request
-    let graphql_request: GraphQLRequest = match serde_json::from_str(&body_str) {
-        Ok(req) => req,
-        Err(e) => {
-            if verbose {
-                eprintln!("[GraphQL] Failed to parse request: {}", e);
-            }
-            return Ok(build_graphql_error_response(
-                StatusCode::BAD_REQUEST,
-                &format!("Invalid GraphQL request: {}", e),
-                cors,
-            ));
+    let Ok(graphql_request) = serde_json::from_str::<GraphQLRequest>(&body_str) else {
+        if verbose {
+            eprintln!("[GraphQL] Failed to parse request");
         }
+        return Ok(build_graphql_error_response(
+            StatusCode::BAD_REQUEST,
+            "Invalid GraphQL request",
+            cors,
+        ));
     };
 
     // Extract operation info
@@ -101,16 +95,13 @@ pub async fn graphql_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<
     }
 
     // Operation name is required for mocking
-    let operation_name = match operation_name {
-        Some(name) => name,
-        None => {
-            return Ok(build_graphql_error_response(
-                StatusCode::BAD_REQUEST,
-                "Operation name is required for GraphQL mocking. \
-                 Provide it via 'operationName' field or in the query itself.",
-                cors,
-            ));
-        }
+    let Some(operation_name) = operation_name else {
+        return Ok(build_graphql_error_response(
+            StatusCode::BAD_REQUEST,
+            "Operation name is required for GraphQL mocking. \
+             Provide it via 'operationName' field or in the query itself.",
+            cors,
+        ));
     };
 
     // Try to find mock in cache
