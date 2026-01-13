@@ -26,7 +26,7 @@ mockers serve [OPTIONS]
 ## Command-line Options 🚀
 
 | Flag               | Default     | Description                                                              |
-|--------------------|-------------|--------------------------------------------------------------------------|
+| ------------------ | ----------- | ------------------------------------------------------------------------ |
 | `--host`           | `127.0.0.1` | Host to listen on                                                        |
 | `--port`, `-p`     | `8080`      | Port to listen on                                                        |
 | `--verbose`, `-v`  | `false`     | Enable verbose logging                                                   |
@@ -128,7 +128,7 @@ will produce:
 - 💡 All fields inside each entry are optional:
 
 | Field        | Type                     | Description                                                                                                                                                                                         |
-|--------------|--------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `delayMs`    | `number`                 | Artificial response delay in milliseconds                                                                                                                                                           |
 | `statusCode` | `number` (u16)           | HTTP status code                                                                                                                                                                                    |
 | `headers`    | `Record<string,string>`  | Additional headers to append to the response                                                                                                                                                        |
@@ -169,7 +169,7 @@ All endpoints will start from the specified admin base url. There are endpoints 
 and modifying, as well as endpoints for saving mocks from RAM to a file.
 
 To open the Swagger UI (let's assume that we have launched `mockers` as mentioned above) you need to open the
-address http://localhost:8080/__admin/swagger
+address http://localhost:8080/\_\_admin/swagger
 
 ## Notes 🚀
 
@@ -184,7 +184,7 @@ Huge thanks to [@Caik](https://github.com/Caik)
 I rewrote the whole thing in Rust because apparently I enjoy suffering — and because I wanted features the original
 never asked for.
 
-Special thanks to [bloodvez](https://github.com/bloodvez) who helped me with finding issues.
+Big thanks to [bloodvez](https://github.com/bloodvez) for helping me find problems and to [silentroach](https://github.com/silentroach) for pointing out a bug and showing me mind-blowing AI experiments with Rust.
 
 ## License 🚀
 
