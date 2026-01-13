@@ -84,6 +84,8 @@ paths:
           in: path
           required: true
           description: "Base64-encoded pathname"
+          schema:
+            type: string
       responses:
         200:
           description: "all mocks for specified path"
@@ -106,6 +108,8 @@ paths:
           in: path
           required: true
           description: "Base-64 encoded pathname"
+          schema:
+            type: string
       responses:
         200:
           description: "mocks deleted by pathname"
@@ -129,10 +133,14 @@ paths:
           in: path
           required: true
           description: "Base64-encoded pathname"
+          schema:
+            type: string
         - name: method
           in: path
           required: true
           description: "HTTP method"
+          schema:
+            $ref: "#/components/schemas/HTTPMethods"
       responses:
         200:
           description: "mock by pathname and method"
@@ -155,10 +163,14 @@ paths:
           in: path
           required: true
           description: "Base64-encoded pathname"
+          schema:
+            type: string
         - name: method
           in: path
           required: true
-          description: HTTP method
+          description: "HTTP method"
+          schema:
+            $ref: "#/components/schemas/HTTPMethods"
       responses:
         200:
           description: "mock removed by pathname and http method"
@@ -182,10 +194,14 @@ paths:
           in: path
           required: true
           description: "Base64-encoded pathname"
+          schema:
+            type: string
         - name: method
           in: path
           required: true
-          description: HTTP method
+          description: "HTTP method"
+          schema:
+            $ref: "#/components/schemas/HTTPMethods"
       responses:
         200:
           description: "mock dumped"
@@ -215,7 +231,7 @@ components:
           type: string
     MockUpdateOperationErr:
       type: object
-      description: "Faile to create mock"
+      description: "Failed to create mock"
       properties:
         err:
           $ref: "#/components/schemas/MockersAdminErrors"
@@ -248,8 +264,8 @@ components:
       description: "mocks by path and method OK response"
       properties:
         ok:
+          nullable: true
           allOf:
-            - nullable: true
             - $ref: "#/components/schemas/CachedResponse"
     MocksByPathAndMethodErr:
       type: object
@@ -265,55 +281,43 @@ components:
       example:
         "foo/bar/baz":
           get:
-            statusCode: 201
+            status_code: 201
+            delay_ms: 0
             headers:
               "Content-Type": "application/json"
               "X-Server": "Mockers"
-            body: { "foo": "bar" }
+            body: '{ "foo": "bar" }'
     MocksByURLMap:
       nullable: true
       type: object
-      description: "All mocks by method"
-      properties:
-        get:
-          $ref: "#/components/schemas/CachedResponse"
-        post:
-          $ref: "#/components/schemas/CachedResponse"
-        put:
-          $ref: "#/components/schemas/CachedResponse"
-        delete:
-          $ref: "#/components/schemas/CachedResponse"
-        patch:
-          $ref: "#/components/schemas/CachedResponse"
-        head:
-          $ref: "#/components/schemas/CachedResponse"
-        options:
-          $ref: "#/components/schemas/CachedResponse"
-        trace:
-          $ref: "#/components/schemas/CachedResponse"
+      description: "All mocks by method (keys are HTTP method names in lowercase)"
+      additionalProperties:
+        $ref: "#/components/schemas/CachedResponse"
       example:
         get:
-          statusCode: 201
+          status_code: 201
+          delay_ms: 0
           headers:
             "Content-Type": "application/json"
             "X-Server": "Mockers"
-          body: { "foo": "bar" }
+          body: '{ "foo": "bar" }'
         post:
-          statusCode: 202
+          status_code: 202
+          delay_ms: 100
           headers:
             "Content-Type": "application/json"
             "X-Server": "Mockers"
-          body: { "foo": "baz" }
+          body: '{ "foo": "baz" }'
     CachedResponse:
       type: object
       description: "Cached response"
-      required: [statusCode, delayMs, headers, body]
+      required: [status_code, delay_ms, headers, body]
       properties:
-        statusCode:
+        status_code:
           type: integer
           description: "HTTP response status code"
           example: 201
-        delayMs:
+        delay_ms:
           type: integer
           description: "Time to wait before respond in milliseconds"
           example: 1000
@@ -362,6 +366,7 @@ components:
         - GET_MOCKS_BY_PATH_AND_METHOD_FAILED
         - ADD_MOCK_FAILED
         - NO_SUCH_MOCK
+        - MISSING_MOCKS_DIRECTORY
     HTTPMethods:
       type: string
       description: "HTTP method"
