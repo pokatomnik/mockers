@@ -14,6 +14,8 @@ info:
 tags:
   - name: "admin"
     description: "Mockers admin API"
+  - name: "mocks"
+    description: "Mocks routes"
 
 paths:
   /:
