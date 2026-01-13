@@ -286,8 +286,8 @@ components:
       example:
         "foo/bar/baz":
           get:
-            status_code: 201
-            delay_ms: 0
+            statusCode: 201
+            delayMs: 0
             headers:
               "Content-Type": "application/json"
               "X-Server": "Mockers"
@@ -316,15 +316,15 @@ components:
       additionalProperties: false
       example:
         get:
-          status_code: 201
-          delay_ms: 0
+          statusCode: 201
+          delayMs: 0
           headers:
             "Content-Type": "application/json"
             "X-Server": "Mockers"
           body: '{ "foo": "bar" }'
         post:
-          status_code: 202
-          delay_ms: 100
+          statusCode: 202
+          delayMs: 100
           headers:
             "Content-Type": "application/json"
             "X-Server": "Mockers"
@@ -332,14 +332,14 @@ components:
     CachedResponse:
       type: object
       description: "Cached response"
-      required: [status_code, delay_ms, headers, body]
+      required: [statusCode, delayMs, headers, body]
       properties:
-        status_code:
+        statusCode:
           type: integer
           format: int32
           description: "HTTP response status code"
           example: 201
-        delay_ms:
+        delayMs:
           type: integer
           format: int64
           description: "Time to wait before respond in milliseconds"
