@@ -13,9 +13,7 @@ info:
 
 tags:
   - name: "admin"
-    description: "Mockers admin page"
-  - name: "mocks"
-    description: "Mocks routes"
+    description: "Mockers admin API"
 
 paths:
   /:
@@ -23,9 +21,9 @@ paths:
       tags:
         - admin
       summary: "get admin page HTML (TBD)"
-      description: ""
+      operationId: getAdminPage
       responses:
-        200:
+        "200":
           description: "Mockers admin page"
           content:
             text/html:
@@ -36,15 +34,15 @@ paths:
       tags:
         - admin
       summary: "get all mocks at once"
-      description: ""
+      operationId: getAllMocks
       responses:
-        200:
+        "200":
           description: "all mocks"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AllMocksOk"
-        500:
+        "500":
           description: "failed to get all mocks"
           content:
             application/json:
@@ -54,7 +52,7 @@ paths:
       tags:
         - admin
       summary: "create a new mock"
-      description: ""
+      operationId: createMock
       requestBody:
         required: true
         content:
@@ -62,13 +60,13 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateMockParams"
       responses:
-        200:
+        "200":
           description: "a new mock created"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MocksUpdateOperationOk"
-        500:
+        "500":
           description: "failed to create a new mock"
           content:
             application/json:
@@ -79,6 +77,7 @@ paths:
       tags:
         - admin
       summary: "get all mocks by specified path"
+      operationId: getMocksByPath
       parameters:
         - name: path_encoded
           in: path
@@ -87,13 +86,13 @@ paths:
           schema:
             type: string
       responses:
-        200:
+        "200":
           description: "all mocks for specified path"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MocksByPathOk"
-        500:
+        "500":
           description: "failed to get mocks by path"
           content:
             application/json:
@@ -103,6 +102,7 @@ paths:
       tags:
         - admin
       summary: "delete all mocks by pathname"
+      operationId: deleteMocksByPath
       parameters:
         - name: "path_encoded"
           in: path
@@ -111,13 +111,13 @@ paths:
           schema:
             type: string
       responses:
-        200:
+        "200":
           description: "mocks deleted by pathname"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MocksUpdateOperationOk"
-        500:
+        "500":
           description: "failed to delete mocks by pathname"
           content:
             application/json:
@@ -128,6 +128,7 @@ paths:
       tags:
         - admin
       summary: "get mock by path and method"
+      operationId: getMockByPathAndMethod
       parameters:
         - name: path_encoded
           in: path
@@ -142,13 +143,13 @@ paths:
           schema:
             $ref: "#/components/schemas/HTTPMethods"
       responses:
-        200:
+        "200":
           description: "mock by pathname and method"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MocksByPathAndMethodOk"
-        500:
+        "500":
           description: "failed to get mock by path and method"
           content:
             application/json:
@@ -158,6 +159,7 @@ paths:
       tags:
         - admin
       summary: "delete mock by pathname and method"
+      operationId: deleteMockByPathAndMethod
       parameters:
         - name: path_encoded
           in: path
@@ -172,13 +174,13 @@ paths:
           schema:
             $ref: "#/components/schemas/HTTPMethods"
       responses:
-        200:
+        "200":
           description: "mock removed by pathname and http method"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MocksUpdateOperationOk"
-        500:
+        "500":
           description: "failed to remove mock by pathname and http method"
           content:
             application/json:
@@ -189,6 +191,7 @@ paths:
       tags:
         - admin
       summary: "dump existing mock to a file"
+      operationId: dumpMock
       parameters:
         - name: path_encoded
           in: path
@@ -203,20 +206,20 @@ paths:
           schema:
             $ref: "#/components/schemas/HTTPMethods"
       responses:
-        200:
+        "200":
           description: "mock dumped"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MocksUpdateOperationOk"
-        500:
-          description: "failed to dump mock because of internal error"
+        "404":
+          description: "failed to dump missing mock"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MockUpdateOperationErr"
-        404:
-          description: "failed to dump missing mock"
+        "500":
+          description: "failed to dump mock because of internal error"
           content:
             application/json:
               schema:
@@ -315,10 +318,12 @@ components:
       properties:
         status_code:
           type: integer
+          format: int32
           description: "HTTP response status code"
           example: 201
         delay_ms:
           type: integer
+          format: int64
           description: "Time to wait before respond in milliseconds"
           example: 1000
         headers:
@@ -326,7 +331,7 @@ components:
         body:
           type: string
           description: "HTTP response body"
-          example: { "foo": "bar" }
+          example: '{"foo": "bar"}'
     HeadersMap:
       type: object
       additionalProperties:
@@ -345,11 +350,12 @@ components:
           $ref: "#/components/schemas/HTTPMethods"
         statusCode:
           type: integer
+          format: int32
           description: "HTTP status code to be sent"
         delayMs:
           type: integer
+          format: int64
           description: "Time in milliseconds before respond"
-          nullable: true
         headers:
           $ref: "#/components/schemas/HeadersMap"
         body:
