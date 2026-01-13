@@ -296,8 +296,24 @@ components:
       nullable: true
       type: object
       description: "All mocks by method (keys are HTTP method names in lowercase)"
-      additionalProperties:
-        $ref: "#/components/schemas/CachedResponse"
+      properties:
+        get:
+          $ref: "#/components/schemas/CachedResponse"
+        post:
+          $ref: "#/components/schemas/CachedResponse"
+        put:
+          $ref: "#/components/schemas/CachedResponse"
+        delete:
+          $ref: "#/components/schemas/CachedResponse"
+        patch:
+          $ref: "#/components/schemas/CachedResponse"
+        head:
+          $ref: "#/components/schemas/CachedResponse"
+        options:
+          $ref: "#/components/schemas/CachedResponse"
+        trace:
+          $ref: "#/components/schemas/CachedResponse"
+      additionalProperties: false
       example:
         get:
           status_code: 201
