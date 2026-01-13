@@ -25,7 +25,7 @@ paths:
       summary: "get admin page HTML (TBD)"
       operationId: getAdminPage
       responses:
-        200:
+        "200":
           description: "Mockers admin page"
           content:
             text/html:
@@ -38,13 +38,13 @@ paths:
       summary: "get all mocks at once"
       operationId: getAllMocks
       responses:
-        200:
+        "200":
           description: "all mocks"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AllMocksOk"
-        500:
+        "500":
           description: "failed to get all mocks"
           content:
             application/json:
@@ -62,13 +62,13 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateMockParams"
       responses:
-        200:
+        "200":
           description: "a new mock created"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MocksUpdateOperationOk"
-        500:
+        "500":
           description: "failed to create a new mock"
           content:
             application/json:
@@ -88,13 +88,13 @@ paths:
           schema:
             type: string
       responses:
-        200:
+        "200":
           description: "all mocks for specified path"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MocksByPathOk"
-        500:
+        "500":
           description: "failed to get mocks by path"
           content:
             application/json:
@@ -113,13 +113,13 @@ paths:
           schema:
             type: string
       responses:
-        200:
+        "200":
           description: "mocks deleted by pathname"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MocksUpdateOperationOk"
-        500:
+        "500":
           description: "failed to delete mocks by pathname"
           content:
             application/json:
@@ -145,13 +145,13 @@ paths:
           schema:
             $ref: "#/components/schemas/HTTPMethods"
       responses:
-        200:
+        "200":
           description: "mock by pathname and method"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MocksByPathAndMethodOk"
-        500:
+        "500":
           description: "failed to get mock by path and method"
           content:
             application/json:
@@ -176,13 +176,13 @@ paths:
           schema:
             $ref: "#/components/schemas/HTTPMethods"
       responses:
-        200:
+        "200":
           description: "mock removed by pathname and http method"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MocksUpdateOperationOk"
-        500:
+        "500":
           description: "failed to remove mock by pathname and http method"
           content:
             application/json:
@@ -208,19 +208,19 @@ paths:
           schema:
             $ref: "#/components/schemas/HTTPMethods"
       responses:
-        200:
+        "200":
           description: "mock dumped"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MocksUpdateOperationOk"
-        500:
+        "500":
           description: "failed to dump mock because of internal error"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/MockUpdateOperationErr"
-        404:
+        "404":
           description: "failed to dump missing mock"
           content:
             application/json:
