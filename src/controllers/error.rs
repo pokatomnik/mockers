@@ -9,9 +9,6 @@ pub async fn error_handler(
     eprintln!("{}", err);
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .body(Full::new(hyper::body::Bytes::from(format!(
-            "Something went wrong: {}",
-            err
-        ))))
-        .unwrap_or(Response::default())
+        .body(format!("Something went wrong: {}", err).into())
+        .unwrap_or_default()
 }
