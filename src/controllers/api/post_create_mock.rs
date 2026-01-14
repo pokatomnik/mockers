@@ -38,12 +38,12 @@ pub async fn post_create_mock(
             )
             .to_protocol(),
         );
-        let bytes = json.map(|s| Bytes::from(s)).unwrap_or(Bytes::new());
+        let bytes = json.map(|s| Bytes::from(s)).unwrap_or_default();
         return Ok(Response::builder()
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .header(CONTENT_TYPE, APPLICATION_JSON)
-            .body(Full::new(Bytes::from(bytes)))
-            .unwrap_or(Response::default()));
+            .body(bytes.into())
+            .unwrap_or_default());
     };
 
     let body_bytes = req
@@ -53,7 +53,7 @@ pub async fn post_create_mock(
         .await
         .unwrap_or_default()
         .to_bytes();
-    let body_str = String::from_utf8(body_bytes.to_vec()).unwrap_or(String::new());
+    let body_str = String::from_utf8(body_bytes.to_vec()).unwrap_or_default();
     let create_mock_params = serde_json::from_str::<CreateMockParams>(&body_str);
 
     let Ok(mock_params) = create_mock_params else {
@@ -63,12 +63,12 @@ pub async fn post_create_mock(
             )
             .to_protocol(),
         );
-        let bytes = json.map(|s| Bytes::from(s)).unwrap_or(Bytes::new());
+        let bytes: Bytes = json.map(|s| s.into()).unwrap_or_default();
         return Ok(Response::builder()
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .header(CONTENT_TYPE, APPLICATION_JSON)
-            .body(Full::new(bytes))
-            .unwrap_or(Response::default()));
+            .body(bytes.into())
+            .unwrap_or_default());
     };
 
     let path = mock_params.path.clone();
@@ -96,10 +96,10 @@ pub async fn post_create_mock(
         .as_ref()
         .map(|_| StatusCode::OK)
         .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    let bytes = json.map(|str| Bytes::from(str)).unwrap_or(Bytes::new());
+    let bytes: Bytes = json.map(|str| str.into()).unwrap_or_default();
     return Ok(Response::builder()
         .status(status)
         .header(CONTENT_TYPE, APPLICATION_JSON)
-        .body(Full::new(Bytes::from(bytes)))
-        .unwrap_or(Response::default()));
+        .body(bytes.into())
+        .unwrap_or_default());
 }
