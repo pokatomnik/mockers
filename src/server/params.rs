@@ -45,20 +45,18 @@ pub struct ServerParams {
 
 impl ServerParams {
     fn check_admin_base_url(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-        let path = &self.admin_base_url.clone().map(|path| {
-            return PathBuf::from(&path);
-        });
-        match path {
-            Some(path) => match path.is_absolute() {
-                true => Ok(()),
-                false => Err(format!(
-                    "Admin base URL should be absolute path: \"{}\"",
-                    path.to_string_lossy().to_string()
-                )
-                .into()),
-            },
-            None => Ok(()),
+        let path: Option<PathBuf> = self.admin_base_url.clone().map(PathBuf::from);
+        let Some(path) = path else {
+            return Ok(());
+        };
+        if path.is_absolute() {
+            return Ok(());
         }
+        let message = format!(
+            "Admin base URL should be absolute path: \"{}\"",
+            path.to_string_lossy().to_string()
+        );
+        Err(message.into())
     }
 
     fn expect_mocks_path_to_exist(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
@@ -100,10 +98,7 @@ impl ServerParams {
         let path = Path::new(&self.mocks).to_owned();
         match path.is_absolute() {
             true => Ok(path),
-            false => {
-                let cwd = std::env::current_dir()?;
-                Ok(cwd.join(&self.mocks))
-            }
+            false => Ok(std::env::current_dir()?.join(&self.mocks)),
         }
     }
 
