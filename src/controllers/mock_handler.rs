@@ -1,8 +1,8 @@
 use std::{collections::HashMap, convert::Infallible, path::PathBuf, sync::Arc, time::Duration};
 
-use crate::controllers::utils;
+use crate::controllers::utils::{self, write_mock_metadata};
 use crate::controllers::utils::{
-    add_headers, get_404_response, get_502_response, join_origin_and_path, write_mock,
+    add_headers, get_404_response, get_502_response, join_origin_and_path, write_mock_body,
 };
 use crate::libs::response_cache::{MethodNormalizer, PathNormalizer};
 use crate::libs::{cache_mode::CacheMode, get_mime::get_mime, mock_config::read_config};
@@ -11,7 +11,7 @@ use crate::server::params::{
     CONFIG_FILE_NAME, DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY, DEFAULT_VERBOSE_ENABLED,
 };
 use http_body_util::{BodyExt, Full};
-use hyper::{body::Bytes, Request, Response, StatusCode};
+use hyper::{Request, Response, StatusCode, body::Bytes};
 use reqwest::header::CONTENT_TYPE;
 use routerify_ng::ext::RequestExt;
 use tokio::{fs, time::sleep};
@@ -196,9 +196,15 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
         return Ok(get_502_response(cors, &custom_headers));
     };
 
+    let resp_headers = resp.headers().clone();
+    let save_headers = resp_headers.clone();
+
+    let resp_status = resp.status().clone();
+
+    let response_bytes = resp.bytes().await.unwrap_or_default();
+    let save_bytes = response_bytes.clone();
+
     let builder = {
-        let resp_headers = resp.headers().clone();
-        let resp_status = resp.status().clone();
         let mut builder = Response::builder().status(resp_status);
         for (header_key, header_val) in resp_headers {
             if let Some(header_key) = header_key {
@@ -208,12 +214,18 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
         builder = add_headers(builder, cors, &custom_headers);
         builder
     };
-    let response_bytes = resp.bytes().await.unwrap_or(Bytes::new());
 
     if cache_mode == CacheMode::Overwrite {
-        write_mock(
-            &absolute_mock_file_name.display().to_string(),
-            &response_bytes,
+        write_mock_body(
+            absolute_mock_file_name.display().to_string(),
+            &save_bytes,
+            verbose,
+        );
+        write_mock_metadata(
+            mock_config_entry_name.to_string(),
+            config_file_path.to_string_lossy(),
+            resp_status.into(),
+            &save_headers,
             verbose,
         );
     }

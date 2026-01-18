@@ -1,13 +1,16 @@
 use http_body_util::Full;
+use hyper::HeaderMap;
 
+use crate::libs::cache_mode::CacheMode;
+use crate::libs::mock_config::{MockConfig, read_config};
 use crate::libs::response_cache::InMemoryMocks;
 use http::response::Builder;
 use hyper::http::HeaderValue;
-use hyper::{body::Bytes, http, Response, StatusCode};
+use hyper::{Response, StatusCode, body::Bytes, http};
 use reqwest::header::CONTENT_TYPE;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::fs::write;
+use tokio::fs::{self, write};
 
 pub fn join_origin_and_path(origin: &str, path: &str, query: Option<&str>) -> String {
     let origin = origin.trim_end_matches("/");
@@ -64,28 +67,73 @@ pub fn add_headers(
     builder
 }
 
-pub fn write_mock(target_file_name: &str, data: &Bytes, verbose: bool) {
+pub fn write_mock_body(target_file_name: impl Into<String>, data: &Bytes, verbose: bool) {
     let data = data.clone();
-    let target_file_name = target_file_name.to_string();
+    let target_file_name = target_file_name.into();
     tokio::spawn(async move {
-        if let Err(_) = write(&target_file_name, &data).await {
+        if let Err(e) = write(&target_file_name, &data).await {
             if verbose {
-                eprintln!("Failed to write mock data to: '{}'", target_file_name)
+                eprintln!(
+                    "Failed to write mock data to: '{}'. Original error: {}",
+                    target_file_name, e
+                )
             }
         }
     });
 }
 
-pub async fn get_response_from_cache<P, M>(
+pub fn write_mock_metadata(
+    target_entry_name: impl Into<String>,
+    full_config_path: impl Into<String>,
+    status_code: u16,
+    headers: &HeaderMap,
+    verbose: bool,
+) {
+    let full_config_path = full_config_path.into();
+    let target_entry_name = target_entry_name.into();
+    let headers = headers.clone().to_owned();
+    tokio::spawn(async move {
+        let headers_map = {
+            let mut headers_map = HashMap::with_capacity(headers.keys_len());
+            for (header_name, header_value) in headers {
+                let pair = header_name.zip(header_value.to_str().ok());
+                if let Some((header_name, header_value)) = pair {
+                    headers_map.insert(header_name.to_string(), header_value.to_string());
+                }
+            }
+            headers_map
+        };
+
+        let mut config = read_config(&full_config_path)
+            .await
+            .unwrap_or_else(|| HashMap::with_capacity(1));
+        config.insert(
+            target_entry_name,
+            MockConfig {
+                delay_ms: Some(0),
+                cache_mode: Some(CacheMode::Overwrite),
+                headers: Some(headers_map),
+                status_code: status_code.into(),
+            },
+        );
+        let json_str = serde_json::to_string(&config).unwrap_or(String::new());
+        if let Err(e) = fs::write(&full_config_path, json_str).await {
+            if verbose {
+                eprintln!(
+                    "Failed to write mock data to: '{}'. Original error: {}",
+                    &full_config_path, e
+                );
+            }
+        }
+    });
+}
+
+pub async fn get_response_from_cache(
     cache: Option<Arc<InMemoryMocks>>,
-    pathname: P,
-    method: M,
+    pathname: impl Into<String>,
+    method: impl Into<String>,
     cors: bool,
-) -> Option<(Response<Full<Bytes>>, u64)>
-where
-    P: Into<String>,
-    M: Into<String>,
-{
+) -> Option<(Response<Full<Bytes>>, u64)> {
     if let None = cache {
         return None;
     }
@@ -112,7 +160,10 @@ where
         );
         builder = add_headers(builder, cors, &headers);
 
-        return Some((builder.body(c.body.into()).unwrap_or(Response::default()), c.delay_ms));
+        return Some((
+            builder.body(c.body.into()).unwrap_or(Response::default()),
+            c.delay_ms,
+        ));
     }
 
     None
