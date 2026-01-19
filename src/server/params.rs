@@ -41,6 +41,13 @@ pub struct ServerParams {
         help = "Admin base URL. The entry point for all admin URLs. Disabled by default"
     )]
     pub admin_base_url: Option<String>,
+
+    #[arg(
+        long,
+        short = 'g',
+        help = "GraphQL endpoint path (e.g., '/graphql'). Enables GraphQL mocking when set"
+    )]
+    pub graphql_path: Option<String>,
 }
 
 impl ServerParams {
