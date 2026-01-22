@@ -1,5 +1,6 @@
 use http_body_util::Full;
 use hyper::HeaderMap;
+use hyper::header::HeaderName;
 
 use crate::libs::cache_mode::CacheMode;
 use crate::libs::mock_config::{MockConfig, read_config};
@@ -60,8 +61,16 @@ pub fn add_headers(
         }
     }
 
-    for (header, header_value) in custom_headers.iter() {
-        builder = builder.header(header, header_value);
+    if let Some(headers) = builder.headers_mut() {
+        for (header_key, header_value) in custom_headers.iter() {
+            if let Some((header_key, header_val)) = header_key
+                .parse::<HeaderName>()
+                .ok()
+                .zip(header_value.parse().ok())
+            {
+                headers.insert(header_key, header_val);
+            }
+        }
     }
 
     builder
