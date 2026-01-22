@@ -10,7 +10,7 @@ use hyper::{Response, StatusCode, body::Bytes, http};
 use reqwest::header::CONTENT_TYPE;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::fs::{self, write};
+use tokio::fs;
 
 pub fn join_origin_and_path(origin: &str, path: &str, query: Option<&str>) -> String {
     let origin = origin.trim_end_matches("/");
@@ -71,7 +71,7 @@ pub fn write_mock_body(target_file_name: impl Into<String>, data: &Bytes, verbos
     let data = data.clone();
     let target_file_name = target_file_name.into();
     tokio::spawn(async move {
-        if let Err(e) = write(&target_file_name, &data).await {
+        if let Err(e) = fs::write(&target_file_name, &data).await {
             if verbose {
                 eprintln!(
                     "Failed to write mock data to: '{}'. Original error: {}",
@@ -116,7 +116,7 @@ pub fn write_mock_metadata(
                 status_code: status_code.into(),
             },
         );
-        let json_str = serde_json::to_string(&config).unwrap_or(String::new());
+        let json_str = serde_json::to_string_pretty(&config).unwrap_or(String::new());
         if let Err(e) = fs::write(&full_config_path, json_str).await {
             if verbose {
                 eprintln!(
@@ -134,37 +134,41 @@ pub async fn get_response_from_cache(
     method: impl Into<String>,
     cors: bool,
 ) -> Option<(Response<Full<Bytes>>, u64)> {
-    if let None = cache {
+    let Some(cache) = cache else {
         return None;
-    }
-
-    let cache = cache.unwrap_or_else(|| Arc::new(InMemoryMocks::create()));
+    };
 
     let cached = cache
         .get_mock_by_path_and_method(pathname.into(), method.into())
         .await;
 
-    if let Some(c) = cached {
-        let headers = {
-            let mut headers_map = HashMap::new();
-            headers_map.insert(CONTENT_TYPE.to_string(), c.get_mime().await);
-            for (header_key, header_value) in c.headers {
-                headers_map.insert(header_key, header_value);
-            }
-            headers_map
-        };
+    let Some(cached) = cached else {
+        return None;
+    };
+
+    let headers = {
+        let mut headers_map = HashMap::new();
+        headers_map.insert(CONTENT_TYPE.to_string(), cached.get_mime().await);
+        for (header_key, header_value) in cached.headers {
+            headers_map.insert(header_key, header_value);
+        }
+        headers_map
+    };
+    let builder = {
         let mut builder = Response::builder().status(
-            c.status_code
+            cached
+                .status_code
                 .try_into()
                 .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR),
         );
         builder = add_headers(builder, cors, &headers);
+        builder
+    };
 
-        return Some((
-            builder.body(c.body.into()).unwrap_or(Response::default()),
-            c.delay_ms,
-        ));
-    }
-
-    None
+    Some((
+        builder
+            .body(cached.body.into())
+            .unwrap_or(Response::default()),
+        cached.delay_ms,
+    ))
 }

@@ -1,6 +1,6 @@
 use crate::libs::get_mime::get_mime;
-use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
+use base64::prelude::BASE64_STANDARD;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -18,7 +18,12 @@ pub struct CachedResponse {
 }
 
 impl CachedResponse {
-    pub fn new(status_code: u16, delay_ms: u64, headers: HashMap<String, String>, body: String) -> CachedResponse {
+    pub fn new(
+        status_code: u16,
+        delay_ms: u64,
+        headers: HashMap<String, String>,
+        body: String,
+    ) -> CachedResponse {
         CachedResponse {
             status_code,
             delay_ms,
@@ -41,6 +46,7 @@ impl CachedResponse {
     }
 }
 
+#[derive(Default)]
 pub struct InMemoryMocks {
     mocks: RwLock<
         HashMap<
