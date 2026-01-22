@@ -116,7 +116,7 @@ pub fn write_mock_metadata(
                 status_code: status_code.into(),
             },
         );
-        let json_str = serde_json::to_string_pretty(&config).unwrap_or(String::new());
+        let json_str = serde_json::to_string(&config).unwrap_or(String::new());
         if let Err(e) = fs::write(&full_config_path, json_str).await {
             if verbose {
                 eprintln!(
