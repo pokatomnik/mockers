@@ -1,0 +1,45 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/pokatomnik/mockers/schemas/config.v1.json",
+    "type": "object",
+    "$defs": {
+        "cacheMode": {
+            "type": "string",
+            "enum": ["Overwrite", "NoCache"],
+            "default": "NoCache",
+            "description": "Caching type: 'Overwrite' means the response will be written to disk, 'NoCache' is no-op"
+        },
+        "statusCode": {
+            "type": "integer",
+            "enum": [
+                100, 101, 102, 103,
+                200, 201, 202, 203, 204, 205, 206, 207, 208, 226,
+                300, 301, 302, 303, 304, 307, 308,
+                400, 401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 421, 422, 423, 424, 425, 426, 428, 429, 431, 451,
+                500, 501, 502, 503, 504, 505, 506, 507, 508, 510, 511
+            ],
+            "default": 200,
+            "description": "Well-known HTTP status codes"
+        }
+    },
+    "properties": {
+        "delayMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18446744073709551615,
+            "default": 0,
+            "description": "Time to wait before respond in milliseconds"
+        },
+        "statusCode": {
+            "$ref": "#/$defs/statusCode"
+        },
+        "headers": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Map of desired additional headers"
+        },
+        "cacheMode": {
+            "$ref": "#/$defs/cacheMode"
+        }
+    }
+}
