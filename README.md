@@ -134,6 +134,8 @@ will produce:
 | `headers`    | `Record<string,string>`  | Additional headers to append to the response                                                                                                                                                        |
 | `cacheMode`  | `Overwrite` or `NoCache` | If you specify the Overwrite parameter, if the mock file is missing, the request will be sent to the origin url and the body of the origin server response will be written to the missing mock file |
 
+`config.json` schema can be found [here](./schemas/config.v1.json)
+
 ### Example Behavior 🔧
 
 If only some fields are provided, the server fills in the rest with defaults.
