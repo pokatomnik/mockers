@@ -8,7 +8,9 @@
       "name": "Debug executable 'mockers'",
       "type": "lldb",
       "request": "launch",
+      "cwd": "${workspaceFolder}/.my",
       "cargo": {
+        "cwd": "${workspaceFolder}/.my",
         "args": ["run", "--bin=mockers"]
       },
       "args": ["serve", "--origin", "https://api.apis.guru"]
@@ -17,7 +19,9 @@
       "name": "Debug unit tests in executable 'mockers'",
       "type": "lldb",
       "request": "launch",
+      "cwd": "${workspaceFolder}/.my",
       "cargo": {
+        "cwd": "${workspaceFolder}/.my",
         "args": ["test", "--bin=mockers"]
       }
     }

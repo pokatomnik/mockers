@@ -1,15 +1,15 @@
 use crate::controllers::swagger::static_files::SWAGGER_INITIALIZER_JS;
+use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;
 use hyper::body::Bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::{Request, Response};
 use mimetype_detector::APPLICATION_JAVASCRIPT;
 use reqwest::StatusCode;
-use std::convert::Infallible;
 
 pub async fn get_swagger_initializer_js(
     _: Request<Full<Bytes>>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
+) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(CONTENT_TYPE, APPLICATION_JAVASCRIPT)

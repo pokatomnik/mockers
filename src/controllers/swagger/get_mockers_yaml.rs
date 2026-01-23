@@ -1,17 +1,17 @@
 use crate::controllers::swagger::static_files::SWAGGER_YAML;
 use crate::server::mockers_context::MockersContext;
+use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;
 use hyper::body::Bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::{Request, Response};
 use reqwest::StatusCode;
 use routerify_ng::ext::RequestExt;
-use std::convert::Infallible;
 use std::sync::Arc;
 
 pub async fn get_mockers_yaml(
     req: Request<Full<Bytes>>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
+) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     let admin_base_url = req
         .data::<Arc<MockersContext>>()
         .and_then(|ctx| ctx.clone().server_params.admin_base_url.clone());
@@ -22,7 +22,10 @@ pub async fn get_mockers_yaml(
         .map(|(source_yaml, admin_url)| {
             let servers_entry_main = "servers:";
             let admin_base_url_entry = format!("  - url: \"{}\"", admin_url);
-            format!("{}\n{}\n{}", source_yaml, servers_entry_main, admin_base_url_entry)
+            format!(
+                "{}\n{}\n{}",
+                source_yaml, servers_entry_main, admin_base_url_entry
+            )
         });
 
     let status_code = yaml_contents

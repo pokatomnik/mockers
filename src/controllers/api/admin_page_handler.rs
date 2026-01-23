@@ -1,12 +1,13 @@
 use http_body_util::Full;
 use hyper::body::Bytes;
-use hyper::{http, Request, Response, StatusCode};
-use std::convert::Infallible;
+use hyper::{Request, Response, StatusCode, http};
 use mimetype_detector::TEXT_HTML;
+
+use crate::server::route_error::MockersRouteError;
 
 pub async fn admin_page_handler(
     _req: Request<Full<Bytes>>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
+) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     return Ok(Response::builder()
         .status(StatusCode::OK)
         // TODO send SPA HTML here

@@ -2,6 +2,7 @@ use crate::libs::mockers_errors::MockersErrors;
 use crate::libs::protocol_result::ProtocolResultConverter;
 use crate::libs::response_cache::CachedResponse;
 use crate::server::mockers_context::MockersContext;
+use crate::server::route_error::MockersRouteError;
 use http_body_util::{BodyExt, Full};
 use hyper::body::Bytes;
 use hyper::header::CONTENT_TYPE;
@@ -10,7 +11,6 @@ use mimetype_detector::APPLICATION_JSON;
 use routerify_ng::ext::RequestExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::convert::Infallible;
 use std::sync::Arc;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -26,7 +26,7 @@ struct CreateMockParams {
 
 pub async fn post_create_mock(
     req: Request<Full<Bytes>>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
+) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     let response_cache = req
         .data::<Arc<MockersContext>>()
         .map(|c| c.clone().response_cache.clone());
