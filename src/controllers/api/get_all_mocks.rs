@@ -2,6 +2,7 @@ use crate::libs::mockers_errors::MockersErrors;
 use crate::libs::protocol_result::ProtocolResultConverter;
 use crate::libs::response_cache::CachedResponse;
 use crate::server::mockers_context::MockersContext;
+use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;
 use hyper::body::Bytes;
 use hyper::header::CONTENT_TYPE;
@@ -9,10 +10,11 @@ use hyper::{Request, Response, StatusCode};
 use mimetype_detector::APPLICATION_JSON;
 use routerify_ng::ext::RequestExt;
 use std::collections::HashMap;
-use std::convert::Infallible;
 use std::sync::Arc;
 
-pub async fn get_all_mocks(req: Request<Full<Bytes>>) -> Result<Response<Full<Bytes>>, Infallible> {
+pub async fn get_all_mocks(
+    req: Request<Full<Bytes>>,
+) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     let response_cache = req
         .data::<Arc<MockersContext>>()
         .map(|c| c.clone().response_cache.clone());

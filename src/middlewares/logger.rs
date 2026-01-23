@@ -1,12 +1,12 @@
-use std::convert::Infallible;
-
 use http_body_util::Full;
 use hyper::Request;
 use routerify_ng::ext::RequestExt;
 
+use crate::server::route_error::MockersRouteError;
+
 pub async fn logger(
     req: Request<Full<hyper::body::Bytes>>,
-) -> Result<Request<Full<hyper::body::Bytes>>, Infallible> {
+) -> Result<Request<Full<hyper::body::Bytes>>, MockersRouteError> {
     println!(
         "{} {} {}",
         req.remote_addr(),

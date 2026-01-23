@@ -4,6 +4,7 @@ use crate::libs::protocol_result::ProtocolResultConverter;
 use crate::libs::response_cache::{MethodNormalizer, PathDecoder, PathNormalizer};
 use crate::server::mockers_context::MockersContext;
 use crate::server::params::CONFIG_FILE_NAME;
+use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;
 use hyper::body::Bytes;
 use hyper::header::CONTENT_TYPE;
@@ -12,14 +13,13 @@ use mimetype_detector::APPLICATION_JSON;
 use path_absolutize::Absolutize;
 use routerify_ng::ext::RequestExt;
 use std::collections::HashMap;
-use std::convert::Infallible;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::fs::{self, create_dir_all, metadata, write};
 
 pub async fn post_dump_mock(
     req: Request<Full<Bytes>>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
+) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     let path = req
         .params()
         .get("path_encoded")
@@ -214,7 +214,7 @@ async fn write_mock_config(
 async fn write_file_contents_and_get_response(
     to: impl AsRef<Path>,
     contents: impl AsRef<[u8]>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
+) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     let result_write = write(&to, &contents).await.ok();
     let result_json = serde_json::to_string(
         &Ok::<String, String>(format!(

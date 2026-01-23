@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::Infallible, path::PathBuf, sync::Arc, time::Duration};
+use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
 
 use crate::controllers::utils::{self, write_mock_metadata};
 use crate::controllers::utils::{
@@ -10,13 +10,14 @@ use crate::server::mockers_context::MockersContext;
 use crate::server::params::{
     CONFIG_FILE_NAME, DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY, DEFAULT_VERBOSE_ENABLED,
 };
+use crate::server::route_error::MockersRouteError;
 use http_body_util::{BodyExt, Full};
 use hyper::{Request, Response, StatusCode, body::Bytes};
 use reqwest::header::CONTENT_TYPE;
 use routerify_ng::ext::RequestExt;
 use tokio::{fs, time::sleep};
 
-pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Bytes>>, Infallible> {
+pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     let context = req.data::<Arc<MockersContext>>();
     let mocks_cache = context.map(|ctx| ctx.clone().response_cache.clone());
     let verbose = context

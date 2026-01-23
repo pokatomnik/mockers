@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::sync::Arc;
 
 use crate::controllers::api::admin_page_handler::admin_page_handler;
@@ -21,14 +20,16 @@ use crate::controllers::swagger::get_swagger_ui_bundle_js::get_swagger_ui_bundle
 use crate::controllers::swagger::get_swagger_ui_css::get_swagger_ui_css;
 use crate::controllers::swagger::get_swagger_ui_standalone_preset::get_swagger_ui_standalone_preset;
 use crate::libs::response_cache::InMemoryMocks;
+use crate::middlewares::check_request::check_request;
 use crate::middlewares::logger::logger;
 use crate::server::mockers_context::MockersContext;
 use crate::server::params::ServerParams;
+use crate::server::route_error::MockersRouteError;
 use reqwest::Client;
 use routerify_ng::Router;
 use routerify_ng::{Middleware, RouteError};
 
-pub fn admin_router(_params: &ServerParams) -> Result<Router<Infallible>, RouteError> {
+pub fn admin_router(_params: &ServerParams) -> Result<Router<MockersRouteError>, RouteError> {
     Router::builder()
         // TODO web app routes
         .get("/", admin_page_handler)
@@ -65,22 +66,26 @@ pub fn admin_router(_params: &ServerParams) -> Result<Router<Infallible>, RouteE
         .build()
 }
 
-pub fn mockers_router(params: &ServerParams) -> Result<Router<Infallible>, RouteError> {
+pub fn mockers_router(params: &ServerParams) -> Result<Router<MockersRouteError>, RouteError> {
     let router_builder = {
-        let mut router = Router::builder()
-            .data(Arc::new(MockersContext {
-                client: Arc::new(Client::new()),
-                server_params: params.clone(),
-                response_cache: Arc::new(InMemoryMocks::create()),
-            }))
-            .middleware(Middleware::pre(logger));
-        if let Some((admin_base_url, admin_router)) = params.admin_base_url.clone().zip(admin_router(&params).ok()) {
+        let mut router = Router::builder().data(Arc::new(MockersContext {
+            client: Arc::new(Client::new()),
+            server_params: params.clone(),
+            response_cache: Arc::new(InMemoryMocks::create()),
+        }));
+        if let Some((admin_base_url, admin_router)) = params
+            .admin_base_url
+            .clone()
+            .zip(admin_router(&params).ok())
+        {
             router = router.scope(admin_base_url, admin_router)
         }
         router
     };
 
     router_builder
+        .middleware(Middleware::pre(logger))
+        .middleware(Middleware::pre(check_request))
         .any(mock_handler)
         .err_handler_with_info(error_handler)
         .build()
