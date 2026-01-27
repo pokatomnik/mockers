@@ -1,9 +1,12 @@
-use std::fs::{File, create_dir_all};
-use std::io::Write;
+use std::collections::HashMap;
 
+use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
+use tokio::io::AsyncWriteExt;
 
 use crate::libs::create_params::CreateParams;
+use crate::libs::mock_config::{MockConfig, read_config};
+use crate::server::params::CONFIG_FILE_NAME;
 
 pub async fn create_mock(
     params: CreateParams,
@@ -33,26 +36,79 @@ pub async fn create_mock(
             ),
         )));
     }
-    create_dir_all(&destination_directory).inspect_err(|_| {
-        if verbose {
-            println!(
-                "Failed to create dir '{}'",
-                &destination_directory.display()
-            )
-        }
-    })?;
+    tokio::fs::create_dir_all(&destination_directory)
+        .await
+        .inspect_err(|_| {
+            if verbose {
+                println!(
+                    "Failed to create dir '{}'",
+                    &destination_directory.display()
+                )
+            }
+        })?;
 
     let last_path_part = last_path_part.unwrap_or_default();
     let file_name = format!("{}.{}", last_path_part, params.method.to_lowercase());
-    let full_destination_file_path = destination_directory.join(file_name);
-    let mut file = File::create(&full_destination_file_path).inspect_err(|_| {
-        if verbose {
-            println!(
-                "Failed to create file: '{}'",
-                &full_destination_file_path.display()
-            )
-        }
-    })?;
+    let full_destination_file_path = destination_directory.join(&file_name);
+    let full_destination_config_path = destination_directory.join(CONFIG_FILE_NAME);
+
+    write_default_mock(&full_destination_file_path.display().to_string(), verbose).await?;
+    write_default_config(
+        &full_destination_config_path.display().to_string(),
+        &file_name,
+    )
+    .await?;
+
+    return Ok(());
+}
+
+async fn write_default_config(
+    absolute_config_path: &str,
+    entry_name: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let get_default_config = || {
+        MockConfig::new()
+            .with_cache_mode(super::cache_mode::CacheMode::NoCache)
+            .with_delay_ms(0)
+            .with_headers({
+                let mut headers_map = HashMap::new();
+                headers_map.insert("X-Server".to_string(), "Mockers".to_string());
+                headers_map
+            })
+            .with_status_code(StatusCode::OK.into())
+    };
+    let existing_config = read_config(absolute_config_path)
+        .await
+        .map(|mut config| {
+            config.insert(entry_name.to_string(), get_default_config());
+            config
+        })
+        .unwrap_or_else(|| {
+            let mut new_config = HashMap::new();
+            new_config.insert(entry_name.to_string(), get_default_config());
+            new_config
+        });
+
+    let json_string = serde_json::to_value(&existing_config)?;
+    let mut file = tokio::fs::File::create(&absolute_config_path).await?;
+    file.write(serde_json::to_string(&json_string)?.as_bytes())
+        .await?;
+    file.flush().await?;
+
+    Ok(())
+}
+
+async fn write_default_mock(
+    absolute_path: &str,
+    verbose: bool,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let mut file = tokio::fs::File::create(absolute_path)
+        .await
+        .inspect_err(|_| {
+            if verbose {
+                println!("Failed to create file: '{}'", absolute_path)
+            }
+        })?;
     file.write(
         serde_json::to_string(&DefaultMockContents {
             hello: "world".to_string(),
@@ -60,24 +116,19 @@ pub async fn create_mock(
         .unwrap_or("".to_string())
         .as_bytes(),
     )
+    .await
     .inspect_err(|_| {
         if verbose {
-            println!(
-                "Failed to write file contents to file: '{}'",
-                &full_destination_file_path.display()
-            )
+            println!("Failed to write file contents to file: '{}'", absolute_path)
         }
     })?;
-    file.flush().inspect_err(|_| {
+    file.flush().await.inspect_err(|_| {
         if verbose {
-            println!(
-                "Failed to create file: '{}'",
-                &full_destination_file_path.display()
-            )
+            println!("Failed to create file: '{}'", absolute_path)
         }
     })?;
 
-    return Ok(());
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

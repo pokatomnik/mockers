@@ -1,6 +1,5 @@
 use clap::Args;
 use path_absolutize::Absolutize;
-use std::fs::metadata;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
@@ -59,9 +58,11 @@ impl ServerParams {
         Err(message.into())
     }
 
-    fn expect_mocks_path_to_exist(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+    async fn expect_mocks_path_to_exist(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         let path = Path::new(&self.mocks);
-        let metadata_result = metadata(path);
+        let metadata_result = tokio::fs::metadata(path).await;
 
         if let Ok(ref metadata) = metadata_result
             && metadata.is_dir()
@@ -81,13 +82,13 @@ impl ServerParams {
 
         if path.is_absolute() {
             let absolute_path = path.absolutize()?;
-            std::fs::create_dir_all(absolute_path)?;
+            tokio::fs::create_dir_all(absolute_path).await?;
             return Ok(());
         }
 
         let cwd = std::env::current_dir()?;
         let absolute_path: PathBuf = cwd.join(&path).absolutize()?.into();
-        std::fs::create_dir_all(absolute_path)?;
+        tokio::fs::create_dir_all(absolute_path).await?;
 
         Ok(())
     }
@@ -102,8 +103,8 @@ impl ServerParams {
         }
     }
 
-    pub fn test(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-        if let Err(e) = self.expect_mocks_path_to_exist() {
+    pub async fn test(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+        if let Err(e) = self.expect_mocks_path_to_exist().await {
             return Err(e);
         }
 

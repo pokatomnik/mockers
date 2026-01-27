@@ -15,7 +15,6 @@ use routerify_ng::ext::RequestExt;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::fs::{self, create_dir_all, metadata, write};
 
 pub async fn post_dump_mock(
     req: Request<Full<Bytes>>,
@@ -129,7 +128,7 @@ pub async fn post_dump_mock(
         },
     );
 
-    if let Ok(md) = metadata(&absolute_target_directory).await
+    if let Ok(md) = tokio::fs::metadata(&absolute_target_directory).await
         && md.is_dir()
     {
         if let Some(config_entry_name) = config_entry_name {
@@ -147,7 +146,7 @@ pub async fn post_dump_mock(
             .await;
     }
 
-    if let Err(_) = create_dir_all(&absolute_target_directory).await {
+    if let Err(_) = tokio::fs::create_dir_all(&absolute_target_directory).await {
         let json = serde_json::to_string(
             &Err::<String, String>(MockersErrors::MissingMocksDirectory.to_string()).to_protocol(),
         );
@@ -181,31 +180,29 @@ async fn write_mock_config(
     status_code: u16,
     headers: &HashMap<String, String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mock_config = MockConfig {
-        headers: match headers.is_empty() {
-            true => None,
-            false => Some(headers.clone()),
-        },
-        status_code: Some(status_code),
-        delay_ms: match delay_ms {
-            0 => None,
-            _ => Some(delay_ms),
-        },
-        cache_mode: None,
+    let mock_config = {
+        let mut mock_config = MockConfig::new();
+        if !headers.is_empty() {
+            mock_config = mock_config.with_headers(headers.to_owned())
+        }
+        if delay_ms != 0 {
+            mock_config = mock_config.with_delay_ms(delay_ms)
+        }
+        mock_config.with_status_code(status_code)
     };
-    let existing_config = fs::read(&to).await.ok().and_then(|contents| {
+    let existing_config = tokio::fs::read(&to).await.ok().and_then(|contents| {
         serde_json::from_slice::<HashMap<String, MockConfig>>(&contents.as_ref()).ok()
     });
 
     if let Some(mut existing_config) = existing_config {
         existing_config.insert(entry_name.into(), mock_config);
         let updated = serde_json::to_string(&existing_config)?;
-        fs::write(to, updated).await?;
+        tokio::fs::write(to, updated).await?;
     } else {
         let mut new_map = HashMap::with_capacity(1);
         new_map.insert(entry_name.into(), mock_config);
         let json = serde_json::to_string(&new_map)?;
-        fs::write(to, json).await?;
+        tokio::fs::write(to, json).await?;
     }
 
     Ok(())
@@ -215,7 +212,7 @@ async fn write_file_contents_and_get_response(
     to: impl AsRef<Path>,
     contents: impl AsRef<[u8]>,
 ) -> Result<Response<Full<Bytes>>, MockersRouteError> {
-    let result_write = write(&to, &contents).await.ok();
+    let result_write = tokio::fs::write(&to, &contents).await.ok();
     let result_json = serde_json::to_string(
         &Ok::<String, String>(format!(
             "Mock written to: '{}'",

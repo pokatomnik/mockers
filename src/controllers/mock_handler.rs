@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use crate::controllers::utils::{self, write_mock_metadata};
 use crate::controllers::utils::{
@@ -15,9 +15,10 @@ use http_body_util::{BodyExt, Full};
 use hyper::{Request, Response, StatusCode, body::Bytes};
 use reqwest::header::CONTENT_TYPE;
 use routerify_ng::ext::RequestExt;
-use tokio::{fs, time::sleep};
 
-pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Bytes>>, MockersRouteError> {
+pub async fn mock_handler(
+    req: Request<Full<Bytes>>,
+) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     let context = req.data::<Arc<MockersContext>>();
     let mocks_cache = context.map(|ctx| ctx.clone().response_cache.clone());
     let verbose = context
@@ -87,24 +88,24 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
 
     let delay = config
         .as_ref()
-        .and_then(|c| c.get(mock_config_entry_name).and_then(|x| x.delay_ms))
+        .and_then(|c| c.get(mock_config_entry_name).and_then(|x| x.delay_ms()))
         .unwrap_or(global_delay_ms);
     let custom_headers = config
         .as_ref()
         .and_then(|c| {
             c.get(mock_config_entry_name)
-                .and_then(|x| x.headers.clone())
+                .and_then(|x| x.headers().cloned())
         })
-        .unwrap_or_else(|| HashMap::new());
+        .unwrap_or_default();
     let status_if_file_found = config
         .as_ref()
-        .and_then(|c| c.get(mock_config_entry_name).and_then(|x| x.status_code))
+        .and_then(|c| c.get(mock_config_entry_name).and_then(|x| x.status_code()))
         .map(|status_code| StatusCode::from_u16(status_code).unwrap_or(StatusCode::OK))
         .unwrap_or(StatusCode::OK);
     let cache_mode = config
         .as_ref()
         .and_then(|c| c.get(mock_config_entry_name))
-        .and_then(|x| x.cache_mode.clone())
+        .and_then(|x| x.cache_mode())
         .unwrap_or(CacheMode::NoCache);
 
     if verbose {
@@ -125,12 +126,12 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
     .await;
 
     if let Some((response, delay_ms)) = cached_data {
-        sleep(Duration::from_millis(delay_ms)).await;
+        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
         return Ok(response);
     }
 
     // Try respond from file-based mock
-    if let Ok(data) = fs::read(&absolute_mock_file_name).await {
+    if let Ok(data) = tokio::fs::read(&absolute_mock_file_name).await {
         let mime = get_mime(&data);
 
         if verbose {
@@ -147,7 +148,7 @@ pub async fn mock_handler(req: Request<Full<Bytes>>) -> Result<Response<Full<Byt
                 .unwrap_or(Response::default())
         };
 
-        sleep(Duration::from_millis(delay)).await;
+        tokio::time::sleep(Duration::from_millis(delay)).await;
 
         return Ok(response);
     }

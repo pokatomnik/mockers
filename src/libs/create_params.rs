@@ -1,10 +1,10 @@
 use std::{
-    fs::metadata,
     io::ErrorKind,
     path::{Path, PathBuf},
 };
 
 use clap::Args;
+use path_absolutize::Absolutize;
 
 use crate::server::params::{DEFAULT_MOCKS_DIR, DEFAULT_VERBOSE_ENABLED};
 
@@ -25,18 +25,39 @@ pub struct CreateParams {
 }
 
 impl CreateParams {
-    fn check_mocks_path(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+    async fn expect_mocks_path_to_exist(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
         let path = Path::new(&self.mocks);
-        let metadata = metadata(path)?;
-        if !metadata.is_dir() {
+        let metadata_result = tokio::fs::metadata(path).await;
+
+        if let Ok(ref metadata) = metadata_result
+            && metadata.is_dir()
+        {
+            return Ok(());
+        }
+
+        if let Ok(ref metadata) = metadata_result
+            && (metadata.is_file() || metadata.is_symlink())
+        {
             let error = std::io::Error::new(
                 ErrorKind::NotADirectory,
                 format!("The specified path '{}' is not a directory", &self.mocks),
             );
-            return Err(Box::new(error));
+            return Err(error.into());
         }
 
-        return Ok(());
+        if path.is_absolute() {
+            let absolute_path = path.absolutize()?;
+            tokio::fs::create_dir_all(absolute_path).await?;
+            return Ok(());
+        }
+
+        let cwd = std::env::current_dir()?;
+        let absolute_path: PathBuf = cwd.join(&path).absolutize()?.into();
+        tokio::fs::create_dir_all(absolute_path).await?;
+
+        Ok(())
     }
 
     pub fn get_absolute_mocks_path(
@@ -52,11 +73,11 @@ impl CreateParams {
         }
     }
 
-    pub fn test(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-        let mocks_path_err = self.check_mocks_path();
-        if mocks_path_err.is_err() {
-            return mocks_path_err;
+    pub async fn test(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+        if let Err(e) = self.expect_mocks_path_to_exist().await {
+            return Err(e);
         }
-        return Ok(());
+
+        Ok(())
     }
 }

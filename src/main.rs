@@ -16,13 +16,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     let result: Result<_, Box<dyn std::error::Error>> = match cli.command {
-        Commands::Serve { params } => match params.test() {
+        Commands::Serve { params } => match params.test().await {
             Err(err) => Err(err),
             Ok(_) => start_server(params)
                 .await
                 .map_err(|err| -> Box<dyn std::error::Error> { err }),
         },
-        Commands::Create(params) => match params.test() {
+        Commands::Create(params) => match params.test().await {
             Err(err) => Err(err),
             Ok(_) => create_mock(params)
                 .await
