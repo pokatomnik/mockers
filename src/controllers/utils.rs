@@ -11,7 +11,6 @@ use hyper::{Response, StatusCode, body::Bytes, http};
 use reqwest::header::CONTENT_TYPE;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::fs;
 
 pub fn join_origin_and_path(origin: &str, path: &str, query: Option<&str>) -> String {
     let origin = origin.trim_end_matches("/");
@@ -80,7 +79,7 @@ pub fn write_mock_body(target_file_name: impl Into<String>, data: &Bytes, verbos
     let data = data.clone();
     let target_file_name = target_file_name.into();
     tokio::spawn(async move {
-        if let Err(e) = fs::write(&target_file_name, &data).await {
+        if let Err(e) = tokio::fs::write(&target_file_name, &data).await {
             if verbose {
                 eprintln!(
                     "Failed to write mock data to: '{}'. Original error: {}",
@@ -118,15 +117,14 @@ pub fn write_mock_metadata(
             .unwrap_or_else(|| HashMap::with_capacity(1));
         config.insert(
             target_entry_name,
-            MockConfig {
-                delay_ms: Some(0),
-                cache_mode: Some(CacheMode::Overwrite),
-                headers: Some(headers_map),
-                status_code: status_code.into(),
-            },
+            MockConfig::new()
+                .with_delay_ms(0)
+                .with_cache_mode(CacheMode::Overwrite)
+                .with_headers(headers_map)
+                .with_status_code(status_code),
         );
         let json_str = serde_json::to_string(&config).unwrap_or(String::new());
-        if let Err(e) = fs::write(&full_config_path, json_str).await {
+        if let Err(e) = tokio::fs::write(&full_config_path, json_str).await {
             if verbose {
                 eprintln!(
                     "Failed to write mock data to: '{}'. Original error: {}",
