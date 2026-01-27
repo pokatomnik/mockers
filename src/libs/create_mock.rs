@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use hyper::StatusCode;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 
@@ -11,13 +10,13 @@ use crate::server::params::CONFIG_FILE_NAME;
 pub async fn create_mock(
     params: CreateParams,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let verbose = params.verbose;
+    let verbose = params.verbose();
     let mocks_absolute_path = params.get_absolute_mocks_path().inspect_err(|_| {
         if verbose {
             println!("Failed to get mocks path")
         }
     })?;
-    let mut destination_directory = mocks_absolute_path.join(params.route);
+    let mut destination_directory = mocks_absolute_path.join(params.route());
     let last_path_part = destination_directory
         .iter()
         .last()
@@ -31,7 +30,7 @@ pub async fn create_mock(
                 format!(
                     "{}.{}",
                     destination_directory.display(),
-                    params.method.to_lowercase()
+                    params.method().to_lowercase()
                 )
             ),
         )));
@@ -48,14 +47,20 @@ pub async fn create_mock(
         })?;
 
     let last_path_part = last_path_part.unwrap_or_default();
-    let file_name = format!("{}.{}", last_path_part, params.method.to_lowercase());
+    let file_name = format!("{}.{}", last_path_part, params.method().to_lowercase());
     let full_destination_file_path = destination_directory.join(&file_name);
     let full_destination_config_path = destination_directory.join(CONFIG_FILE_NAME);
 
-    write_default_mock(&full_destination_file_path.display().to_string(), verbose).await?;
+    write_default_mock(
+        &full_destination_file_path.display().to_string(),
+        params.contents(),
+        verbose,
+    )
+    .await?;
     write_default_config(
         &full_destination_config_path.display().to_string(),
         &file_name,
+        &params,
     )
     .await?;
 
@@ -65,17 +70,21 @@ pub async fn create_mock(
 async fn write_default_config(
     absolute_config_path: &str,
     entry_name: &str,
+    params: &CreateParams,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let get_default_config = || {
         MockConfig::new()
             .with_cache_mode(super::cache_mode::CacheMode::NoCache)
-            .with_delay_ms(0)
+            .with_delay_ms(params.delay_ms())
             .with_headers({
                 let mut headers_map = HashMap::new();
                 headers_map.insert("X-Server".to_string(), "Mockers".to_string());
+                for (header_key, header_val) in params.headers() {
+                    headers_map.insert(header_key.to_owned(), header_val.to_owned());
+                }
                 headers_map
             })
-            .with_status_code(StatusCode::OK.into())
+            .with_status_code(params.status_code())
     };
     let existing_config = read_config(absolute_config_path)
         .await
@@ -89,9 +98,9 @@ async fn write_default_config(
             new_config
         });
 
-    let json_string = serde_json::to_value(&existing_config)?;
+    let json_value = serde_json::to_value(&existing_config)?;
     let mut file = tokio::fs::File::create(&absolute_config_path).await?;
-    file.write(serde_json::to_string(&json_string)?.as_bytes())
+    file.write(serde_json::to_string_pretty(&json_value)?.as_bytes())
         .await?;
     file.flush().await?;
 
@@ -100,6 +109,7 @@ async fn write_default_config(
 
 async fn write_default_mock(
     absolute_path: &str,
+    contents: Option<&str>,
     verbose: bool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut file = tokio::fs::File::create(absolute_path)
@@ -109,19 +119,25 @@ async fn write_default_mock(
                 println!("Failed to create file: '{}'", absolute_path)
             }
         })?;
-    file.write(
+
+    let get_default_contents = || {
         serde_json::to_string(&DefaultMockContents {
             hello: "world".to_string(),
         })
         .unwrap_or("".to_string())
-        .as_bytes(),
-    )
-    .await
-    .inspect_err(|_| {
-        if verbose {
-            println!("Failed to write file contents to file: '{}'", absolute_path)
-        }
-    })?;
+    };
+
+    let contents_to_write = match contents {
+        Some(v) => v,
+        None => &get_default_contents(),
+    };
+    file.write(contents_to_write.as_bytes())
+        .await
+        .inspect_err(|_| {
+            if verbose {
+                println!("Failed to write file contents to file: '{}'", absolute_path)
+            }
+        })?;
     file.flush().await.inspect_err(|_| {
         if verbose {
             println!("Failed to create file: '{}'", absolute_path)

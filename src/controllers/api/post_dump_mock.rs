@@ -196,12 +196,12 @@ async fn write_mock_config(
 
     if let Some(mut existing_config) = existing_config {
         existing_config.insert(entry_name.into(), mock_config);
-        let updated = serde_json::to_string(&existing_config)?;
+        let updated = serde_json::to_string_pretty(&existing_config)?;
         tokio::fs::write(to, updated).await?;
     } else {
         let mut new_map = HashMap::with_capacity(1);
         new_map.insert(entry_name.into(), mock_config);
-        let json = serde_json::to_string(&new_map)?;
+        let json = serde_json::to_string_pretty(&new_map)?;
         tokio::fs::write(to, json).await?;
     }
 

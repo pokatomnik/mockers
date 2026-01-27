@@ -6,25 +6,74 @@ use std::{
 use clap::Args;
 use path_absolutize::Absolutize;
 
-use crate::server::params::{DEFAULT_MOCKS_DIR, DEFAULT_VERBOSE_ENABLED};
+use crate::server::params::{DEFAULT_MOCKS_DIR_NAME, DEFAULT_VERBOSE_ENABLED};
 
-pub const DEFAULT_METHOD: &'static str = "GET";
+pub(crate) const DEFAULT_METHOD: &'static str = "GET";
+pub(crate) const DEFAULT_STATUS_CODE: u16 = 200;
+pub(crate) const DEFAULT_DELAY_MS: u64 = 0;
 
 #[derive(Args, Debug, Clone)]
 pub struct CreateParams {
     #[arg(long, default_value = DEFAULT_METHOD, help = "Mock HTTP method")]
-    pub method: String,
+    method: String,
+
+    #[arg(long, short, default_value_t = DEFAULT_STATUS_CODE, help = "HTTP status code")]
+    status_code: u16,
+
+    #[arg(long, short, default_value_t = DEFAULT_DELAY_MS, help = "Delay in milliseconds before respond")]
+    delay_ms: u64,
+
+    #[arg(long = "header", help = "Custom header, example: 'X-Server: Mockers'")]
+    headers: Vec<String>,
+
+    #[arg(long, short, help = "Contents of the mock")]
+    contents: Option<String>,
 
     #[arg(long, short, default_value_t = DEFAULT_VERBOSE_ENABLED, help = "Enable verbose logging")]
-    pub verbose: bool,
+    verbose: bool,
 
-    #[arg(long, short, default_value = DEFAULT_MOCKS_DIR, help = "Path to the directory containing mock files")]
-    pub mocks: String,
+    #[arg(long, short, default_value = DEFAULT_MOCKS_DIR_NAME, help = "Path to the directory containing mock files")]
+    mocks: String,
 
-    pub route: String,
+    route: String,
 }
 
 impl CreateParams {
+    pub fn method(&self) -> &str {
+        &self.method
+    }
+
+    pub fn verbose(&self) -> bool {
+        self.verbose
+    }
+
+    pub fn route(&self) -> &str {
+        &self.route
+    }
+
+    pub fn status_code(&self) -> u16 {
+        self.status_code
+    }
+
+    pub fn delay_ms(&self) -> u64 {
+        self.delay_ms
+    }
+
+    pub fn headers(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.headers.iter().filter_map(|v| {
+            v.split_once(':')
+                .map(|(k, v)| (k.trim(), v.trim()))
+                .filter(|(k, v)| !k.is_empty() && !v.is_empty())
+        })
+    }
+
+    pub fn contents(&self) -> Option<&str> {
+        if let Some(ref c) = self.contents {
+            return Some(c);
+        }
+        None
+    }
+
     async fn expect_mocks_path_to_exist(
         &self,
     ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 pub const DEFAULT_HOST: &'static str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 8080;
-pub const DEFAULT_MOCKS_DIR: &'static str = "mocks";
+pub const DEFAULT_MOCKS_DIR_NAME: &'static str = "mocks";
 pub const DEFAULT_MOCKS_RESPONSE_DELAY: u64 = 0;
 pub const DEFAULT_CORS_ENABLED: bool = false;
 pub const DEFAULT_VERBOSE_ENABLED: bool = false;
@@ -22,7 +22,7 @@ pub struct ServerParams {
     #[arg(long, short, default_value_t = false, help = "Enable verbose logging")]
     pub verbose: bool,
 
-    #[arg(long, short, default_value = DEFAULT_MOCKS_DIR, help = "Path to the directory containing mock files")]
+    #[arg(long, short, default_value = DEFAULT_MOCKS_DIR_NAME, help = "Path to the directory containing mock files")]
     pub mocks: String,
 
     #[arg(long, short, default_value_t = false, help = "Enable CORS headers")]

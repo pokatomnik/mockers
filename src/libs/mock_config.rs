@@ -65,7 +65,6 @@ impl MockConfig {
 pub async fn read_config(path: impl AsRef<Path>) -> Option<HashMap<String, MockConfig>> {
     tokio::fs::read_to_string(path)
         .await
-        .inspect_err(|e| println!("{}", e))
         .ok()
         .and_then(|contents| serde_json::from_str::<HashMap<String, MockConfig>>(&contents).ok())
 }
