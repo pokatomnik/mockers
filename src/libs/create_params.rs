@@ -6,7 +6,10 @@ use std::{
 use clap::Args;
 use path_absolutize::Absolutize;
 
-use crate::server::params::{DEFAULT_MOCKS_DIR_NAME, DEFAULT_VERBOSE_ENABLED};
+use crate::{
+    libs::cache_mode::CacheMode,
+    server::params::{DEFAULT_MOCKS_DIR_NAME, DEFAULT_VERBOSE_ENABLED},
+};
 
 pub(crate) const DEFAULT_METHOD: &'static str = "GET";
 pub(crate) const DEFAULT_STATUS_CODE: u16 = 200;
@@ -31,6 +34,9 @@ pub struct CreateParams {
 
     #[arg(long, short, default_value_t = DEFAULT_VERBOSE_ENABLED, help = "Enable verbose logging")]
     verbose: bool,
+
+    #[arg(long, help = "Should the server response be cached")]
+    cache_mode: Option<CacheMode>,
 
     #[arg(long, short, default_value = DEFAULT_MOCKS_DIR_NAME, help = "Path to the directory containing mock files")]
     mocks: String,
@@ -57,6 +63,10 @@ impl CreateParams {
 
     pub fn delay_ms(&self) -> u64 {
         self.delay_ms
+    }
+
+    pub fn cache_mode(&self) -> Option<CacheMode> {
+        return self.cache_mode.clone();
     }
 
     pub fn headers(&self) -> impl Iterator<Item = (&str, &str)> {

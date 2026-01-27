@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 
+use crate::libs::cache_mode::CacheMode;
 use crate::libs::create_params::CreateParams;
 use crate::libs::mock_config::{MockConfig, read_config};
 use crate::server::params::CONFIG_FILE_NAME;
@@ -74,7 +75,7 @@ async fn write_default_config(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let get_default_config = || {
         MockConfig::new()
-            .with_cache_mode(super::cache_mode::CacheMode::NoCache)
+            .with_cache_mode(params.cache_mode().unwrap_or(CacheMode::NoCache))
             .with_delay_ms(params.delay_ms())
             .with_headers({
                 let mut headers_map = HashMap::new();
