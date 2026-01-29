@@ -122,7 +122,7 @@ impl CreateParams {
     pub fn get_absolute_mocks_path(
         &self,
     ) -> Result<PathBuf, Box<dyn std::error::Error + Sync + Send>> {
-        let path = Path::new(&self.mocks).to_owned();
+        let path = Path::new(&self.mocks).to_owned().absolutize()?.into_owned();
         match path.is_absolute() {
             true => Ok(path),
             false => {
