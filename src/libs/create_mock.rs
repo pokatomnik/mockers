@@ -1,6 +1,8 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
+use std::error::Error as StdError;
 use tokio::io::AsyncWriteExt;
 
 use crate::libs::cache_mode::CacheMode;
@@ -8,16 +10,22 @@ use crate::libs::create_params::CreateParams;
 use crate::libs::mock_config::{MockConfig, read_config};
 use crate::server::params::CONFIG_FILE_NAME;
 
-pub async fn create_mock(
-    params: CreateParams,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn create_mock(params: CreateParams) -> Result<(), Box<dyn StdError + Send + Sync>> {
     let verbose = params.verbose();
     let mocks_absolute_path = params.get_absolute_mocks_path().inspect_err(|_| {
         if verbose {
             println!("Failed to get mocks path")
         }
     })?;
-    let mut destination_directory = mocks_absolute_path.join(params.route());
+    let mut destination_directory = {
+        let route = params.route();
+        let route_as_path: PathBuf = params.route().into();
+        if route_as_path.is_absolute() && route_as_path.starts_with("/") {
+            mocks_absolute_path.join(route.trim_start_matches("/"))
+        } else {
+            mocks_absolute_path.join(&route)
+        }
+    };
     let last_path_part = destination_directory
         .iter()
         .last()
@@ -72,7 +80,7 @@ async fn write_default_config(
     absolute_config_path: &str,
     entry_name: &str,
     params: &CreateParams,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), Box<dyn StdError + Send + Sync>> {
     let get_default_config = || {
         MockConfig::new()
             .with_cache_mode(params.cache_mode().unwrap_or(CacheMode::NoCache))
@@ -112,7 +120,7 @@ async fn write_default_mock(
     absolute_path: &str,
     contents: Option<&str>,
     verbose: bool,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), Box<dyn StdError + Send + Sync>> {
     let mut file = tokio::fs::File::create(absolute_path)
         .await
         .inspect_err(|_| {

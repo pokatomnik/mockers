@@ -1,15 +1,12 @@
-use std::{
-    io::ErrorKind,
-    path::{Path, PathBuf},
-};
+use std::error::Error as StdError;
+use std::io::ErrorKind;
+use std::path::{Path, PathBuf};
 
 use clap::Args;
 use path_absolutize::Absolutize;
 
-use crate::{
-    libs::cache_mode::CacheMode,
-    server::params::{DEFAULT_MOCKS_DIR_NAME, DEFAULT_VERBOSE_ENABLED},
-};
+use crate::libs::cache_mode::CacheMode;
+use crate::server::params::{DEFAULT_MOCKS_DIR_NAME, DEFAULT_VERBOSE_ENABLED};
 
 pub(crate) const DEFAULT_METHOD: &'static str = "GET";
 pub(crate) const DEFAULT_STATUS_CODE: u16 = 200;
@@ -84,9 +81,7 @@ impl CreateParams {
         None
     }
 
-    async fn expect_mocks_path_to_exist(
-        &self,
-    ) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+    async fn expect_mocks_path_to_exist(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
         let path = Path::new(&self.mocks);
         let metadata_result = tokio::fs::metadata(path).await;
 
@@ -119,9 +114,7 @@ impl CreateParams {
         Ok(())
     }
 
-    pub fn get_absolute_mocks_path(
-        &self,
-    ) -> Result<PathBuf, Box<dyn std::error::Error + Sync + Send>> {
+    pub fn get_absolute_mocks_path(&self) -> Result<PathBuf, Box<dyn StdError + Sync + Send>> {
         let path = Path::new(&self.mocks).to_owned().absolutize()?.into_owned();
         match path.is_absolute() {
             true => Ok(path),
@@ -132,7 +125,7 @@ impl CreateParams {
         }
     }
 
-    pub async fn test(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
+    pub async fn test(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
         if let Err(e) = self.expect_mocks_path_to_exist().await {
             return Err(e);
         }
