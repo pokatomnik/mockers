@@ -44,11 +44,11 @@ pub struct ServerParams {
 
 impl ServerParams {
     fn check_admin_base_url(&self) -> Result<(), Box<dyn std::error::Error + Sync + Send>> {
-        let path: Option<PathBuf> = self.admin_base_url.clone().map(PathBuf::from);
+        let path = &self.admin_base_url.as_ref().map(PathBuf::from);
         let Some(path) = path else {
             return Ok(());
         };
-        if path.is_absolute() {
+        if path.is_absolute() || path.starts_with("/") {
             return Ok(());
         }
         let message = format!(
