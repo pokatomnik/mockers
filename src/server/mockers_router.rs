@@ -6,6 +6,7 @@ use crate::controllers::api::delete_remove_mocks_by_path::delete_remove_mocks_by
 use crate::controllers::api::get_all_mocks::get_all_mocks;
 use crate::controllers::api::get_mocks_by_path::get_all_mocks_by_path;
 use crate::controllers::api::get_mocks_by_path_and_method::get_mocks_by_path_and_method;
+use crate::controllers::api::handle_options::handle_options;
 use crate::controllers::api::post_create_mock::post_create_mock;
 use crate::controllers::api::post_dump_mock::post_dump_mock;
 use crate::controllers::error::error_handler;
@@ -20,6 +21,7 @@ use crate::controllers::swagger::get_swagger_ui_bundle_js::get_swagger_ui_bundle
 use crate::controllers::swagger::get_swagger_ui_css::get_swagger_ui_css;
 use crate::controllers::swagger::get_swagger_ui_standalone_preset::get_swagger_ui_standalone_preset;
 use crate::libs::response_cache::InMemoryMocks;
+use crate::middlewares::admin_api_cors::admin_api_cors;
 use crate::middlewares::check_request::check_request;
 use crate::middlewares::logger::logger;
 use crate::server::mockers_context::MockersContext;
@@ -63,6 +65,8 @@ pub fn admin_router(_params: &ServerParams) -> Result<Router<MockersRouteError>,
             get_swagger_initializer_js,
         )
         .get("/swagger/swagger.yaml", get_mockers_yaml)
+        .any(handle_options)
+        .middleware(Middleware::post(admin_api_cors))
         .build()
 }
 
