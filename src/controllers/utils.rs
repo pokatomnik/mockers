@@ -39,12 +39,12 @@ pub fn get_404_response(
     builder.body(Full::new(Bytes::new())).unwrap_or_default()
 }
 
-static CORS_HEADER_KEYS: &'static [&'static str] = &[
+pub(crate) static CORS_HEADER_KEYS: &'static [&'static str] = &[
     "Access-Control-Allow-Methods",
     "Access-Control-Allow-Origin",
     "Access-Control-Allow-Headers",
 ];
-static CORS_HEADER_VALUE: &'static str = "*";
+pub(crate) static CORS_HEADER_VALUE: &'static str = "*";
 
 pub fn add_headers(
     mut builder: Builder,
