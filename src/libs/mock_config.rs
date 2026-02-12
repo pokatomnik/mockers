@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::Path};
-
 use crate::libs::cache_mode::CacheMode;
+use serde::{Deserialize, Serialize};
+use std::error::Error as StdError;
+use std::{collections::HashMap, path::Path};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -13,6 +13,34 @@ pub struct MockConfig {
 }
 
 impl MockConfig {
+    pub async fn try_read_from_file(
+        path: impl AsRef<Path>,
+    ) -> Result<HashMap<String, MockConfig>, Box<dyn StdError + Send + Sync>> {
+        let contents = tokio::fs::read_to_string(path).await?;
+        serde_json::from_str::<HashMap<String, MockConfig>>(&contents).map_err(Box::from)
+    }
+
+    pub async fn try_write_to_file(
+        &self,
+        path: impl AsRef<Path>,
+        entry_name: impl Into<String>,
+    ) -> Result<(), Box<dyn StdError + Send + Sync>> {
+        let json = match Self::try_read_from_file(&path).await {
+            Ok(mut existing_config) => {
+                existing_config.insert(entry_name.into(), self.clone());
+                serde_json::to_string_pretty(&existing_config)?
+            }
+            Err(_) => {
+                let mut new_config = HashMap::with_capacity(1);
+                new_config.insert(entry_name.into(), self.clone());
+                serde_json::to_string_pretty(&new_config)?
+            }
+        };
+        tokio::fs::write(&path, json).await?;
+
+        Ok(())
+    }
+
     pub fn new() -> MockConfig {
         MockConfig {
             delay_ms: None,
@@ -60,11 +88,4 @@ impl MockConfig {
     pub fn cache_mode(&self) -> Option<CacheMode> {
         self.cache_mode.clone()
     }
-}
-
-pub async fn read_config(path: impl AsRef<Path>) -> Option<HashMap<String, MockConfig>> {
-    tokio::fs::read_to_string(path)
-        .await
-        .ok()
-        .and_then(|contents| serde_json::from_str::<HashMap<String, MockConfig>>(&contents).ok())
 }

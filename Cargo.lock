@@ -793,6 +793,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "mimetype-detector",
+ "once_cell",
  "path-absolutize",
  "reqwest",
  "routerify_ng",

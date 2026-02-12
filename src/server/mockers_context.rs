@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::libs::response_cache::InMemoryMocks;
+use crate::libs::in_memory_mocks::InMemoryMocks;
 use crate::server::params::ServerParams;
 use reqwest::Client;
 

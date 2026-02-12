@@ -1,52 +1,49 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use crate::controllers::utils::{self, write_mock_metadata};
-use crate::controllers::utils::{
-    add_headers, get_404_response, get_502_response, join_origin_and_path, write_mock_body,
-};
-use crate::libs::response_cache::{MethodNormalizer, PathNormalizer};
-use crate::libs::{cache_mode::CacheMode, get_mime::get_mime, mock_config::read_config};
+use crate::libs::absolute_mocks_path::AbsoluteMocksPath;
+use crate::libs::header_map_ext::{HeaderMapConverter, HeaderMapSanitizer};
+use crate::libs::in_memory_mocks::{MethodNormalizer, PathNormalizer};
+use crate::libs::mock_config::MockConfig;
+use crate::libs::response_builder_ext::ResponseBuilderExt;
+use crate::libs::response_ext::WellKnownResponses;
+use crate::libs::tap::Tap;
+use crate::libs::url_ext::UrlExt;
+use crate::libs::{cache_mode::CacheMode, get_mime::get_mime};
 use crate::server::mockers_context::MockersContext;
-use crate::server::params::{
-    CONFIG_FILE_NAME, DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY, DEFAULT_VERBOSE_ENABLED,
-};
+use crate::server::params::{CONFIG_FILE_NAME, DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY};
 use crate::server::route_error::MockersRouteError;
 use http_body_util::{BodyExt, Full};
-use hyper::{Request, Response, StatusCode, body::Bytes};
-use reqwest::header::CONTENT_TYPE;
+use hyper::{body::Bytes, Request, Response, StatusCode};
+use reqwest::Url;
 use routerify_ng::ext::RequestExt;
+use tokio::join;
 
 pub async fn mock_handler(
     req: Request<Full<Bytes>>,
 ) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     let context = req.data::<Arc<MockersContext>>();
     let mocks_cache = context.map(|ctx| ctx.clone().response_cache.clone());
-    let verbose = context
-        .map(|context| context.server_params.verbose)
-        .unwrap_or(DEFAULT_VERBOSE_ENABLED);
     let cors = context
-        .map(|context| context.server_params.cors)
+        .map(|context| context.server_params.cors())
         .unwrap_or(DEFAULT_CORS_ENABLED);
     let global_delay_ms = context
-        .map(|context| context.server_params.delay_ms)
+        .map(|context| context.server_params.delay_ms())
         .unwrap_or(DEFAULT_MOCKS_RESPONSE_DELAY);
     let absolute_mocks_dir = context
         .map(|context| context.server_params.get_absolute_mocks_path())
         .unwrap_or(Err(Box::from("Params not specified")));
-    let origin = context.and_then(|context| context.clone().server_params.origin.clone());
+    let origin =
+        context.and_then(|context| context.clone().server_params.origin().map(String::from));
     let client = context.map(|context| context.clone().client.clone());
 
-    if verbose {
-        println!("Serving {}", &req.uri());
-    }
     let method = req.method().to_string().to_lowercase();
     let uri_pathname = req.uri().path().to_string();
 
     if absolute_mocks_dir.is_err() {
         return Ok(Response::builder()
             .status(StatusCode::FORBIDDEN)
-            .body(Full::new(Bytes::new()))
-            .unwrap_or(Response::default()));
+            .body(Full::default())
+            .unwrap_or_default());
     }
     /*
      * Example:
@@ -67,7 +64,11 @@ pub async fn mock_handler(
      * Example:
      * `baz.get`
      */
-    let mock_config_entry_name = relative_mock_file_name.split("/").last().unwrap_or("");
+    let mock_config_entry_name = relative_mock_file_name
+        .split("/")
+        .last()
+        .unwrap_or("")
+        .to_string();
     /*
      * Example:
      * `/foo/bar/`
@@ -84,155 +85,145 @@ pub async fn mock_handler(
     let config_file_path = absolute_mocks_dir
         .join(relative_current_mock_config_dir)
         .join(CONFIG_FILE_NAME);
-    let config = read_config(&config_file_path).await;
+    let config = MockConfig::try_read_from_file(&config_file_path).await.ok();
 
     let delay = config
         .as_ref()
-        .and_then(|c| c.get(mock_config_entry_name).and_then(|x| x.delay_ms()))
+        .and_then(|c| c.get(&mock_config_entry_name).and_then(|x| x.delay_ms()))
         .unwrap_or(global_delay_ms);
     let custom_headers = config
         .as_ref()
         .and_then(|c| {
-            c.get(mock_config_entry_name)
+            c.get(&mock_config_entry_name)
                 .and_then(|x| x.headers().cloned())
         })
         .unwrap_or_default();
     let status_if_file_found = config
         .as_ref()
-        .and_then(|c| c.get(mock_config_entry_name).and_then(|x| x.status_code()))
+        .and_then(|c| c.get(&mock_config_entry_name).and_then(|x| x.status_code()))
         .map(|status_code| StatusCode::from_u16(status_code).unwrap_or(StatusCode::OK))
         .unwrap_or(StatusCode::OK);
     let cache_mode = config
         .as_ref()
-        .and_then(|c| c.get(mock_config_entry_name))
+        .and_then(|c| c.get(&mock_config_entry_name))
         .and_then(|x| x.cache_mode())
         .unwrap_or(CacheMode::NoCache);
 
-    if verbose {
-        println!("Mocks dir: {}", &absolute_mocks_dir.display().to_string());
-        println!(
-            "Requested file: {}",
-            &absolute_mock_file_name.display().to_string()
-        );
-    }
-
     // Try respond from cache
-    let cached_data = utils::get_response_from_cache(
-        mocks_cache,
-        req.uri().path().to_string().normalize_path(),
-        req.method().to_string().normalize_method(),
-        cors,
-    )
-    .await;
-
-    if let Some((response, delay_ms)) = cached_data {
-        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+    let cached = match mocks_cache {
+        Some(mocks_cache) => {
+            let path = req.uri().path().to_string().normalize_path();
+            let method = req.method().to_string().normalize_method();
+            mocks_cache.get_mock_by_path_and_method(path, method).await
+        }
+        None => None,
+    };
+    if let Some(cached) = cached {
+        let mime = cached.get_mime().await;
+        let foo = cached.headers.into_iter();
+        let body_bytes = cached.body.into();
+        let response = Response::builder()
+            .status(cached.status_code)
+            .add_content_type_header(mime.as_str())
+            .add_custom_headers(foo)
+            .tap(|builder| if cors { builder.add_cors() } else { builder })
+            .body(body_bytes)
+            .unwrap_or_default();
+        tokio::time::sleep(Duration::from_millis(cached.delay_ms)).await;
         return Ok(response);
     }
 
     // Try respond from file-based mock
     if let Ok(data) = tokio::fs::read(&absolute_mock_file_name).await {
         let mime = get_mime(&data);
-
-        if verbose {
-            println!("File mime: {}", &mime);
-        }
-
-        let response = {
-            let mut builder = Response::builder()
-                .status(status_if_file_found)
-                .header(CONTENT_TYPE, mime);
-            builder = add_headers(builder, cors, &custom_headers);
-            builder
-                .body(Full::from(data))
-                .unwrap_or(Response::default())
-        };
+        let response = Response::builder()
+            .status(status_if_file_found)
+            .add_content_type_header(&mime)
+            .tap(|builder| if cors { builder.add_cors() } else { builder })
+            .add_custom_headers(custom_headers.into_iter())
+            .body(data.into())
+            .unwrap_or_default();
 
         tokio::time::sleep(Duration::from_millis(delay)).await;
 
         return Ok(response);
     }
 
+    // return 404 if no remote server specified
+    let Some((origin, client)) = origin.zip(client) else {
+        let response = Response::not_found()
+            .tap(|builder| if cors { builder.add_cors() } else { builder })
+            .add_custom_headers(custom_headers.into_iter())
+            .empty_body()
+            .unwrap_or_default();
+
+        return Ok(response);
+    };
+
     // make request if remote server is specified
-    let request_params = origin.zip(client).map(|(origin, client)| {
-        let target_url = join_origin_and_path(&origin, &uri_pathname, req.uri().query());
-        if verbose {
-            println!("Mock is missing, proxying request to {}", target_url);
-        }
+    let Ok(target_url) = Url::from_parts(&origin, &uri_pathname, req.uri().query()) else {
+        let response = Response::bad_request()
+            .tap(|builder| if cors { builder.add_cors() } else { builder })
+            .add_custom_headers(custom_headers.into_iter())
+            .empty_body()
+            .unwrap_or_default();
 
-        let headers = {
-            let mut res = req.headers().to_owned().clone();
-            res.remove(hyper::header::HOST);
-            res.remove(hyper::header::CONTENT_LENGTH);
-            res
-        };
+        return Ok(response);
+    };
 
-        let request_builder = client
-            .request(req.method().to_owned(), &target_url)
-            .headers(headers)
-            .body(reqwest::Body::wrap_stream(
-                req.body().clone().into_data_stream(),
-            ));
+    let request_headers = req
+        .headers()
+        .to_owned()
+        .remove_host_header()
+        .remove_content_length_header();
 
-        (request_builder, target_url)
-    });
+    let request_builder = client
+        .request(req.method().to_owned(), target_url)
+        .headers(request_headers)
+        .body(reqwest::Body::wrap_stream(
+            req.body().clone().into_data_stream(),
+        ));
 
     // Send response if remove server is specified
-    let response_params = async {
-        match request_params {
-            None => None,
-            Some((request, target_url)) => Some((request.send().await, target_url)),
-        }
-    }
-    .await;
-
-    // return 404 if no remote server specified
-    let Some((response_result, target_url)) = response_params else {
-        return Ok(get_404_response(cors, &custom_headers));
+    let Ok(response) = request_builder.send().await else {
+        let response = Response::bad_gateway()
+            .tap(|builder| if cors { builder.add_cors() } else { builder })
+            .add_custom_headers(custom_headers.into_iter())
+            .empty_body()
+            .unwrap_or_default();
+        return Ok(response);
     };
 
-    let Ok(resp) = response_result else {
-        if verbose {
-            eprintln!("No response from origin: '{}'", target_url)
-        }
-        return Ok(get_502_response(cors, &custom_headers));
-    };
+    let resp_status = response.status().clone();
 
-    let resp_headers = resp.headers().clone();
+    let resp_headers = response.headers().clone();
     let save_headers = resp_headers.clone();
 
-    let resp_status = resp.status().clone();
-
-    let response_bytes = resp.bytes().await.unwrap_or_default();
+    let response_bytes = response.bytes().await.unwrap_or_default();
     let save_bytes = response_bytes.clone();
 
-    let builder = {
-        let mut builder = Response::builder().status(resp_status);
-        for (header_key, header_val) in resp_headers {
-            if let Some(header_key) = header_key {
-                builder = builder.header(header_key, header_val);
-            }
-        }
-        builder = add_headers(builder, cors, &custom_headers);
-        builder
-    };
+    let response = Response::builder()
+        .status(resp_status)
+        .add_custom_headers(resp_headers.kv_iter())
+        .body(response_bytes.into())
+        .unwrap_or_default();
 
     if cache_mode == CacheMode::Overwrite {
-        write_mock_body(
-            absolute_mock_file_name.display().to_string(),
-            &save_bytes,
-            verbose,
-        );
-        write_mock_metadata(
-            mock_config_entry_name.to_string(),
-            config_file_path.to_string_lossy(),
-            resp_status.into(),
-            &save_headers,
-            verbose,
-        );
+        tokio::spawn(async move {
+            let mock_config = MockConfig::new()
+                .with_delay_ms(0)
+                .with_cache_mode(CacheMode::Overwrite)
+                .with_headers(save_headers.to_hash_map())
+                .with_status_code(resp_status.into());
+
+            let write_config_fut =
+                mock_config.try_write_to_file(&config_file_path, mock_config_entry_name);
+            let write_mock_fut = tokio::fs::write(absolute_mock_file_name, &save_bytes);
+
+            // TODO unused, should be logged maybe
+            let _ = join!(write_config_fut, write_mock_fut);
+        });
     }
 
-    Ok(builder
-        .body(Full::new(response_bytes))
-        .unwrap_or(Response::default()))
+    Ok(response)
 }

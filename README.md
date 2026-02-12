@@ -29,7 +29,6 @@ mockers serve [OPTIONS]
 | ------------------ | ----------- | ------------------------------------------------------------------------ |
 | `--host`           | `127.0.0.1` | Host to listen on                                                        |
 | `--port`, `-p`     | `8080`      | Port to listen on                                                        |
-| `--verbose`, `-v`  | `false`     | Enable verbose logging                                                   |
 | `--mocks`, `-m`    | `mocks`     | Path to the directory containing mock files                              |
 | `--cors`           | `false`     | Enable CORS headers (`Access-Control-Allow-Origin: *`)                   |
 | `--delay-ms`       | `0`         | Delay (in milliseconds) for serving mock responses                       |
@@ -72,10 +71,10 @@ Run the server on default settings:
 mockers serve
 ```
 
-Run on a custom host and port with verbose logging:
+Run on a custom host and port
 
 ```sh
-mockers serve --host 0.0.0.0 --port 3000 --verbose
+mockers serve --host 0.0.0.0 --port 3000
 ```
 
 Serve mocks from a custom directory with CORS enabled and 500ms response delay:

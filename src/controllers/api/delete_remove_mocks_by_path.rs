@@ -1,15 +1,15 @@
+use crate::libs::in_memory_mocks::{PathDecoder, PathNormalizer};
 use crate::libs::mockers_errors::MockersErrors;
 use crate::libs::protocol_result::ProtocolResultConverter;
-use crate::libs::response_cache::{PathDecoder, PathNormalizer};
+use crate::libs::response_builder_ext::ResponseBuilderExt;
+use crate::libs::response_ext::WellKnownResponses;
 use crate::server::mockers_context::MockersContext;
 use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;
 use hyper::body::Bytes;
-use hyper::header::CONTENT_TYPE;
-use hyper::{Request, Response, StatusCode};
-use mimetype_detector::APPLICATION_JSON;
+use hyper::{Request, Response};
 use routerify_ng::ext::RequestExt;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 pub async fn delete_remove_mocks_by_path(
     req: Request<Full<Bytes>>,
@@ -26,33 +26,27 @@ pub async fn delete_remove_mocks_by_path(
         .map(|c| c.clone().response_cache.clone());
 
     let Some(cache) = response_cache else {
-        let json = serde_json::to_string(
-            &Err::<String, String>(MockersErrors::RemoveMocksFailedByPath.to_string())
-                .to_protocol(),
-        );
-        let bytes: Bytes = json.map(|str| str.into()).unwrap_or_default();
-        return Ok(Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .header(CONTENT_TYPE, APPLICATION_JSON)
-            .body(bytes.into())
-            .unwrap_or_default());
+        return Ok(REMOVE_MOCKS_FAILED_BY_PATH.clone());
     };
 
-    let p = path.clone();
-    tokio::spawn(async move {
-        cache.remove_by_path(path).await;
-    });
-    let json = serde_json::to_string(
-        &Ok::<String, String>(format!("Removed mocks for path: '{}'", p).to_string()).to_protocol(),
-    );
-    let status = json
-        .as_ref()
-        .map(|_| StatusCode::OK)
-        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
-    let bytes: Bytes = json.map(|str| str.into()).unwrap_or_default();
-    Ok(Response::builder()
-        .status(status)
-        .header(CONTENT_TYPE, APPLICATION_JSON)
-        .body(bytes.into())
-        .unwrap_or_default())
+    cache.remove_by_path(&path).await;
+
+    let message = format!("Removed mocks for path: '{}'", &path).to_string();
+    let body = Ok::<String, &str>(message).to_protocol().to_string().into();
+    let response = Response::ok()
+        .content_type_json()
+        .body(body)
+        .unwrap_or_default();
+    Ok(response)
 }
+
+static REMOVE_MOCKS_FAILED_BY_PATH: LazyLock<Response<Full<Bytes>>> = LazyLock::new(|| {
+    let body = Err::<&str, String>(MockersErrors::RemoveMocksFailedByPath.to_string())
+        .to_protocol()
+        .to_string()
+        .into();
+    Response::internal_server_error()
+        .content_type_json()
+        .body(body)
+        .unwrap_or_default()
+});

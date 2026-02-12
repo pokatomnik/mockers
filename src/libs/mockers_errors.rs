@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -19,10 +20,21 @@ pub enum MockersErrors {
     NoSuchMock,
     // MISSING_MOCKS_DIRECTORY
     MissingMocksDirectory,
+    // DUMP_MOCK_BODY_FAILED
+    DumpMockBodyFailed,
+    // DUMP_MOCK_CONFIG_FAILED,
+    DumpMockConfigFailed,
+    // DUMP_MOCK_AND__MOCK_CONFIG_FAILED
+    DumpMockAndMockConfigFailed,
 }
 
-impl ToString for MockersErrors {
-    fn to_string(&self) -> String {
-        serde_json::to_string(self).expect("MockersErrors::to_string")
+static UNKNOWN_ERROR: &'static str = "UNKNOWN_ERROR";
+
+impl Display for MockersErrors {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match serde_json::to_string(self) {
+            Ok(v) => f.write_str(v.as_str()),
+            Err(_) => f.write_str(UNKNOWN_ERROR),
+        }
     }
 }
