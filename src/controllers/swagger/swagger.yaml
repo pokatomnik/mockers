@@ -385,6 +385,10 @@ components:
         - ADD_MOCK_FAILED
         - NO_SUCH_MOCK
         - MISSING_MOCKS_DIRECTORY
+        - DUMP_MOCK_BODY_FAILED
+        - DUMP_MOCK_CONFIG_FAILED
+        - DUMP_MOCK_AND__MOCK_CONFIG_FAILED
+        - UNKNOWN_ERROR
     HTTPMethods:
       type: string
       description: "HTTP method"

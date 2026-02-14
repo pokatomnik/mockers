@@ -20,7 +20,7 @@ use crate::controllers::swagger::get_swagger_initializer_js::get_swagger_initial
 use crate::controllers::swagger::get_swagger_ui_bundle_js::get_swagger_ui_bundle_js;
 use crate::controllers::swagger::get_swagger_ui_css::get_swagger_ui_css;
 use crate::controllers::swagger::get_swagger_ui_standalone_preset::get_swagger_ui_standalone_preset;
-use crate::libs::response_cache::InMemoryMocks;
+use crate::libs::in_memory_mocks::InMemoryMocks;
 use crate::middlewares::admin_api_cors::admin_api_cors;
 use crate::middlewares::check_request::check_request;
 use crate::middlewares::logger::logger;
@@ -77,10 +77,8 @@ pub fn mockers_router(params: &ServerParams) -> Result<Router<MockersRouteError>
             server_params: params.clone(),
             response_cache: Arc::new(InMemoryMocks::create()),
         }));
-        if let Some((admin_base_url, admin_router)) = params
-            .admin_base_url
-            .clone()
-            .zip(admin_router(&params).ok())
+        if let Some((admin_base_url, admin_router)) =
+            params.admin_base_url().zip(admin_router(&params).ok())
         {
             router = router.scope(admin_base_url, admin_router)
         }

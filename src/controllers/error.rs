@@ -1,14 +1,11 @@
+use crate::libs::response_ext::WellKnownResponses;
+use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;
-use hyper::{Response, StatusCode};
+use hyper::{body::Bytes, Response, StatusCode};
 use routerify_ng::RequestInfo;
 
-use crate::server::route_error::MockersRouteError;
-
-pub async fn error_handler(
-    err: routerify_ng::RouteError,
-    _: RequestInfo,
-) -> Response<Full<hyper::body::Bytes>> {
-    let err_message = &err.to_string().to_owned();
+pub async fn error_handler(err: routerify_ng::RouteError, _: RequestInfo) -> Response<Full<Bytes>> {
+    let err_message = &err.to_string();
     eprintln!("Error while processing user request: {}", err);
     if let Some(mockers_route_error) = try_unwrap_err(err) {
         return match mockers_route_error {
@@ -19,8 +16,7 @@ pub async fn error_handler(
         };
     }
 
-    Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
+    Response::internal_server_error()
         .body(format!("Something went wrong: {}", err_message).into())
         .unwrap_or_default()
 }
@@ -38,5 +34,6 @@ fn try_unwrap_err(err: Box<dyn std::error::Error>) -> Option<MockersRouteError> 
         }
         cur = src;
     }
-    return None;
+
+    None
 }
