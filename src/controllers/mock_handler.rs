@@ -4,6 +4,7 @@ use crate::libs::absolute_mocks_path::AbsoluteMocksPath;
 use crate::libs::header_map_ext::{HeaderMapConverter, HeaderMapSanitizer};
 use crate::libs::in_memory_mocks::{MethodNormalizer, PathNormalizer};
 use crate::libs::mock_config::MockConfig;
+use crate::libs::mockers_request_ext::MockersRequestExt;
 use crate::libs::response_builder_ext::ResponseBuilderExt;
 use crate::libs::response_ext::WellKnownResponses;
 use crate::libs::tap::Tap;
@@ -26,6 +27,9 @@ pub async fn mock_handler(
     let cors = context
         .map(|context| context.server_params.cors())
         .unwrap_or(DEFAULT_CORS_ENABLED);
+    let preflight = context
+        .map(|context| context.server_params.preflight())
+        .flatten();
     let global_delay_ms = context
         .map(|context| context.server_params.delay_ms())
         .unwrap_or(DEFAULT_MOCKS_RESPONSE_DELAY);
@@ -109,6 +113,24 @@ pub async fn mock_handler(
         .and_then(|x| x.cache_mode())
         .unwrap_or(CacheMode::NoCache);
 
+    let handle_preflight = match (preflight, req.is_preflight()) {
+        (Some(preflight), true) => Some(preflight),
+        _ => None,
+    };
+
+    // Check if this request is a special "preflight" browser request and user enforced handing It
+    if let Some(handle_preflight) = handle_preflight {
+        let response = Response::no_content()
+            .tap(|builder| if cors { builder.add_cors() } else { builder })
+            .add_custom_headers(
+                req.preflight_response_headers(*handle_preflight)
+                    .into_iter(),
+            )
+            .empty_body()
+            .unwrap_or_default();
+        return Ok(response);
+    }
+
     // Try respond from cache
     let cached = match mocks_cache {
         Some(mocks_cache) => {
@@ -120,12 +142,12 @@ pub async fn mock_handler(
     };
     if let Some(cached) = cached {
         let mime = cached.get_mime().await;
-        let foo = cached.headers.into_iter();
+        let cached_headers = cached.headers.into_iter();
         let body_bytes = cached.body.into();
         let response = Response::builder()
             .status(cached.status_code)
             .add_content_type_header(mime.as_str())
-            .add_custom_headers(foo)
+            .add_custom_headers(cached_headers)
             .tap(|builder| if cors { builder.add_cors() } else { builder })
             .body(body_bytes)
             .unwrap_or_default();

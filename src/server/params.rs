@@ -1,4 +1,5 @@
 use crate::libs::absolute_mocks_path::{generic_get_absolute_mocks_path, AbsoluteMocksPath};
+use crate::libs::preflight_type::PreflightType;
 use crate::server::mockers_router::mockers_router;
 use crate::server::signal::make_signal;
 use clap::Args;
@@ -35,6 +36,9 @@ pub struct ServerParams {
 
     #[arg(long, short, default_value_t = false, help = "Enable CORS headers")]
     cors: bool,
+
+    #[arg(long, help = "Handle browser's preflight requests automatically")]
+    preflight: Option<PreflightType>,
 
     #[arg(long, short, default_value_t = 0, help = "Mocks response delay")]
     delay_ms: u64,
@@ -102,15 +106,19 @@ impl ServerParams {
     pub fn admin_base_url(&self) -> Option<&str> {
         self.admin_base_url.as_deref()
     }
-    
+
     pub fn cors(&self) -> bool {
         self.cors
     }
-    
+
+    pub fn preflight(&self) -> Option<&PreflightType> {
+        self.preflight.as_ref()
+    }
+
     pub fn delay_ms(&self) -> u64 {
         self.delay_ms
     }
-    
+
     pub fn origin(&self) -> Option<&str> {
         self.origin.as_deref()
     }

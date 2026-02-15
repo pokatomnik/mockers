@@ -12,6 +12,8 @@ pub(crate) trait WellKnownResponses {
     fn bad_request() -> Builder;
 
     fn ok() -> Builder;
+    
+    fn no_content() -> Builder;
 }
 
 impl WellKnownResponses for Response<Full<Bytes>> {
@@ -33,5 +35,9 @@ impl WellKnownResponses for Response<Full<Bytes>> {
 
     fn ok() -> Builder {
         Response::builder().status(StatusCode::OK)
+    }
+    
+    fn no_content() -> Builder {
+        Response::builder().status(StatusCode::NO_CONTENT)
     }
 }
