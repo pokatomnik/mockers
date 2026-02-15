@@ -1,52 +1,49 @@
 {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://github.com/pokatomnik/mockers/schemas/config.v1.json",
-    "type": "object",
-    "$defs": {
-        "cacheMode": {
-            "type": "string",
-            "enum": [
-                "Overwrite",
-                "NoCache"
-            ],
-            "default": "NoCache",
-            "description": "Caching type: 'Overwrite' means the response will be written to disk, 'NoCache' is no-op"
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/pokatomnik/mockers/schemas/config.v1.json",
+  "type": "object",
+  "$defs": {
+    "cacheMode": {
+      "type": "string",
+      "enum": [
+        "overwrite",
+        "nocache"
+      ],
+      "description": "Caching type: 'Overwrite' means the response will be written to disk, 'nocache' is no-op"
+    },
+    "statusCode": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599,
+      "description": "Well-known HTTP status codes"
+    },
+    "mockConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "delayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615,
+          "description": "Time to wait before respond in milliseconds"
         },
         "statusCode": {
-            "type": "integer",
-            "minimum": 100,
-            "maximum": 599,
-            "default": 200,
-            "description": "Well-known HTTP status codes"
+          "$ref": "#/$defs/statusCode"
         },
-        "mockConfig": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "delayMs": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 18446744073709551615,
-                    "default": 0,
-                    "description": "Time to wait before respond in milliseconds"
-                },
-                "statusCode": {
-                    "$ref": "#/$defs/statusCode"
-                },
-                "headers": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "type": "string"
-                    },
-                    "description": "Map of desired additional headers"
-                },
-                "cacheMode": {
-                    "$ref": "#/$defs/cacheMode"
-                }
-            }
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map of desired additional headers"
+        },
+        "cacheMode": {
+          "$ref": "#/$defs/cacheMode"
         }
-    },
-    "additionalProperties": {
-        "$ref": "#/$defs/mockConfig"
+      }
     }
+  },
+  "additionalProperties": {
+    "$ref": "#/$defs/mockConfig"
+  }
 }
