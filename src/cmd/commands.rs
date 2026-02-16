@@ -1,10 +1,11 @@
+use crate::libs::activity_params::ActivityParams;
 use crate::libs::create_params::CreateParams;
 use crate::libs::ls::LsParams;
 use crate::server::params::ServerParams;
 
+use crate::libs::delete_params::DeleteParams;
 use crate::libs::info_params::InfoParams;
 use clap::Subcommand;
-use crate::libs::delete_params::DeleteParams;
 
 #[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
@@ -22,4 +23,10 @@ pub enum Commands {
 
     #[clap(visible_aliases = ["remove", "rm", "r"], about = "Remove mock by name")]
     Delete(DeleteParams),
+
+    #[clap(visible_aliases = ["on"], about = "Enable mock if It exists")]
+    Enable(ActivityParams),
+
+    #[clap(visible_aliases = ["off"], about = "Disable mock if It exists")]
+    Disable(ActivityParams),
 }

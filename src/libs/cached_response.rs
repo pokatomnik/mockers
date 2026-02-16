@@ -27,6 +27,7 @@ impl From<&CachedResponse> for MockConfig {
             .with_delay_ms(value.delay_ms)
             .with_status_code(value.status_code)
             .with_cache_mode(CacheMode::NoCache)
+            .with_disabled_status(false)
     }
 }
 

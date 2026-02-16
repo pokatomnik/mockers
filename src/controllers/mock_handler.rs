@@ -14,7 +14,7 @@ use crate::server::mockers_context::MockersContext;
 use crate::server::params::{CONFIG_FILE_NAME, DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY};
 use crate::server::route_error::MockersRouteError;
 use http_body_util::{BodyExt, Full};
-use hyper::{body::Bytes, Request, Response, StatusCode};
+use hyper::{Request, Response, StatusCode, body::Bytes};
 use reqwest::Url;
 use routerify_ng::ext::RequestExt;
 use tokio::join;
@@ -112,6 +112,11 @@ pub async fn mock_handler(
         .and_then(|c| c.get(&mock_config_entry_name))
         .and_then(|x| x.cache_mode())
         .unwrap_or(CacheMode::NoCache);
+    let is_disabled_by_config = config
+        .as_ref()
+        .and_then(|c| c.get(&mock_config_entry_name))
+        .map(|x| x.is_disabled())
+        .unwrap_or(false);
 
     let handle_preflight = match (preflight, req.is_preflight()) {
         (Some(preflight), true) => Some(preflight),
@@ -156,7 +161,7 @@ pub async fn mock_handler(
     }
 
     // Try respond from file-based mock
-    if let Ok(data) = tokio::fs::read(&absolute_mock_file_name).await {
+    if !is_disabled_by_config && let Ok(data) = tokio::fs::read(&absolute_mock_file_name).await {
         let mime = get_mime(&data);
         let response = Response::builder()
             .status(status_if_file_found)
@@ -236,7 +241,8 @@ pub async fn mock_handler(
                 .with_delay_ms(0)
                 .with_cache_mode(CacheMode::Overwrite)
                 .with_headers(save_headers.to_hash_map())
-                .with_status_code(resp_status.into());
+                .with_status_code(resp_status.into())
+                .with_disabled_status(false);
 
             let write_config_fut =
                 mock_config.try_write_to_file(&config_file_path, mock_config_entry_name);

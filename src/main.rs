@@ -26,6 +26,8 @@ async fn main() -> Result<(), Box<dyn StdError>> {
         Commands::List(ls_params) => ls_params.ls_mocks().await,
         Commands::Info(info_params) => info_params.show_info().await,
         Commands::Delete(delete_params) => delete_params.delete_mock().await,
+        Commands::Enable(activity_params) => activity_params.enable().await,
+        Commands::Disable(activity_params) => activity_params.disable().await,
     };
 
     let result = result.map_err(|e| e.to_string());

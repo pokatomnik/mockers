@@ -1,16 +1,17 @@
 use crate::libs::cache_mode::CacheMode;
+use crate::libs::create_params::{DEFAULT_DELAY_MS, DEFAULT_STATUS_CODE};
 use serde::{Deserialize, Serialize};
 use std::error::Error as StdError;
 use std::{collections::HashMap, path::Path};
-use crate::libs::create_params::{DEFAULT_DELAY_MS, DEFAULT_STATUS_CODE};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct MockConfig {
     delay_ms: Option<u64>,
     status_code: Option<u16>,
     headers: Option<HashMap<String, String>>,
     cache_mode: Option<CacheMode>,
+    disabled: Option<bool>,
 }
 
 impl Default for MockConfig {
@@ -20,6 +21,7 @@ impl Default for MockConfig {
             headers: Some(HashMap::new()),
             cache_mode: Some(CacheMode::NoCache),
             status_code: Some(DEFAULT_STATUS_CODE),
+            disabled: Some(false),
         }
     }
 }
@@ -59,6 +61,7 @@ impl MockConfig {
             status_code: None,
             headers: None,
             cache_mode: None,
+            disabled: None,
         }
     }
 
@@ -69,6 +72,15 @@ impl MockConfig {
 
     pub fn delay_ms(&self) -> Option<u64> {
         self.delay_ms
+    }
+
+    pub fn with_disabled_status(mut self, is_disabled: bool) -> Self {
+        self.disabled = Some(is_disabled);
+        self
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        self.disabled.unwrap_or(false)
     }
 
     pub fn with_status_code(mut self, status_code: u16) -> Self {

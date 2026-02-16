@@ -8,7 +8,7 @@ use clap::Args;
 use hyper::Method;
 use std::error::Error as StdError;
 use std::fs::Metadata;
-use std::path::{Path, PathBuf, MAIN_SEPARATOR};
+use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::pin::Pin;
 use std::str::FromStr;
 use tokio::try_join;
@@ -135,10 +135,19 @@ impl DeleteParams {
         let name_lower = self.name.to_lowercase();
         let mocks = self
             .find_matching_mocks(|(_, pathbuf)| {
-                pathbuf
+                let found = pathbuf
                     .to_string_lossy()
                     .to_lowercase()
-                    .contains(&name_lower)
+                    .contains(&name_lower);
+                let is_ext_correct_method = pathbuf
+                    .extension()
+                    .map(|e| e.to_string_lossy())
+                    .map(|e| e.to_uppercase())
+                    .map(|e| e.to_string())
+                    .and_then(|e| e.parse::<Method>().ok())
+                    .and_then(|m| m.validate(|| Box::new("")).ok())
+                    .is_some();
+                found && is_ext_correct_method
             })
             .await;
 
