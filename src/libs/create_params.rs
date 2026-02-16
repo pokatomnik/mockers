@@ -42,6 +42,9 @@ pub struct CreateParams {
     #[arg(long, short, default_value = DEFAULT_MOCKS_DIR_NAME, help = "Path to the directory containing mock files")]
     mocks: String,
 
+    #[arg(long, default_value_t = false, help = "Should mock be disabled or not")]
+    disabled: bool,
+
     route: String,
 }
 
@@ -72,6 +75,10 @@ impl CreateParams {
                 .map(|(k, v)| (k.trim(), v.trim()))
                 .filter(|(k, v)| !k.is_empty() && !v.is_empty())
         })
+    }
+
+    fn is_disabled(&self) -> bool {
+        self.disabled
     }
 
     fn contents(&self) -> Option<&str> {
@@ -185,5 +192,6 @@ impl From<&CreateParams> for MockConfig {
             .with_delay_ms(value.delay_ms())
             .with_status_code(value.status_code())
             .with_cache_mode(value.cache_mode().unwrap_or(CacheMode::NoCache))
+            .with_disabled_status(value.is_disabled())
     }
 }

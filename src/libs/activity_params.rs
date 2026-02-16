@@ -1,39 +1,27 @@
+use std::path::{MAIN_SEPARATOR, Path, PathBuf};
+use std::str::FromStr;
+use std::{error::Error as StdError, fs::Metadata};
+
 use crate::libs::absolute_mocks_path::generic_get_absolute_mocks_path;
-use crate::libs::cache_mode::CacheMode;
-use crate::libs::create_params::{DEFAULT_DELAY_MS, DEFAULT_STATUS_CODE};
 use crate::libs::fs_walker::FSWalker;
-use crate::libs::get_mime::get_mime;
 use crate::libs::http_method::StandardMethodValidator;
 use crate::libs::mock_config::MockConfig;
 use crate::libs::path_buf_ext::PathBufExt;
 use crate::server::params::{CONFIG_FILE_NAME, DEFAULT_MOCKS_DIR_NAME};
 use clap::Args;
 use hyper::Method;
-use std::error::Error as StdError;
-use std::fs::Metadata;
-use std::path::{MAIN_SEPARATOR, Path, PathBuf};
-use std::str::FromStr;
-use tokio::join;
 
 #[derive(Args, Debug, Clone)]
 #[clap(rename_all = "kebab-case")]
-pub(crate) struct InfoParams {
+pub(crate) struct ActivityParams {
     #[arg(long, short, default_value = DEFAULT_MOCKS_DIR_NAME, help = "Path to the directory containing mock files")]
     mocks: String,
-
-    #[arg(
-        long,
-        short,
-        default_value_t = false,
-        help = "Display mock body or not"
-    )]
-    show_body: bool,
 
     /// Name or full path to mock file or both
     name: String,
 }
 
-impl InfoParams {
+impl ActivityParams {
     fn get_absolute_mocks_path(&self) -> Result<PathBuf, Box<dyn StdError + Sync + Send>> {
         generic_get_absolute_mocks_path(&self.mocks, || std::env::current_dir().map_err(Box::from))
     }
@@ -52,7 +40,7 @@ impl InfoParams {
     }
 
     fn show_if_empty(&self) {
-        println!("No mocks found");
+        println!("There are no mocks matching your query");
     }
 
     fn show_if_multiple(
@@ -92,101 +80,39 @@ impl InfoParams {
         for (idx, mock) in correct_mocks.iter().enumerate() {
             println!("{}. {}", idx + 1, mock);
         }
-        println!("Specify which are you interested in more precisely");
+        println!("Specify which one are you interested in more precisely");
     }
 
     fn show_if_error(&self) {
-        eprintln!("Failed to show mocks info");
+        eprintln!("Failed to set mock status");
     }
 
-    fn print_config_and_body(
+    async fn set_status_by_path_and_entry(
         &self,
-        full_mock_body_path: impl AsRef<Path>,
-        config: &MockConfig,
-        body: &[u8],
+        absolute_config_path: impl AsRef<Path>,
+        entry_name: &str,
+        is_disabled: bool,
     ) -> Result<(), Box<dyn StdError + Sync + Send>> {
-        let absolute_mocks_path = self
-            .get_absolute_mocks_path()?
-            .to_string_lossy()
-            .to_string();
-        let full_mock_body_path = full_mock_body_path
-            .as_ref()
-            .display()
-            .to_string()
-            .replace(&absolute_mocks_path, "");
-        println!(
-            "Mock: {}{}",
-            &MAIN_SEPARATOR,
-            full_mock_body_path.trim_start_matches(&MAIN_SEPARATOR.to_string())
-        );
-        println!(
-            "Response status code: {}",
-            config.status_code().unwrap_or(DEFAULT_STATUS_CODE)
-        );
-        let headers = config.headers();
-        if let Some(headers) = headers
-            && !headers.is_empty()
-        {
-            println!("Response headers:");
-            for (key, val) in headers {
-                println!("{}: {}", key, val);
-            }
-        }
-        println!(
-            "Delay timeout (ms): {}",
-            config.delay_ms().unwrap_or(DEFAULT_DELAY_MS)
-        );
-        println!(
-            "Cache mode: {}",
-            config.cache_mode().unwrap_or(CacheMode::NoCache)
-        );
-        let detected_mime = get_mime(&body);
-        println!("Detected mime: {}", detected_mime);
+        let absolute_config_path = absolute_config_path.as_ref();
 
-        if self.show_body {
-            println!("Body:");
-            println!("{}", String::from_utf8_lossy(&body));
-        }
+        let mock_config = MockConfig::try_read_from_file(&absolute_config_path)
+            .await?
+            .get(entry_name)
+            .cloned()
+            .unwrap_or_default()
+            .with_disabled_status(is_disabled);
+
+        mock_config
+            .try_write_to_file(absolute_config_path, entry_name)
+            .await?;
 
         Ok(())
     }
 
-    async fn show_mock_info(
+    async fn set_disabled_status(
         &self,
-        full_mock_body_path: impl AsRef<Path>,
+        status: bool,
     ) -> Result<(), Box<dyn StdError + Sync + Send>> {
-        let entry_name = full_mock_body_path
-            .as_ref()
-            .file_name()
-            .map(|s| s.to_string_lossy().to_string());
-
-        let Some(entry_name) = entry_name else {
-            return Err("Unknown file name".into());
-        };
-
-        let full_dir_path = full_mock_body_path.as_ref().to_owned().with_last_removed();
-        let full_config_path = full_dir_path.clone().join(CONFIG_FILE_NAME);
-
-        let read_body_fut = async { tokio::fs::read(&full_mock_body_path).await };
-
-        let read_config_fut = async {
-            MockConfig::try_read_from_file(&full_config_path)
-                .await
-                .ok()
-                .and_then(|m| m.get(&entry_name).cloned())
-        };
-
-        let (config, body) = join!(read_config_fut, read_body_fut);
-        let body = body?;
-
-        self.print_config_and_body(
-            full_mock_body_path,
-            &config.unwrap_or_else(MockConfig::default),
-            body.as_ref(),
-        )
-    }
-
-    pub async fn show_info(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
         let name_lower = self.name.to_lowercase();
         let mocks = self
             .find_matching_mocks(|(_, pathbuf)| {
@@ -222,6 +148,33 @@ impl InfoParams {
             return Ok(self.show_if_multiple(&absolute_mocks_path, &matching_mocks));
         }
 
-        self.show_mock_info(first_matching_mock).await
+        let Some(entry_name) = first_matching_mock
+            .file_name()
+            .map(|en| en.to_string_lossy().to_string())
+        else {
+            return Ok(());
+        };
+
+        let absolute_config_path = first_matching_mock
+            .with_last_removed()
+            .join(CONFIG_FILE_NAME);
+
+        let set_status_result = self
+            .set_status_by_path_and_entry(&absolute_config_path, &entry_name, status)
+            .await;
+
+        if set_status_result.is_err() {
+            eprintln!("Mock is missing");
+        }
+
+        Ok(())
+    }
+
+    pub async fn enable(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
+        self.set_disabled_status(false).await
+    }
+
+    pub async fn disable(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
+        self.set_disabled_status(true).await
     }
 }

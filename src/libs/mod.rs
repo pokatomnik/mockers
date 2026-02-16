@@ -1,4 +1,5 @@
 pub mod absolute_mocks_path;
+pub mod activity_params;
 pub mod cache_mode;
 pub mod cached_response;
 pub mod create_params;
