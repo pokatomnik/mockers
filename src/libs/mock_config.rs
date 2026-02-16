@@ -2,6 +2,7 @@ use crate::libs::cache_mode::CacheMode;
 use serde::{Deserialize, Serialize};
 use std::error::Error as StdError;
 use std::{collections::HashMap, path::Path};
+use crate::libs::create_params::{DEFAULT_DELAY_MS, DEFAULT_STATUS_CODE};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -10,6 +11,17 @@ pub struct MockConfig {
     status_code: Option<u16>,
     headers: Option<HashMap<String, String>>,
     cache_mode: Option<CacheMode>,
+}
+
+impl Default for MockConfig {
+    fn default() -> Self {
+        MockConfig {
+            delay_ms: Some(DEFAULT_DELAY_MS),
+            headers: Some(HashMap::new()),
+            cache_mode: Some(CacheMode::NoCache),
+            status_code: Some(DEFAULT_STATUS_CODE),
+        }
+    }
 }
 
 impl MockConfig {

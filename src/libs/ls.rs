@@ -1,11 +1,9 @@
-use std::error::Error as StdError;
-use std::path::PathBuf;
 use std::str::FromStr;
 
 use clap::Args;
 use hyper::Method;
 
-use crate::libs::absolute_mocks_path::{generic_get_absolute_mocks_path, AbsoluteMocksPath};
+use crate::libs::absolute_mocks_path::generic_get_absolute_mocks_path;
 use crate::libs::{fs_walker::FSWalker, http_method::StandardMethodValidator};
 use crate::server::params::DEFAULT_MOCKS_DIR_NAME;
 
@@ -26,7 +24,9 @@ impl LsParams {
     }
 
     pub async fn ls_mocks(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let absolute_mocks_path = self.get_absolute_mocks_path()?;
+        let absolute_mocks_path = generic_get_absolute_mocks_path(&self.mocks, || {
+            std::env::current_dir().map_err(Box::from)
+        })?;
         let mocks: Vec<(String, Method)> = FSWalker::new(&absolute_mocks_path)
             .into_iter()
             .await
@@ -58,11 +58,5 @@ impl LsParams {
         }
 
         Ok(())
-    }
-}
-
-impl AbsoluteMocksPath for LsParams {
-    fn get_absolute_mocks_path(&self) -> Result<PathBuf, Box<dyn StdError + Sync + Send>> {
-        generic_get_absolute_mocks_path(&self.mocks, || std::env::current_dir().map_err(Box::from))
     }
 }
