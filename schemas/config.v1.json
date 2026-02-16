@@ -39,6 +39,10 @@
         },
         "cacheMode": {
           "$ref": "#/$defs/cacheMode"
+        },
+        "disabled": {
+          "type": "boolean",
+          "description": "Whether mock is disabled or not. If true, will be ignored by Mockers"
         }
       }
     }
