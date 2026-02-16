@@ -2,6 +2,7 @@ pub mod absolute_mocks_path;
 pub mod cache_mode;
 pub mod cached_response;
 pub mod create_params;
+pub mod delete_params;
 pub mod fs_walker;
 pub mod get_mime;
 pub mod header_map_ext;
