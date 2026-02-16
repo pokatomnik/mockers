@@ -134,13 +134,9 @@ impl CreateParams {
         let mocks_absolute_path = generic_get_absolute_mocks_path(&self.mocks, || {
             std::env::current_dir().map_err(Box::from)
         })?;
-        let destination_directory = mocks_absolute_path
-            .extend_with_url_path(self.route())
-            .with_last_removed();
-        let last_path_part = destination_directory
-            .file_name()
-            .map(|s| s.to_str())
-            .flatten();
+        let full_mock_path = mocks_absolute_path.extend_with_url_path(self.route());
+        let destination_directory = full_mock_path.with_last_removed();
+        let last_path_part = full_mock_path.file_name().map(|s| s.to_str()).flatten();
         let method_lower = &self.method().to_lowercase();
         let Some(last_path_part) = last_path_part else {
             let dst_dir = destination_directory.display();

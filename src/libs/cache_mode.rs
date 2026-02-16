@@ -1,5 +1,6 @@
 use clap::ValueEnum;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 #[derive(ValueEnum, Clone, Debug, Serialize, PartialEq, PartialOrd)]
@@ -8,6 +9,15 @@ use std::str::FromStr;
 pub enum CacheMode {
     Overwrite,
     NoCache,
+}
+
+impl Display for CacheMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CacheMode::Overwrite => write!(f, "overwrite"),
+            CacheMode::NoCache => write!(f, "nocache"),
+        }
+    }
 }
 
 impl FromStr for CacheMode {
