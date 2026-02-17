@@ -44,10 +44,8 @@ pub async fn mock_handler(
     let uri_pathname = req.uri().path().to_string();
 
     if absolute_mocks_dir.is_err() {
-        return Ok(Response::builder()
-            .status(StatusCode::FORBIDDEN)
-            .body(Full::default())
-            .unwrap_or_default());
+        let response = Response::forbidden().empty_body().unwrap_or_default();
+        return Ok(response);
     }
     /*
      * Example:

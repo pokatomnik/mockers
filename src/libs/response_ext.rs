@@ -1,6 +1,6 @@
 use http_body_util::Full;
 use hyper::http::response::Builder;
-use hyper::{body::Bytes, Response, StatusCode};
+use hyper::{Response, StatusCode, body::Bytes};
 
 pub(crate) trait WellKnownResponses {
     fn not_found() -> Builder;
@@ -11,8 +11,10 @@ pub(crate) trait WellKnownResponses {
 
     fn bad_request() -> Builder;
 
+    fn forbidden() -> Builder;
+
     fn ok() -> Builder;
-    
+
     fn no_content() -> Builder;
 }
 
@@ -33,10 +35,14 @@ impl WellKnownResponses for Response<Full<Bytes>> {
         Response::builder().status(StatusCode::BAD_REQUEST)
     }
 
+    fn forbidden() -> Builder {
+        Response::builder().status(StatusCode::FORBIDDEN)
+    }
+
     fn ok() -> Builder {
         Response::builder().status(StatusCode::OK)
     }
-    
+
     fn no_content() -> Builder {
         Response::builder().status(StatusCode::NO_CONTENT)
     }
