@@ -68,11 +68,11 @@ impl CachedResponse {
             return mime.clone();
         }
         drop(read_guard);
-        let mime = get_mime(&Vec::from(self.body.as_bytes()));
+        let mime = get_mime(&Vec::from(self.body.as_bytes())).await;
         let mut write_guard = self.mime.write().await;
-        *write_guard = Some(mime.clone());
+        *write_guard = Some(mime.to_owned());
 
-        mime
+        mime.to_owned()
     }
 
     pub async fn dump_response(

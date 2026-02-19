@@ -9,6 +9,7 @@ use hyper::{
 use mimetype_detector::{
     APPLICATION_JAVASCRIPT, APPLICATION_JSON, IMAGE_PNG, TEXT_HTML, TEXT_PLAIN,
 };
+use crate::libs::get_mime::TEXT_CSS;
 
 pub(crate) trait ResponseBuilderExt {
     fn add_cors(self) -> Self;
@@ -99,7 +100,7 @@ impl ResponseBuilderExt for Builder {
 
     fn content_type_css(mut self) -> Self {
         if let Some(headers) = self.headers_mut() {
-            headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/css"));
+            headers.insert(CONTENT_TYPE, HeaderValue::from_static(TEXT_CSS));
         }
         self
     }

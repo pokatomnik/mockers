@@ -11,7 +11,7 @@ use clap::Args;
 use hyper::Method;
 use std::error::Error as StdError;
 use std::fs::Metadata;
-use std::path::{MAIN_SEPARATOR, Path, PathBuf};
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use std::str::FromStr;
 use tokio::join;
 
@@ -99,7 +99,7 @@ impl InfoParams {
         eprintln!("Failed to show mocks info");
     }
 
-    fn print_config_and_body(
+    async fn print_config_and_body(
         &self,
         full_mock_body_path: impl AsRef<Path>,
         config: &MockConfig,
@@ -140,7 +140,7 @@ impl InfoParams {
             "Cache mode: {}",
             config.cache_mode().unwrap_or(CacheMode::NoCache)
         );
-        let detected_mime = get_mime(&body);
+        let detected_mime = get_mime(&body).await;
         println!("Detected mime: {}", detected_mime);
 
         if self.show_body {
@@ -183,7 +183,7 @@ impl InfoParams {
             full_mock_body_path,
             &config.unwrap_or_else(MockConfig::default),
             body.as_ref(),
-        )
+        ).await
     }
 
     pub async fn show_info(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
