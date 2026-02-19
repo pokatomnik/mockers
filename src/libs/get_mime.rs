@@ -13,7 +13,9 @@ use std::sync::{Arc, LazyLock};
 use tokio::sync::Mutex;
 use xxhash_rust::xxh3::xxh3_128_with_seed;
 
-const CACHE_SIZE: NonZeroUsize = NonZeroUsize::new(50).unwrap();
+static LRU_SIZE: usize = 1024;
+static SEED: u64 = 128;
+const CACHE_SIZE: NonZeroUsize = NonZeroUsize::new(LRU_SIZE).unwrap();
 
 pub(crate) static TEXT_CSS: &'static str = "text/css";
 
@@ -23,10 +25,9 @@ struct MimeCache {
 }
 
 impl MimeCache {
-    fn with_capacity(cap: usize, seed: u64) -> Self {
-        let size = NonZeroUsize::new(cap).unwrap();
+    fn with_capacity(cap: NonZeroUsize, seed: u64) -> Self {
         MimeCache {
-            shared_data: Arc::new(Mutex::new(LruCache::new(size))),
+            shared_data: Arc::new(Mutex::new(LruCache::new(cap))),
             seed,
         }
     }
@@ -106,7 +107,7 @@ impl MimeCache {
 }
 
 static MIME_CACHE: LazyLock<MimeCache> =
-    LazyLock::new(|| MimeCache::with_capacity(CACHE_SIZE.get(), 128));
+    LazyLock::new(|| MimeCache::with_capacity(CACHE_SIZE, SEED));
 
 pub(crate) async fn get_mime(raw_data: &[u8]) -> String {
     MIME_CACHE.get_cached_mime(raw_data, TEXT_UTF8).await
@@ -114,7 +115,9 @@ pub(crate) async fn get_mime(raw_data: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use mimetype_detector::{APPLICATION_JSON, IMAGE_JPEG, IMAGE_PNG, IMAGE_X_ICON, TEXT_HTML, TEXT_UTF8};
+    use mimetype_detector::{
+        APPLICATION_JSON, IMAGE_JPEG, IMAGE_PNG, IMAGE_X_ICON, TEXT_HTML, TEXT_UTF8,
+    };
 
     use super::*;
 
@@ -203,12 +206,12 @@ mod tests {
 
         assert_eq!(actual, expected);
     }
-    
+
     #[tokio::test]
     async fn test_get_mime_html() {
         let actual = get_mime(b"<!doctype html><html><head><title>hello world</title></head><body>This is HTML file</body></html>").await;
         let expected = TEXT_HTML;
-        
+
         assert_eq!(actual, expected);
     }
 
