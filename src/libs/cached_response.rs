@@ -58,7 +58,7 @@ impl CachedResponse {
     }
 
     pub async fn get_mime(&self) -> String {
-        get_mime(&Vec::from(self.body.as_bytes())).await
+        get_mime(self.body.as_bytes()).await
     }
 
     pub async fn dump_response(
