@@ -6,8 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error as StdError;
 use std::path::PathBuf;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,8 +14,6 @@ pub struct CachedResponse {
     pub delay_ms: u64,
     pub headers: HashMap<String, String>,
     pub body: String,
-    #[serde(skip)]
-    mime: Arc<RwLock<Option<String>>>,
 }
 
 impl From<&CachedResponse> for MockConfig {
@@ -38,7 +34,6 @@ impl CachedResponse {
             delay_ms: 0,
             headers: HashMap::new(),
             body: String::new(),
-            mime: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -63,16 +58,7 @@ impl CachedResponse {
     }
 
     pub async fn get_mime(&self) -> String {
-        let read_guard = self.mime.read().await;
-        if let Some(mime) = read_guard.as_ref() {
-            return mime.clone();
-        }
-        drop(read_guard);
-        let mime = get_mime(&Vec::from(self.body.as_bytes())).await;
-        let mut write_guard = self.mime.write().await;
-        *write_guard = Some(mime.to_owned());
-
-        mime.to_owned()
+        get_mime(&Vec::from(self.body.as_bytes())).await
     }
 
     pub async fn dump_response(
