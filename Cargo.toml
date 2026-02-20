@@ -16,6 +16,9 @@ serde_json = "1.0.145"
 reqwest = { version = "0.13.1", features = ["stream"] }
 base64 = "0.22.1"
 path-absolutize = "3.1.1"
+raffia = "0.12.2"
+lru = "0.16.3"
+xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
 
 [profile.release]
 opt-level = "z"

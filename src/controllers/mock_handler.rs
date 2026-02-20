@@ -14,7 +14,7 @@ use crate::server::mockers_context::MockersContext;
 use crate::server::params::{CONFIG_FILE_NAME, DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY};
 use crate::server::route_error::MockersRouteError;
 use http_body_util::{BodyExt, Full};
-use hyper::{Request, Response, StatusCode, body::Bytes};
+use hyper::{body::Bytes, Request, Response, StatusCode};
 use reqwest::Url;
 use routerify_ng::ext::RequestExt;
 use tokio::join;
@@ -160,7 +160,7 @@ pub async fn mock_handler(
 
     // Try respond from file-based mock
     if !is_disabled_by_config && let Ok(data) = tokio::fs::read(&absolute_mock_file_name).await {
-        let mime = get_mime(&data);
+        let mime = get_mime(&data).await;
         let response = Response::builder()
             .status(status_if_file_found)
             .add_content_type_header(&mime)
