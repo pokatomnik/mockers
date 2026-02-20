@@ -1,6 +1,6 @@
 use mimetype_detector::{
-    detect, APPLICATION_JSON, APPLICATION_OCTET_STREAM, TEXT_PLAIN, TEXT_UTF16_BE,
-    TEXT_UTF16_LE, TEXT_UTF8,
+    APPLICATION_JSON, APPLICATION_OCTET_STREAM, TEXT_PLAIN, TEXT_UTF8, TEXT_UTF16_BE,
+    TEXT_UTF16_LE, detect,
 };
 
 use lru::LruCache;
@@ -59,21 +59,21 @@ impl MimeCache {
 
         let data_hash = self.hash(raw_data);
 
-        let mime = {
-            let mut cache = self.shared_data.lock().await;
-            let cached = cache.get(&data_hash);
-            if let Some(mime) = cached {
-                return mime.to_owned();
-            }
-            let mime = match Self::get_mime(raw_data).await {
-                Ok(mime) => mime.to_owned(),
-                Err(_) => fallback.to_owned(),
-            };
-            cache.put(data_hash, mime.to_string());
-            mime
+        let mut cache = self.shared_data.lock().await;
+        let cached_mime = cache.get(&data_hash);
+
+        if let Some(mime) = cached_mime {
+            return mime.to_owned();
+        }
+
+        let mime = match Self::get_mime(raw_data).await {
+            Ok(mime) => mime.to_owned(),
+            Err(_) => fallback.to_owned(),
         };
 
-        mime.to_owned()
+        cache.put(data_hash, mime.clone());
+
+        mime
     }
 
     async fn get_mime(source: &[u8]) -> Result<String, Box<dyn StdError + Sync + Send>> {
@@ -115,9 +115,7 @@ pub(crate) async fn get_mime(raw_data: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use mimetype_detector::{
-        APPLICATION_JSON, IMAGE_JPEG, IMAGE_PNG, IMAGE_X_ICON, TEXT_HTML, TEXT_UTF8,
-    };
+    use mimetype_detector::{IMAGE_JPEG, IMAGE_PNG, IMAGE_X_ICON, TEXT_HTML};
 
     use super::*;
 
