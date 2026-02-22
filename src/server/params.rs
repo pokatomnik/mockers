@@ -1,5 +1,6 @@
-use crate::libs::absolute_mocks_path::{generic_get_absolute_mocks_path, AbsoluteMocksPath};
+use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, generic_get_absolute_mocks_path};
 use crate::libs::preflight_type::PreflightType;
+use crate::middlewares::logger::RequestLogLevel;
 use crate::server::mockers_router::mockers_router;
 use crate::server::signal::make_signal;
 use clap::Args;
@@ -24,6 +25,7 @@ pub const DEFAULT_CORS_ENABLED: bool = false;
 pub const CONFIG_FILE_NAME: &'static str = "config.json";
 
 #[derive(Args, Debug, Clone)]
+#[clap(rename_all = "kebab-case")]
 pub struct ServerParams {
     #[arg(long, default_value = DEFAULT_HOST, help = "Host to listen on")]
     host: String,
@@ -52,6 +54,9 @@ pub struct ServerParams {
         help = "Admin base URL. The entry point for all admin URLs. Disabled by default"
     )]
     admin_base_url: Option<String>,
+
+    #[arg(long, short, default_value_t = RequestLogLevel::Info, help = "Request log level")]
+    log_request: RequestLogLevel,
 }
 
 impl ServerParams {
@@ -121,6 +126,10 @@ impl ServerParams {
 
     pub fn origin(&self) -> Option<&str> {
         self.origin.as_deref()
+    }
+
+    pub fn log_request(&self) -> RequestLogLevel {
+        self.log_request
     }
 
     pub async fn test(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {

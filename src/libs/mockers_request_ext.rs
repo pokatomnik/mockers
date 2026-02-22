@@ -1,5 +1,6 @@
 use crate::libs::preflight_type::PreflightType;
-use hyper::{Method, Request};
+use http_body_util::{BodyExt, Full};
+use hyper::{Method, Request, body::Bytes};
 use std::collections::HashMap;
 
 trait PreflightRequestHeaders {
@@ -115,5 +116,30 @@ impl<T> MockersRequestExt<T> for Request<T> {
         }
 
         result
+    }
+}
+
+pub(crate) trait BodyReader {
+    async fn body(&self) -> Option<String>;
+}
+
+impl BodyReader for Full<Bytes> {
+    async fn body(&self) -> Option<String> {
+        let body = self
+            .clone()
+            .collect()
+            .await
+            .map(|b| b.to_bytes().to_vec())
+            .ok()
+            .and_then(|b| String::from_utf8(b).ok())?;
+
+        let Some(json) = serde_json::from_str::<serde_json::Value>(&body).ok() else {
+            return Some(body);
+        };
+        let Some(pretty) = serde_json::to_string_pretty(&json).ok() else {
+            return Some(body);
+        };
+
+        Some(pretty)
     }
 }
