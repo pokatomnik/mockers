@@ -10,13 +10,9 @@ use std::error::Error as StdError;
 
 use crate::cmd::commands::Commands;
 
-static BANNER_MSG: &'static str = include_str!("./banner.txt");
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
     let cli = Cli::parse();
-
-    println!("{}", BANNER_MSG);
 
     let result = match cli.command {
         Commands::Serve(server_params) => match server_params.test().await {
