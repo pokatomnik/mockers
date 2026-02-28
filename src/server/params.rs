@@ -1,4 +1,4 @@
-use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, generic_get_absolute_mocks_path};
+use crate::libs::absolute_mocks_path::{generic_get_absolute_mocks_path, AbsoluteMocksPath};
 use crate::libs::preflight_type::PreflightType;
 use crate::middlewares::logger::RequestLogLevel;
 use crate::server::mockers_router::mockers_router;
@@ -23,6 +23,8 @@ pub const DEFAULT_MOCKS_DIR_NAME: &'static str = "mocks";
 pub const DEFAULT_MOCKS_RESPONSE_DELAY: u64 = 0;
 pub const DEFAULT_CORS_ENABLED: bool = false;
 pub const CONFIG_FILE_NAME: &'static str = "config.json";
+
+static BANNER_MSG: &'static str = include_str!("./banner.txt");
 
 #[derive(Args, Debug, Clone)]
 #[clap(rename_all = "kebab-case")]
@@ -173,6 +175,7 @@ impl ServerParams {
         let router = mockers_router(&self)?;
         let router_service = Arc::new(RouterService::new(router)?);
 
+        println!("{}", BANNER_MSG);
         println!("Server has started at {}:{}", self.host, self.port);
 
         loop {
