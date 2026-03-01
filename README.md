@@ -1,192 +1,411 @@
-# Mockers - Simple HTTP Mock Server in Rust 🎯
+# Mockers — tiny but powerful HTTP mock server in Rust 🎯
 
 [![Rust](https://github.com/pokatomnik/mockers/actions/workflows/rust.yml/badge.svg)](https://github.com/pokatomnik/mockers/actions/workflows/rust.yml)
 
-`Mockers` is a lightweight HTTP server written in Rust for serving mock responses from files. It is designed for
-testing, prototyping, or any scenario where you need a quick mock backend.
+`Mockers` is a CLI + HTTP server that lets you spin up fake APIs from files in seconds.
+If you need a quick backend for frontend work, contract testing, demos, QA, or local integration tests — this thing is exactly for that. No heavy setup, no DB, no headache.
 
 ---
 
-## Installation 🚀
+## Why this project exists
 
-Build from source using Cargo:
+You have requests coming in.
+You want deterministic responses.
+You want them fast.
+
+`Mockers` maps URL + HTTP method to files, returns file contents as responses, and gives you extra controls like:
+
+- custom status codes,
+- response delay,
+- custom headers,
+- runtime admin API,
+- request forwarding to a real origin,
+- optional disk write-through caching.
+
+So it can work as both:
+
+- a pure mock server, and
+- a "mock-first, proxy-if-missing" server.
+
+---
+
+## Installation
+
+Build from source:
 
 ```bash
 cargo build --release
 ```
 
-## Usage 🚀
+Binary will be in `target/release/mockers`.
 
-Run the server using the `serve` command:
+---
 
-```sh
-mockers serve [OPTIONS]
-```
+## Quick start
 
-## Command-line Options 🚀
+Run server with defaults:
 
-| Flag               | Default     | Description                                                              |
-| ------------------ | ----------- | ------------------------------------------------------------------------ |
-| `--host`           | `127.0.0.1` | Host to listen on                                                        |
-| `--port`, `-p`     | `8080`      | Port to listen on                                                        |
-| `--mocks`, `-m`    | `mocks`     | Path to the directory containing mock files                              |
-| `--cors`           | `false`     | Enable CORS headers (`Access-Control-Allow-Origin: *`)                   |
-| `--delay-ms`       | `0`         | Delay (in milliseconds) for serving mock responses                       |
-| `--origin`         | [unset]     | Forward requests to another server when mock is missing by requested URL |
-| `--admin-base-url` | [unset]     | Enable admin API (see admin unit)                                        |
-
-## Mock File Structure 🚀
-
-- 💡 All files inside the mocks directory are used as responses.
-- 💡 File names determine the HTTP method:
-
-```
-user.get       -> responds to GET /user
-login.post     -> responds to POST /login
-```
-
-- 💡 The path inside the file name (before the dot) corresponds to the URL path.
-- 💡 Both relative and absolute paths are supported for the `--mocks` flag.
-
-Example:
-
-```
-mocks/
-├─ user.get
-├─ login.post
-└─ config.put
-```
-
-This will create the following endpoints:
-
-- 💡 `GET /user`
-- 💡 `POST /login`
-- 💡 `PUT /config`
-
-## Examples 🚀
-
-Run the server on default settings:
-
-```sh
+```bash
 mockers serve
 ```
 
-Run on a custom host and port
+Defaults:
 
-```sh
-mockers serve --host 0.0.0.0 --port 3000
+- host: `127.0.0.1`
+- port: `8080`
+- mocks dir: `./mocks`
+
+If `./mocks` does not exist, Mockers creates it.
+
+---
+
+## CLI commands overview
+
+```bash
+mockers <COMMAND>
 ```
 
-Serve mocks from a custom directory with CORS enabled and 500ms response delay:
+Available commands:
 
-```sh
-mockers serve --mocks ./api_mocks --cors --delay_ms 500
+- `serve` — run HTTP server
+- `create` — create a file-based mock + config entry
+- `list` — list all file-based mocks
+- `info` — show full info for a mock (status, headers, delay, mime, body)
+- `delete` — delete a specific mock (and clean config entry)
+- `enable` — enable a disabled mock
+- `disable` — disable a mock
+
+There are also aliases (`run`, `start`, `ls`, `rm`, etc.), check `--help`.
+
+---
+
+## `serve` command
+
+```bash
+mockers serve [OPTIONS]
 ```
 
-## Per-Directory Mock Configuration 🚀
+### Options
 
-Some endpoints may require custom behavior — a delayed response, a non-200 status code, or custom headers.
-To support this, any mock directory may optionally contain a mock-config.json file describing additional response
-parameters.
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--host` | `127.0.0.1` | Interface to bind to |
+| `--port`, `-p` | `8080` | Port to listen on |
+| `--mocks`, `-m` | `mocks` | Directory with mock files |
+| `--cors`, `-c` | `false` | Adds CORS headers (`Access-Control-Allow-Origin: *`) |
+| `--preflight` | unset | Auto-handle browser OPTIONS preflight requests |
+| `--delay-ms`, `-d` | `0` | Global response delay in ms |
+| `--origin`, `-o` | unset | Fallback upstream server when mock is missing |
+| `--admin-base-url`, `-a` | unset | Enables admin API + Swagger under given absolute base path |
+| `--log-request`, `-l` | `info` | Request logging level: `info`, `debug`, `trace` |
 
-### Example 🔧
+### Preflight modes
 
-```json
-{
-  "test.get": {
-    "delayMs": 5000,
-    "statusCode": 201,
-    "headers": {
-      "X-Server": "Mockers"
-    },
-    "cacheMode": "Overwrite"
-  }
-}
+If `--preflight` is enabled, Mockers can answer browser preflight requests automatically:
+
+- `mirror` — mirrors requested origin/method/headers back to the browser.
+- `permissive` — basically "allow everything" mode (`*`, all methods, etc.).
+
+Good for local dev when CORS fights you.
+
+### Request logging levels
+
+- `info`: method + path/query.
+- `debug`: method + path/query + headers.
+- `trace`: method + path/query + headers + body.
+
+---
+
+## How file-based routing works
+
+Mock file naming convention is:
+
+```text
+<route_path>.<http_method_lowercase>
 ```
 
-Given the file above, a request to:
+Examples:
 
+```text
+user.get       -> GET /user
+login.post     -> POST /login
+config.put     -> PUT /config
 ```
-GET http://localhost:8080/test
+
+Nested routes are just nested folders/files:
+
+```text
+mocks/
+├─ users/
+│  ├─ list.get
+│  └─ create.post
+└─ auth/
+   └─ login.post
 ```
 
-will produce:
+This gives you:
 
-- 💡 **5000 ms delay**
-- 💡 **HTTP 201 status**
-- 💡 **Header** `X-Server: Mockers`
-- 💡 **Body** — the content of `test.get` (or any corresponding mock file)
-- 💡 The response body will be cached into `test.get` if file `test.get` is missing (asynchronously).
+- `GET /users/list`
+- `POST /users/create`
+- `POST /auth/login`
 
-### Rules 🔧
+---
 
-- 💡 The config file is optional.
-- 💡 If it doesn't exist, default behavior applies (status 200, no delay, no custom headers).
-- 💡 Keys in the config file must match mock filenames in the same directory.
-- 💡 For example, test.get configures the file test.get.
-- 💡 All fields inside each entry are optional:
+## Mock config file (`config.json`)
 
-| Field        | Type                     | Description                                                                                                                                                                                         |
-| ------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `delayMs`    | `number`                 | Artificial response delay in milliseconds                                                                                                                                                           |
-| `statusCode` | `number` (u16)           | HTTP status code                                                                                                                                                                                    |
-| `headers`    | `Record<string,string>`  | Additional headers to append to the response                                                                                                                                                        |
-| `cacheMode`  | `Overwrite` or `NoCache` | If you specify the Overwrite parameter, if the mock file is missing, the request will be sent to the origin url and the body of the origin server response will be written to the missing mock file |
+In any mock directory, you can add a `config.json` file.
+Keys are mock file names in the same directory (like `user.get`).
 
-`config.json` schema can be found [here](./schemas/config.v1.json)
-
-### Example Behavior 🔧
-
-If only some fields are provided, the server fills in the rest with defaults.
-For example:
+Example:
 
 ```json
 {
   "user.get": {
-    "statusCode": 404
+    "delayMs": 1200,
+    "statusCode": 201,
+    "headers": {
+      "X-Server": "Mockers"
+    },
+    "cacheMode": "overwrite",
+    "disabled": false
   }
 }
 ```
 
-This results in:
+### Supported fields
 
-- 💡 404 status
-- 💡 no delay
-- 💡 no custom headers
-- 💡 body loaded from `user.get`
+| Field | Type | What it does |
+| --- | --- | --- |
+| `delayMs` | number | Per-mock delay in ms |
+| `statusCode` | number | Per-mock HTTP status |
+| `headers` | object string->string | Extra response headers |
+| `cacheMode` | `overwrite` \| `nocache` | Controls write-through behavior when proxying to `origin` |
+| `disabled` | boolean | If `true`, file mock is ignored |
 
-# Admin pages and API
+### Precedence and defaults
 
-It is also possible to manage moks in runtime. This is implemented using the REST API, which can be enabled using the
-launch flag `--admin-base-url`. Here you need to pass the absolute URL path, which cannot be used as a mock path, and in
-which the REST-endpoints and Swagger UI are located.
+For a matching mock file:
+
+- status defaults to `200`
+- delay defaults to global `--delay-ms` value (or `0`)
+- headers default to empty
+- cache mode defaults to `nocache`
+- disabled defaults to `false`
+
+If a config key is missing, defaults are used.
+
+---
+
+## Request handling flow (important)
+
+For every incoming request, Mockers roughly does this:
+
+1. Build mock filename from request path + method.
+2. Check in-memory runtime cache first.
+3. If not in cache, try file-based mock.
+4. If file mock is missing (or disabled):
+   - if `--origin` is set -> proxy request to origin,
+   - else -> return `404`.
+5. If proxied and `cacheMode=overwrite`, write response to disk asynchronously (`mock file + config.json`).
+
+So you can warm up mocks from a real backend automatically.
+
+---
+
+## `create` command
+
+```bash
+mockers create [OPTIONS] <ROUTE>
+```
+
+Creates:
+
+- a mock file (`<route>.<method>`),
+- and updates/creates `config.json` in the same directory.
+
+### Options
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--method` | `GET` | HTTP method |
+| `--status-code`, `-s` | `200` | Response status in config |
+| `--delay-ms`, `-d` | `0` | Delay in config |
+| `--header` | none | Add response header (`Key: Value`) |
+| `--contents`, `-c` | `{"hello":"world"}` | Mock body content |
+| `--cache-mode` | `nocache` | `overwrite` or `nocache` |
+| `--mocks`, `-m` | `mocks` | Mocks directory |
+| `--disabled` | `false` | Create mock as disabled |
+
+### Example
+
+```bash
+mockers create /users/profile --method GET --status-code 200 --header "X-Env: local" --contents '{"id":1}'
+```
+
+---
+
+## `list` command
+
+```bash
+mockers list [OPTIONS]
+```
+
+Shows all detected mock files with valid HTTP method extensions.
+
 Example:
 
-```sh
+```bash
+mockers list --mocks ./mocks
+```
+
+---
+
+## `info` command
+
+```bash
+mockers info [OPTIONS] <NAME>
+```
+
+Searches by partial name/path (case-insensitive), then prints:
+
+- normalized mock path,
+- response status,
+- configured headers,
+- delay,
+- detected mime type,
+- body (`--show-body` only).
+
+If multiple mocks match, it will ask you to be more specific by listing candidates.
+
+---
+
+## `delete` command
+
+```bash
+mockers delete [OPTIONS] <NAME>
+```
+
+Deletes one matching mock file.
+Also removes that entry from `config.json` in the same directory.
+If config becomes empty, `config.json` is deleted too.
+
+If your query matches multiple mocks, it prints candidates and does nothing.
+
+---
+
+## `enable` / `disable` commands
+
+```bash
+mockers enable [OPTIONS] <NAME>
+mockers disable [OPTIONS] <NAME>
+```
+
+These commands toggle the `disabled` flag in `config.json` for one matching mock.
+
+- `disable` => mock is ignored at serve time.
+- `enable` => mock becomes active again.
+
+If multiple matches are found, it asks for a more specific query.
+
+---
+
+## Admin API and Swagger UI
+
+Enable admin surface with:
+
+```bash
 mockers serve --admin-base-url /__admin
 ```
 
-All endpoints will start from the specified admin base url. There are endpoints for creating mocks in runtime, deleting
-and modifying, as well as endpoints for saving mocks from RAM to a file.
+Then you'll get:
 
-To open the Swagger UI (let's assume that we have launched `mockers` as mentioned above) you need to open the
-address http://localhost:8080/\_\_admin/swagger
+- REST API under `/__admin/api/v1/...`
+- Swagger UI under `/__admin/swagger`
 
-## Notes 🚀
+### Admin API routes
 
-- 💡 The server automatically resolves relative paths for mocks based on the current working directory.
-- 💡 If the specified mocks directory does not exist or is not a directory, the server will return an error.
-- 💡 Response delay can be used to simulate slow network responses.
+- `GET /api/v1/mocks` — get all runtime mocks
+- `GET /api/v1/mocks/{path_encoded}` — get mocks by path
+- `GET /api/v1/mocks/{path_encoded}/{method}` — get one by path+method
+- `POST /api/v1/mocks` — create/update runtime mock
+- `POST /api/v1/mocks/{path_encoded}/{method}/dump` — dump runtime mock to files
+- `DELETE /api/v1/mocks/{path_encoded}/{method}` — delete one runtime mock
+- `DELETE /api/v1/mocks/{path_encoded}` — delete all methods for path
 
-## Shout-out 🚀
+`path_encoded` is Base64-encoded route path.
 
-Huge thanks to [@Caik](https://github.com/Caik)
-, whose [Go version](https://github.com/Caik/go-mock-server) sparked the idea for this project.
-I rewrote the whole thing in Rust because apparently I enjoy suffering — and because I wanted features the original
-never asked for.
+Swagger also documents response schemas and known admin error codes.
 
-Big thanks to [bloodvez](https://github.com/bloodvez) for helping me find problems and to [silentroach](https://github.com/silentroach) for pointing out a bug and showing me mind-blowing AI experiments with Rust.
+---
 
-## License 🚀
+## CORS behavior
 
-MIT License
+Two separate things exist:
+
+1. `--cors` adds regular `Access-Control-Allow-Origin: *` to regular responses.
+2. `--preflight` handles OPTIONS preflight negotiation automatically.
+
+Use both if you want easiest browser interop in local env.
+
+---
+
+## Typical workflows
+
+### 1) Pure local mocks
+
+```bash
+mockers serve --mocks ./mocks
+```
+
+### 2) Mock + fallback to real backend
+
+```bash
+mockers serve --mocks ./mocks --origin https://example-api.dev
+```
+
+Optional: set `cacheMode: "overwrite"` for selected mocks to save upstream responses to disk.
+
+### 3) Frontend local dev with CORS painkillers
+
+```bash
+mockers serve --cors --preflight permissive
+```
+
+### 4) Runtime manipulation via admin API
+
+```bash
+mockers serve --admin-base-url /__admin
+```
+
+Open: `http://localhost:8080/__admin/swagger`
+
+---
+
+## Notes and caveats
+
+- Admin base URL must be an absolute path (like `/__admin`).
+- Mockers only treats files with valid HTTP method extensions as mocks.
+- If a path in `--mocks` points to a file/symlink instead of dir, command fails.
+- Relative `--mocks` paths are resolved from current working directory.
+- Response body mime is auto-detected from content.
+
+---
+
+## Config schema
+
+JSON schema for `config.json`:
+
+- [`schemas/config.v1.json`](./schemas/config.v1.json)
+
+---
+
+## Shout-out
+
+Huge thanks to [@Caik](https://github.com/Caik), whose [Go version](https://github.com/Caik/go-mock-server) sparked the original idea.
+Also thanks to [bloodvez](https://github.com/bloodvez) and [silentroach](https://github.com/silentroach).
+
+---
+
+## License
+
+MIT License.
