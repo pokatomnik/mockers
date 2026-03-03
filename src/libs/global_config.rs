@@ -1,0 +1,195 @@
+use crate::libs::path_buf_ext::PathBufExt;
+use crate::libs::preflight_type::PreflightType;
+use crate::middlewares::logger::VerbosityLevel;
+use serde::{Deserialize, Serialize};
+use std::collections::LinkedList;
+use std::env::current_dir;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+static GLOBAL_CONFIG_FILE_NAME: &'static str = ".mockers";
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct GlobalConfig {
+    host: Option<String>,
+    port: Option<u16>,
+    mocks: Option<String>,
+    cors: Option<bool>,
+    preflight: Option<PreflightType>,
+    delay_ms: Option<u64>,
+    origin: Option<String>,
+    admin_base_url: Option<String>,
+    log_request: Option<VerbosityLevel>,
+    verbosity: Option<VerbosityLevel>,
+}
+
+pub(crate) trait WithGlobalConfigAPI {
+    async fn get_global_config(&self) -> &GlobalConfigAPI;
+}
+
+impl GlobalConfig {
+    pub fn merge(&mut self, other: Option<&Self>) -> Self {
+        let host = other
+            .map(|o| o.host.clone())
+            .flatten()
+            .or_else(|| self.host.clone());
+        let port = other.map(|o| o.port).flatten().or(self.port);
+        let mocks = other
+            .map(|o| o.mocks.clone())
+            .flatten()
+            .or_else(|| self.mocks.clone());
+        let cors = other.map(|o| o.cors).flatten().or(self.cors);
+        let preflight = other.map(|o| o.preflight).flatten().or(self.preflight);
+        let delay_ms = other.map(|o| o.delay_ms).flatten().or(self.delay_ms);
+        let origin = other
+            .map(|o| o.origin.clone())
+            .flatten()
+            .or_else(|| self.origin.clone());
+        let admin_base_url = other
+            .map(|o| o.admin_base_url.clone())
+            .flatten()
+            .or_else(|| self.admin_base_url.clone());
+        let log_request = other.map(|o| o.log_request).flatten().or(self.log_request);
+        let verbosity = other.map(|o| o.verbosity).flatten().or(self.verbosity);
+        GlobalConfig {
+            host,
+            port,
+            mocks,
+            cors,
+            preflight,
+            delay_ms,
+            origin,
+            admin_base_url,
+            log_request,
+            verbosity,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct GlobalConfigAPI {
+    config: Arc<RwLock<Option<GlobalConfig>>>,
+}
+
+impl GlobalConfigAPI {
+    fn get_all_paths(start: impl AsRef<Path>) -> LinkedList<PathBuf> {
+        let start = start.as_ref().to_path_buf();
+        let mut result = LinkedList::new();
+        result.push_front(start.clone());
+
+        let mut current = start;
+        loop {
+            let parent = current.with_last_removed();
+            if parent == current {
+                break;
+            }
+            result.push_front(parent.clone());
+
+            current = parent;
+        }
+
+        result
+    }
+
+    async fn read_config_by_path(path: impl AsRef<Path>) -> Option<GlobalConfig> {
+        let contents = tokio::fs::read_to_string(path).await.ok()?;
+        let result = serde_json::from_str::<GlobalConfig>(&contents).ok();
+        return result;
+    }
+
+    async fn get_merged_config() -> GlobalConfig {
+        let mut result = GlobalConfig::default();
+        let all_dirs = current_dir().map(|dir| Self::get_all_paths(dir));
+        let Ok(all_dirs) = all_dirs else {
+            return result;
+        };
+
+        let all_global_config_paths: LinkedList<PathBuf> = all_dirs
+            .iter()
+            .map(|dir| dir.join(GLOBAL_CONFIG_FILE_NAME))
+            .collect();
+
+        let mut all_configs = LinkedList::new();
+
+        for config in all_global_config_paths {
+            let config = Self::read_config_by_path(config).await;
+            all_configs.push_front(config);
+        }
+
+        while let Some(config_optional) = all_configs.pop_front() {
+            result = result.merge(config_optional.as_ref());
+        }
+
+        result
+    }
+
+    async fn get_cached_config(&self) -> Option<GlobalConfig> {
+        let config = self.config.read().await;
+        config.clone()
+    }
+
+    async fn set_cached_config(&self, config: GlobalConfig) {
+        let mut c = self.config.write().await;
+        *c = Some(config)
+    }
+
+    pub async fn new() -> Self {
+        GlobalConfigAPI {
+            config: Arc::new(RwLock::new(None)),
+        }
+    }
+
+    async fn get_config(&self) -> GlobalConfig {
+        let config = self.get_cached_config().await;
+        if let Some(config) = config {
+            return config;
+        }
+
+        let new_config = Self::get_merged_config().await;
+        self.set_cached_config(new_config.clone()).await;
+
+        new_config
+    }
+
+    pub async fn get_host(&self) -> Option<String> {
+        self.get_config().await.host
+    }
+
+    pub async fn get_port(&self) -> Option<u16> {
+        self.get_config().await.port
+    }
+
+    pub async fn get_mocks(&self) -> Option<String> {
+        self.get_config().await.mocks
+    }
+
+    pub async fn get_cors(&self) -> Option<bool> {
+        self.get_config().await.cors
+    }
+
+    pub async fn get_preflight(&self) -> Option<PreflightType> {
+        self.get_config().await.preflight
+    }
+
+    pub async fn get_delay_ms(&self) -> Option<u64> {
+        self.get_config().await.delay_ms
+    }
+
+    pub async fn get_origin(&self) -> Option<String> {
+        self.get_config().await.origin
+    }
+
+    pub async fn get_admin_base_url(&self) -> Option<String> {
+        self.get_config().await.admin_base_url
+    }
+
+    pub async fn get_log_request(&self) -> Option<VerbosityLevel> {
+        self.get_config().await.log_request
+    }
+
+    pub async fn get_verbosity_level(&self) -> Option<VerbosityLevel> {
+        self.get_config().await.verbosity
+    }
+}

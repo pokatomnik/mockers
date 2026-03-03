@@ -1,16 +1,19 @@
 use std::str::FromStr;
 
+use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
+use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
+use crate::libs::{fs_walker::FSWalker, http_method::StandardMethodValidator};
 use clap::Args;
 use hyper::Method;
-
-use crate::libs::absolute_mocks_path::generic_get_absolute_mocks_path;
-use crate::libs::{fs_walker::FSWalker, http_method::StandardMethodValidator};
-use crate::server::params::DEFAULT_MOCKS_DIR_NAME;
+use tokio::sync::OnceCell;
 
 #[derive(Args, Debug, Clone)]
 pub(crate) struct LsParams {
-    #[arg(long, short, default_value = DEFAULT_MOCKS_DIR_NAME, help = "Path to the directory containing mock files")]
-    mocks: String,
+    #[arg(long, short, help = "Path to the directory containing mock files")]
+    mocks: Option<String>,
+
+    #[clap(skip)]
+    global_config: OnceCell<GlobalConfigAPI>,
 }
 
 impl LsParams {
@@ -24,9 +27,9 @@ impl LsParams {
     }
 
     pub async fn ls_mocks(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let absolute_mocks_path = generic_get_absolute_mocks_path(&self.mocks, || {
-            std::env::current_dir().map_err(Box::from)
-        })?;
+        let Some(absolute_mocks_path) = self.get_absolute_mocks_path().await else {
+            return Err("No mocks path".into());
+        };
         let mocks: Vec<(String, Method)> = FSWalker::new(&absolute_mocks_path)
             .into_iter()
             .await
@@ -58,5 +61,17 @@ impl LsParams {
         }
 
         Ok(())
+    }
+}
+
+impl WithMocks for LsParams {
+    fn get_mocks(&self) -> Option<&str> {
+        self.mocks.as_ref().map(|x| x.as_str())
+    }
+}
+
+impl WithGlobalConfigAPI for LsParams {
+    async fn get_global_config(&self) -> &GlobalConfigAPI {
+        self.global_config.get_or_init(GlobalConfigAPI::new).await
     }
 }

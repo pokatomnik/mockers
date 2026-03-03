@@ -5,14 +5,16 @@ use std::io::Error as IoError;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use crate::libs::absolute_mocks_path::generic_get_absolute_mocks_path;
+use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
 use crate::libs::cache_mode::CacheMode;
+use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
 use crate::libs::mock_config::MockConfig;
 use crate::libs::path_buf_ext::PathBufExt;
-use crate::server::params::{CONFIG_FILE_NAME, DEFAULT_MOCKS_DIR_NAME};
+use crate::server::params::CONFIG_FILE_NAME;
 use clap::Args;
 use path_absolutize::Absolutize;
 use serde_json::json;
+use tokio::sync::OnceCell;
 use tokio::try_join;
 
 pub(crate) const DEFAULT_METHOD: &'static str = "GET";
@@ -27,8 +29,8 @@ pub struct CreateParams {
     #[arg(long, short, default_value_t = DEFAULT_STATUS_CODE, help = "HTTP status code")]
     status_code: u16,
 
-    #[arg(long, short, default_value_t = DEFAULT_DELAY_MS, help = "Delay in milliseconds before respond")]
-    delay_ms: u64,
+    #[arg(long, short, help = "Delay in milliseconds before respond")]
+    delay_ms: Option<u64>,
 
     #[arg(long = "header", help = "Custom header, example: 'X-Server: Mockers'")]
     headers: Vec<String>,
@@ -39,13 +41,17 @@ pub struct CreateParams {
     #[arg(long, help = "Should the server response be cached")]
     cache_mode: Option<CacheMode>,
 
-    #[arg(long, short, default_value = DEFAULT_MOCKS_DIR_NAME, help = "Path to the directory containing mock files")]
-    mocks: String,
+    #[arg(long, short, help = "Path to the directory containing mock files")]
+    mocks: Option<String>,
 
     #[arg(long, default_value_t = false, help = "Should mock be disabled or not")]
     disabled: bool,
 
+    /// Pathname to create mock for
     route: String,
+
+    #[clap(skip)]
+    global_config: OnceCell<GlobalConfigAPI>,
 }
 
 impl CreateParams {
@@ -59,10 +65,6 @@ impl CreateParams {
 
     fn status_code(&self) -> u16 {
         self.status_code
-    }
-
-    fn delay_ms(&self) -> u64 {
-        self.delay_ms
     }
 
     fn cache_mode(&self) -> Option<CacheMode> {
@@ -89,7 +91,9 @@ impl CreateParams {
     }
 
     async fn expect_mocks_path_to_exist(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
-        let path = Path::new(&self.mocks);
+        let Some(ref path) = self.get_absolute_mocks_path().await else {
+            return Err("Mocks dir not set".into());
+        };
         let path_metadata = tokio::fs::metadata(path).await;
 
         let is_dir = path_metadata
@@ -101,19 +105,16 @@ impl CreateParams {
             return Ok(());
         }
 
-        let is_file = path_metadata
-            .as_ref()
-            .map(Metadata::is_file)
-            .unwrap_or(false);
-        let is_symlink = path_metadata
-            .as_ref()
-            .map(Metadata::is_symlink)
+        let wrong_target = path_metadata
+            .map(|m| m.is_file() || m.is_symlink())
             .unwrap_or(false);
 
-        if is_symlink || is_file {
-            let error_message = format!("The specified path '{}' is not a directory", &self.mocks);
-            let error = std::io::Error::new(ErrorKind::NotADirectory, error_message);
-            return Err(error.into());
+        if wrong_target {
+            let err_msg = format!(
+                "The specified path '{}' is not a directory",
+                &path.display()
+            );
+            return Err(err_msg.into());
         }
 
         if path.is_absolute() {
@@ -138,9 +139,9 @@ impl CreateParams {
     }
 
     pub async fn create_mock(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
-        let mocks_absolute_path = generic_get_absolute_mocks_path(&self.mocks, || {
-            std::env::current_dir().map_err(Box::from)
-        })?;
+        let Some(mocks_absolute_path) = self.get_absolute_mocks_path().await else {
+            return Err("Mocks dir not set".into());
+        };
         let full_mock_path = mocks_absolute_path.extend_with_url_path(self.route());
         let destination_directory = full_mock_path.with_last_removed();
         let last_path_part = full_mock_path.file_name().map(|s| s.to_str()).flatten();
@@ -189,9 +190,21 @@ impl From<&CreateParams> for MockConfig {
         });
         MockConfig::new()
             .with_headers(owned_headers)
-            .with_delay_ms(value.delay_ms())
+            .with_delay_ms(value.delay_ms.unwrap_or(DEFAULT_DELAY_MS))
             .with_status_code(value.status_code())
             .with_cache_mode(value.cache_mode().unwrap_or(CacheMode::NoCache))
             .with_disabled_status(value.is_disabled())
+    }
+}
+
+impl WithMocks for CreateParams {
+    fn get_mocks(&self) -> Option<&str> {
+        self.mocks.as_ref().map(|x| x.as_str())
+    }
+}
+
+impl WithGlobalConfigAPI for CreateParams {
+    async fn get_global_config(&self) -> &GlobalConfigAPI {
+        self.global_config.get_or_init(GlobalConfigAPI::new).await
     }
 }

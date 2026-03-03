@@ -1,6 +1,9 @@
-use crate::libs::absolute_mocks_path::{generic_get_absolute_mocks_path, AbsoluteMocksPath};
+use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
+use crate::libs::create_params::DEFAULT_DELAY_MS;
+use crate::libs::get_info_async::GetInfoAsync;
+use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
 use crate::libs::preflight_type::PreflightType;
-use crate::middlewares::logger::RequestLogLevel;
+use crate::middlewares::logger::VerbosityLevel;
 use crate::server::mockers_router::mockers_router;
 use crate::server::signal::make_signal;
 use clap::Args;
@@ -13,9 +16,10 @@ use std::error::Error as StdError;
 use std::io::Error as IoError;
 use std::io::ErrorKind;
 use std::net::ToSocketAddrs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::net::TcpListener;
+use tokio::sync::OnceCell;
 
 pub const DEFAULT_HOST: &'static str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 8080;
@@ -29,23 +33,23 @@ static BANNER_MSG: &'static str = include_str!("./banner.txt");
 #[derive(Args, Debug, Clone)]
 #[clap(rename_all = "kebab-case")]
 pub struct ServerParams {
-    #[arg(long, default_value = DEFAULT_HOST, help = "Host to listen on")]
-    host: String,
+    #[arg(long, help = "Host to listen on")]
+    host: Option<String>,
 
-    #[arg(long, short, default_value_t = DEFAULT_PORT, help = "Port to listen on")]
-    port: u16,
+    #[arg(long, short, help = "Port to listen on")]
+    port: Option<u16>,
 
-    #[arg(long, short, default_value = DEFAULT_MOCKS_DIR_NAME, help = "Path to the directory containing mock files")]
-    mocks: String,
+    #[arg(long, short, help = "Path to the directory containing mock files")]
+    mocks: Option<String>,
 
-    #[arg(long, short, default_value_t = false, help = "Enable CORS headers")]
-    cors: bool,
+    #[arg(long, short, help = "Enable CORS headers")]
+    cors: Option<bool>,
 
     #[arg(long, help = "Handle browser's preflight requests automatically")]
     preflight: Option<PreflightType>,
 
-    #[arg(long, short, default_value_t = 0, help = "Mocks response delay")]
-    delay_ms: u64,
+    #[arg(long, short, help = "Mocks response delay")]
+    delay_ms: Option<u64>,
 
     #[arg(long, short, help = "Origin server where")]
     origin: Option<String>,
@@ -57,8 +61,14 @@ pub struct ServerParams {
     )]
     admin_base_url: Option<String>,
 
-    #[arg(long, short, default_value_t = RequestLogLevel::Info, help = "Request log level")]
-    log_request: RequestLogLevel,
+    #[arg(long, short, help = "Request log level")]
+    log_request: Option<VerbosityLevel>,
+
+    #[arg(long, short, help = "Verbosity level")]
+    verbosity: Option<VerbosityLevel>,
+
+    #[clap(skip)]
+    global_config: OnceCell<GlobalConfigAPI>,
 }
 
 impl ServerParams {
@@ -78,7 +88,9 @@ impl ServerParams {
     }
 
     async fn expect_mocks_path_to_exist(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
-        let path = Path::new(&self.mocks);
+        let Some(ref path) = self.get_absolute_mocks_path().await else {
+            return Err("Mocks dir not set".into());
+        };
         let metadata_result = tokio::fs::metadata(path).await;
 
         if let Ok(ref metadata) = metadata_result
@@ -87,14 +99,15 @@ impl ServerParams {
             return Ok(());
         }
 
-        if let Ok(ref metadata) = metadata_result
-            && (metadata.is_file() || metadata.is_symlink())
-        {
-            let error = IoError::new(
-                ErrorKind::NotADirectory,
-                format!("The specified path '{}' is not a directory", &self.mocks),
+        let wrong_target = metadata_result
+            .map(|m| m.is_file() || m.is_symlink())
+            .unwrap_or(false);
+        if wrong_target {
+            let err_msg = format!(
+                "The specified path '{}' is not a directory",
+                &path.display()
             );
-            return Err(error.into());
+            return Err(err_msg.into());
         }
 
         if path.is_absolute() {
@@ -110,28 +123,73 @@ impl ServerParams {
         Ok(())
     }
 
-    pub fn admin_base_url(&self) -> Option<&str> {
-        self.admin_base_url.as_deref()
+    async fn get_host(&self) -> String {
+        match self.host {
+            Some(ref host) => Some(host.clone()),
+            None => self.get_global_config().await.get_host().await,
+        }
+        .unwrap_or_else(|| DEFAULT_HOST.to_string())
     }
 
-    pub fn cors(&self) -> bool {
-        self.cors
+    async fn get_port(&self) -> u16 {
+        match self.port {
+            Some(port) => Some(port),
+            None => self.get_global_config().await.get_port().await,
+        }
+        .unwrap_or(DEFAULT_PORT)
     }
 
-    pub fn preflight(&self) -> Option<&PreflightType> {
-        self.preflight.as_ref()
+    pub async fn admin_base_url(&self) -> Option<String> {
+        match self.admin_base_url {
+            Some(ref base_url) => Some(base_url.clone()),
+            None => self.get_global_config().await.get_admin_base_url().await,
+        }
     }
 
-    pub fn delay_ms(&self) -> u64 {
-        self.delay_ms
+    pub async fn cors(&self) -> bool {
+        match self.cors {
+            Some(cors) => Some(cors),
+            None => self.get_global_config().await.get_cors().await,
+        }
+        .unwrap_or(DEFAULT_CORS_ENABLED)
     }
 
-    pub fn origin(&self) -> Option<&str> {
-        self.origin.as_deref()
+    pub async fn preflight(&self) -> Option<PreflightType> {
+        match self.preflight {
+            Some(preflight) => Some(preflight),
+            None => self.get_global_config().await.get_preflight().await,
+        }
     }
 
-    pub fn log_request(&self) -> RequestLogLevel {
-        self.log_request
+    pub async fn delay_ms(&self) -> u64 {
+        match self.delay_ms {
+            Some(delay) => Some(delay),
+            None => self.get_global_config().await.get_delay_ms().await,
+        }
+        .unwrap_or(DEFAULT_DELAY_MS)
+    }
+
+    pub async fn origin(&self) -> Option<String> {
+        match self.origin {
+            Some(ref origin) => Some(origin.clone()),
+            None => self.get_global_config().await.get_origin().await,
+        }
+    }
+
+    pub async fn log_request(&self) -> VerbosityLevel {
+        match self.log_request {
+            Some(log_request) => Some(log_request),
+            None => self.get_global_config().await.get_log_request().await,
+        }
+        .unwrap_or(VerbosityLevel::Info)
+    }
+
+    pub async fn verbosity_level(&self) -> VerbosityLevel {
+        match self.verbosity {
+            Some(verbosity) => Some(verbosity),
+            None => self.get_global_config().await.get_verbosity_level().await,
+        }
+        .unwrap_or(VerbosityLevel::Info)
     }
 
     pub async fn test(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
@@ -147,7 +205,7 @@ impl ServerParams {
     }
 
     async fn listener(&self) -> Result<TcpListener, IoError> {
-        let socket_addr = format!("{}:{}", self.host, self.port)
+        let socket_addr = format!("{}:{}", self.get_host().await, self.get_port().await)
             .to_socket_addrs()?
             .next();
         if let Some(socket_addr) = socket_addr {
@@ -172,11 +230,19 @@ impl ServerParams {
         let graceful = Arc::new(hyper_util::server::graceful::GracefulShutdown::new());
         let listener = self.listener().await?;
         let mut shutdown_signal = make_signal();
-        let router = mockers_router(&self)?;
+        let router = mockers_router(&self).await?;
         let router_service = Arc::new(RouterService::new(router)?);
 
         println!("{}", BANNER_MSG);
-        println!("Server has started at {}:{}", self.host, self.port);
+        match self.verbosity_level().await {
+            VerbosityLevel::Debug | VerbosityLevel::Trace => println!("{}", self.get_help().await),
+            VerbosityLevel::Info => {}
+        };
+        println!(
+            "Server has started at {}:{}",
+            self.get_host().await,
+            self.get_port().await
+        );
 
         loop {
             tokio::select! {
@@ -212,8 +278,104 @@ impl ServerParams {
     }
 }
 
-impl AbsoluteMocksPath for ServerParams {
-    fn get_absolute_mocks_path(&self) -> Result<PathBuf, Box<dyn StdError + Sync + Send>> {
-        generic_get_absolute_mocks_path(&self.mocks, || std::env::current_dir().map_err(Box::from))
+impl WithMocks for ServerParams {
+    fn get_mocks(&self) -> Option<&str> {
+        self.mocks.as_ref().map(|x| x.as_str())
+    }
+}
+
+impl WithGlobalConfigAPI for ServerParams {
+    async fn get_global_config(&self) -> &GlobalConfigAPI {
+        self.global_config.get_or_init(GlobalConfigAPI::new).await
+    }
+}
+
+impl GetInfoAsync for ServerParams {
+    async fn get_help(&self) -> String {
+        let mut buf = String::from(format!("Start parameters:{}", Self::EOL));
+        buf.push_str(&format!("================={}", Self::EOL));
+        let host_info = format!(
+            "Host:{}{}{}",
+            Self::TAB.repeat(3),
+            self.get_host().await,
+            Self::EOL
+        );
+        let port_info = format!(
+            "Port:{}{}{}",
+            Self::TAB.repeat(3),
+            self.get_port().await,
+            Self::EOL
+        );
+        let mocks_path_info = format!(
+            "Mocks path:{}{}{}",
+            Self::TAB.repeat(2),
+            self.get_absolute_mocks_path()
+                .await
+                .map(|v| v.to_string_lossy().to_string())
+                .unwrap_or_else(|| Self::UNSET.to_string()),
+            Self::EOL,
+        );
+        let cors_info = format!(
+            "Cors:{}{}{}",
+            Self::TAB.repeat(3),
+            self.cors().await,
+            Self::EOL
+        );
+        let preflight_info = format!(
+            "Preflight:{}{}{}",
+            Self::TAB.repeat(2),
+            self.preflight()
+                .await
+                .map(|pt| pt.to_string())
+                .unwrap_or_else(|| Self::UNSET.to_string()),
+            Self::EOL
+        );
+        let delay_ms_info = format!(
+            "Delay in milliseconds:{}{}{}",
+            Self::TAB,
+            self.delay_ms().await,
+            Self::EOL
+        );
+        let origin_info = format!(
+            "Origin:{}{}{}",
+            Self::TAB.repeat(3),
+            self.origin()
+                .await
+                .unwrap_or_else(|| Self::UNSET.to_string()),
+            Self::EOL,
+        );
+        let admin_base_url_info = format!(
+            "Admin base URL:{}{}{}",
+            Self::TAB.repeat(2),
+            self.admin_base_url()
+                .await
+                .unwrap_or_else(|| Self::UNSET.to_string()),
+            Self::EOL,
+        );
+        let log_request_info = format!(
+            "Requests log level:{}{}{}",
+            Self::TAB,
+            self.log_request().await,
+            Self::EOL,
+        );
+        let verbosity_level_info = format!(
+            "Verbosity level:{}{}{}",
+            Self::TAB,
+            self.verbosity_level().await,
+            Self::EOL
+        );
+
+        buf.push_str(&host_info);
+        buf.push_str(&port_info);
+        buf.push_str(&mocks_path_info);
+        buf.push_str(&cors_info);
+        buf.push_str(&preflight_info);
+        buf.push_str(&delay_ms_info);
+        buf.push_str(&origin_info);
+        buf.push_str(&admin_base_url_info);
+        buf.push_str(&log_request_info);
+        buf.push_str(&verbosity_level_info);
+
+        buf
     }
 }

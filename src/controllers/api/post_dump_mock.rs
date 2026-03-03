@@ -45,11 +45,13 @@ pub async fn post_dump_mock(
         return Ok(NO_SUCH_MOCK.clone());
     };
 
-    let absolute_mocks_dir = req
+    let absolute_mocks_dir = match req
         .data::<Arc<MockersContext>>()
-        .map(|c| c.clone().server_params.get_absolute_mocks_path())
-        .unwrap_or_else(|| Err(Box::from("mocks directory not provided")))
-        .ok();
+        .map(|ctx| &ctx.server_params)
+    {
+        None => None,
+        Some(sp) => sp.get_absolute_mocks_path().await,
+    };
 
     let Some(absolute_mocks_dir) = absolute_mocks_dir else {
         return Ok(MISSING_MOCKS_DIRECTORY.clone());

@@ -1,36 +1,40 @@
-use std::path::{MAIN_SEPARATOR, Path, PathBuf};
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use std::str::FromStr;
 use std::{error::Error as StdError, fs::Metadata};
 
-use crate::libs::absolute_mocks_path::generic_get_absolute_mocks_path;
+use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
 use crate::libs::fs_walker::FSWalker;
+use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
 use crate::libs::http_method::StandardMethodValidator;
 use crate::libs::mock_config::MockConfig;
 use crate::libs::path_buf_ext::PathBufExt;
-use crate::server::params::{CONFIG_FILE_NAME, DEFAULT_MOCKS_DIR_NAME};
+use crate::server::params::CONFIG_FILE_NAME;
 use clap::Args;
 use hyper::Method;
+use tokio::sync::OnceCell;
 
 #[derive(Args, Debug, Clone)]
 #[clap(rename_all = "kebab-case")]
 pub(crate) struct ActivityParams {
-    #[arg(long, short, default_value = DEFAULT_MOCKS_DIR_NAME, help = "Path to the directory containing mock files")]
-    mocks: String,
+    #[arg(long, short, help = "Path to the directory containing mock files")]
+    mocks: Option<String>,
 
     /// Name or full path to mock file or both
     name: String,
+
+    #[clap(skip)]
+    global_config: OnceCell<GlobalConfigAPI>,
 }
 
 impl ActivityParams {
-    fn get_absolute_mocks_path(&self) -> Result<PathBuf, Box<dyn StdError + Sync + Send>> {
-        generic_get_absolute_mocks_path(&self.mocks, || std::env::current_dir().map_err(Box::from))
-    }
-
     async fn find_matching_mocks(
         &self,
         filter_fn: impl Fn((&Metadata, &PathBuf)) -> bool,
     ) -> Result<Vec<(Metadata, PathBuf)>, Box<dyn StdError + Sync + Send>> {
-        let absolute_mocks_path = self.get_absolute_mocks_path()?;
+        let absolute_mocks_path = self.get_absolute_mocks_path().await;
+        let Some(absolute_mocks_path) = absolute_mocks_path else {
+            return Err("No mocks path".into());
+        };
         let mocks = FSWalker::new(&absolute_mocks_path)
             .into_iter()
             .await
@@ -140,7 +144,7 @@ impl ActivityParams {
             return Ok(self.show_if_empty());
         };
 
-        let Ok(absolute_mocks_path) = self.get_absolute_mocks_path() else {
+        let Some(absolute_mocks_path) = self.get_absolute_mocks_path().await else {
             return Ok(());
         };
 
@@ -176,5 +180,17 @@ impl ActivityParams {
 
     pub async fn disable(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
         self.set_disabled_status(true).await
+    }
+}
+
+impl WithMocks for ActivityParams {
+    fn get_mocks(&self) -> Option<&str> {
+        self.mocks.as_ref().map(|x| x.as_str())
+    }
+}
+
+impl WithGlobalConfigAPI for ActivityParams {
+    async fn get_global_config(&self) -> &GlobalConfigAPI {
+        self.global_config.get_or_init(GlobalConfigAPI::new).await
     }
 }
