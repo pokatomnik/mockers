@@ -1,15 +1,15 @@
 use std::fmt::Debug;
 use std::{fmt::Display, sync::Arc};
 
-use clap::ValueEnum;
-use http_body_util::Full;
-use hyper::Request;
-use routerify_ng::ext::RequestExt;
-
 use crate::libs::header_map_ext::HeaderMapConverter;
 use crate::libs::mockers_request_ext::BodyReader;
 use crate::server::mockers_context::MockersContext;
 use crate::server::route_error::MockersRouteError;
+use clap::ValueEnum;
+use http_body_util::Full;
+use hyper::Request;
+use routerify_ng::ext::RequestExt;
+use serde::{Deserialize, Serialize};
 
 static NL: char = '\n';
 
@@ -17,13 +17,15 @@ pub async fn logger(
     req: Request<Full<hyper::body::Bytes>>,
 ) -> Result<Request<Full<hyper::body::Bytes>>, MockersRouteError> {
     let context = req.data::<Arc<MockersContext>>();
-    let request_log = context
-        .map(|f| f.server_params.log_request())
-        .unwrap_or_default();
+    let request_log = match context.map(|ctx| &ctx.server_params) {
+        None => None,
+        Some(sp) => Some(sp.log_request().await),
+    }
+    .unwrap_or_default();
     let (log_path, log_headers, log_body) = match request_log {
-        RequestLogLevel::Info => (true, false, false),
-        RequestLogLevel::Debug => (true, true, false),
-        RequestLogLevel::Trace => (true, true, true),
+        VerbosityLevel::Info => (true, false, false),
+        VerbosityLevel::Debug => (true, true, false),
+        VerbosityLevel::Trace => (true, true, true),
     };
     let path_info = match log_path {
         true => Some(format!("{} {}", req.method(), req.uri())),
@@ -57,9 +59,10 @@ pub async fn logger(
     Ok(req)
 }
 
-#[derive(ValueEnum, Debug, Clone, Copy)]
+#[derive(ValueEnum, Debug, Clone, Copy, Serialize, Deserialize)]
 #[clap(rename_all = "kebab-case")]
-pub(crate) enum RequestLogLevel {
+#[serde(rename_all = "lowercase")]
+pub(crate) enum VerbosityLevel {
     /// Log only request path and query params
     Info,
 
@@ -70,18 +73,18 @@ pub(crate) enum RequestLogLevel {
     Trace,
 }
 
-impl Default for RequestLogLevel {
+impl Default for VerbosityLevel {
     fn default() -> Self {
-        RequestLogLevel::Info
+        VerbosityLevel::Info
     }
 }
 
-impl Display for RequestLogLevel {
+impl Display for VerbosityLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RequestLogLevel::Info => f.write_str("info"),
-            RequestLogLevel::Debug => f.write_str("debug"),
-            RequestLogLevel::Trace => f.write_str("trace"),
+            VerbosityLevel::Info => f.write_str("info"),
+            VerbosityLevel::Debug => f.write_str("debug"),
+            VerbosityLevel::Trace => f.write_str("trace"),
         }
     }
 }

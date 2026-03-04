@@ -70,7 +70,7 @@ pub fn admin_router(_params: &ServerParams) -> Result<Router<MockersRouteError>,
         .build()
 }
 
-pub fn mockers_router(params: &ServerParams) -> Result<Router<MockersRouteError>, RouteError> {
+pub async fn mockers_router(params: &ServerParams) -> Result<Router<MockersRouteError>, RouteError> {
     let router_builder = {
         let mut router = Router::builder().data(Arc::new(MockersContext {
             client: Arc::new(Client::new()),
@@ -78,7 +78,7 @@ pub fn mockers_router(params: &ServerParams) -> Result<Router<MockersRouteError>
             response_cache: Arc::new(InMemoryMocks::create()),
         }));
         if let Some((admin_base_url, admin_router)) =
-            params.admin_base_url().zip(admin_router(&params).ok())
+            params.admin_base_url().await.zip(admin_router(&params).ok())
         {
             router = router.scope(admin_base_url, admin_router)
         }

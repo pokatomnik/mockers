@@ -24,26 +24,32 @@ pub async fn mock_handler(
 ) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     let context = req.data::<Arc<MockersContext>>();
     let mocks_cache = context.map(|ctx| ctx.clone().response_cache.clone());
-    let cors = context
-        .map(|context| context.server_params.cors())
-        .unwrap_or(DEFAULT_CORS_ENABLED);
-    let preflight = context
-        .map(|context| context.server_params.preflight())
-        .flatten();
-    let global_delay_ms = context
-        .map(|context| context.server_params.delay_ms())
-        .unwrap_or(DEFAULT_MOCKS_RESPONSE_DELAY);
-    let absolute_mocks_dir = context
-        .map(|context| context.server_params.get_absolute_mocks_path())
-        .unwrap_or(Err(Box::from("Params not specified")));
-    let origin =
-        context.and_then(|context| context.clone().server_params.origin().map(String::from));
+    let cors = match context.map(|context| &context.server_params) {
+        None => DEFAULT_CORS_ENABLED,
+        Some(sp) => sp.cors().await,
+    };
+    let preflight = match context.map(|ctx| &ctx.server_params) {
+        None => None,
+        Some(sp) => sp.preflight().await,
+    };
+    let global_delay_ms = match context.map(|ctx| &ctx.server_params) {
+        None => DEFAULT_MOCKS_RESPONSE_DELAY,
+        Some(sp) => sp.delay_ms().await,
+    };
+    let absolute_mocks_dir = match context.map(|ctx| &ctx.server_params) {
+        None => None,
+        Some(sp) => sp.get_absolute_mocks_path().await,
+    };
+    let origin = match context.map(|ctx| &ctx.server_params) {
+        None => None,
+        Some(sp) => sp.origin().await,
+    };
     let client = context.map(|context| context.clone().client.clone());
 
     let method = req.method().to_string().to_lowercase();
     let uri_pathname = req.uri().path().to_string();
 
-    if absolute_mocks_dir.is_err() {
+    if absolute_mocks_dir.is_none() {
         let response = Response::forbidden().empty_body().unwrap_or_default();
         return Ok(response);
     }
@@ -125,10 +131,7 @@ pub async fn mock_handler(
     if let Some(handle_preflight) = handle_preflight {
         let response = Response::no_content()
             .tap(|builder| if cors { builder.add_cors() } else { builder })
-            .add_custom_headers(
-                req.preflight_response_headers(*handle_preflight)
-                    .into_iter(),
-            )
+            .add_custom_headers(req.preflight_response_headers(handle_preflight).into_iter())
             .empty_body()
             .unwrap_or_default();
         return Ok(response);

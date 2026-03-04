@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter};
 use clap::ValueEnum;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::str::FromStr;
@@ -32,5 +33,14 @@ impl<'de> Deserialize<'de> for PreflightType {
     {
         let s = String::deserialize(deserializer)?;
         s.parse().map_err(serde::de::Error::custom)
+    }
+}
+
+impl Display for PreflightType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self { 
+            PreflightType::Mirror => write!(f, "mirror"),
+            PreflightType::Permissive => write!(f, "permissive"),
+        }
     }
 }

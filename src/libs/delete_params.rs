@@ -1,38 +1,41 @@
-use crate::libs::absolute_mocks_path::generic_get_absolute_mocks_path;
+use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
 use crate::libs::fs_walker::FSWalker;
+use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
 use crate::libs::http_method::StandardMethodValidator;
 use crate::libs::mock_config::MockConfig;
 use crate::libs::path_buf_ext::PathBufExt;
-use crate::server::params::{CONFIG_FILE_NAME, DEFAULT_MOCKS_DIR_NAME};
+use crate::server::params::CONFIG_FILE_NAME;
 use clap::Args;
 use hyper::Method;
 use std::error::Error as StdError;
 use std::fs::Metadata;
-use std::path::{MAIN_SEPARATOR, Path, PathBuf};
+use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 use std::pin::Pin;
 use std::str::FromStr;
+use tokio::sync::OnceCell;
 use tokio::try_join;
 
 #[derive(Args, Debug, Clone)]
 #[clap(rename_all = "kebab-case")]
 pub(crate) struct DeleteParams {
-    #[arg(long, short, default_value = DEFAULT_MOCKS_DIR_NAME, help = "Path to the directory containing mock files")]
-    mocks: String,
+    #[arg(long, short, help = "Path to the directory containing mock files")]
+    mocks: Option<String>,
 
     /// Name or full path to mock file or both
     name: String,
+
+    #[clap(skip)]
+    global_config: OnceCell<GlobalConfigAPI>,
 }
 
 impl DeleteParams {
-    fn get_absolute_mocks_path(&self) -> Result<PathBuf, Box<dyn StdError + Sync + Send>> {
-        generic_get_absolute_mocks_path(&self.mocks, || std::env::current_dir().map_err(Box::from))
-    }
-
     async fn find_matching_mocks(
         &self,
         filter_fn: impl Fn((&Metadata, &PathBuf)) -> bool,
     ) -> Result<Vec<(Metadata, PathBuf)>, Box<dyn StdError + Sync + Send>> {
-        let absolute_mocks_path = self.get_absolute_mocks_path()?;
+        let Some(absolute_mocks_path) = self.get_absolute_mocks_path().await else {
+            return Err("Mocks dir not set".into());
+        };
         let mocks = FSWalker::new(&absolute_mocks_path)
             .into_iter()
             .await
@@ -159,7 +162,7 @@ impl DeleteParams {
             return Ok(self.show_if_empty());
         };
 
-        let Ok(absolute_mocks_path) = self.get_absolute_mocks_path() else {
+        let Some(absolute_mocks_path) = self.get_absolute_mocks_path().await else {
             return Ok(());
         };
 
@@ -170,5 +173,17 @@ impl DeleteParams {
         self.delete_mock_by_path(first_matching_mock)
             .await
             .map_err(|e| -> Box<dyn StdError + Send + Sync> { e.to_string().into() })
+    }
+}
+
+impl WithMocks for DeleteParams {
+    fn get_mocks(&self) -> Option<&str> {
+        self.mocks.as_ref().map(|x| x.as_str())
+    }
+}
+
+impl WithGlobalConfigAPI for DeleteParams {
+    async fn get_global_config(&self) -> &GlobalConfigAPI {
+        self.global_config.get_or_init(GlobalConfigAPI::new).await
     }
 }

@@ -13,9 +13,10 @@ use std::sync::Arc;
 pub async fn get_mockers_yaml(
     req: Request<Full<Bytes>>,
 ) -> Result<Response<Full<Bytes>>, MockersRouteError> {
-    let admin_base_url = req
-        .data::<Arc<MockersContext>>()
-        .and_then(|ctx| ctx.clone().server_params.admin_base_url().map(String::from));
+    let admin_base_url = match req.data::<Arc<MockersContext>>() {
+        None => None,
+        Some(ctx) => ctx.server_params.admin_base_url().await,
+    };
     let yaml_contents: YamlBuilderCreate = SWAGGER_YAML.try_into();
 
     let response = yaml_contents
