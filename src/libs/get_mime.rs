@@ -1,7 +1,10 @@
-use mimetype_detector::{
-    APPLICATION_JSON, APPLICATION_OCTET_STREAM, TEXT_PLAIN, TEXT_UTF8, TEXT_UTF16_BE,
-    TEXT_UTF16_LE, detect,
-};
+use mimetype_detector::detect;
+use mimetype_detector::APPLICATION_JSON;
+use mimetype_detector::APPLICATION_OCTET_STREAM;
+use mimetype_detector::TEXT_PLAIN;
+use mimetype_detector::TEXT_UTF16_BE;
+use mimetype_detector::TEXT_UTF16_LE;
+use mimetype_detector::TEXT_UTF8;
 
 use lru::LruCache;
 use raffia::ast::Stylesheet;
@@ -9,7 +12,7 @@ use raffia::{Parser, Syntax};
 use serde::de::IgnoredAny;
 use serde::ser::StdError;
 use std::num::NonZeroUsize;
-use std::sync::{Arc, LazyLock};
+use std::sync::LazyLock;
 use tokio::sync::Mutex;
 use xxhash_rust::xxh3::xxh3_128_with_seed;
 
@@ -21,13 +24,13 @@ pub(crate) static TEXT_CSS: &'static str = "text/css";
 
 struct MimeCache {
     seed: u64,
-    shared_data: Arc<Mutex<LruCache<u128, String>>>,
+    shared_data: Mutex<LruCache<u128, String>>,
 }
 
 impl MimeCache {
     fn with_capacity(cap: NonZeroUsize, seed: u64) -> Self {
         MimeCache {
-            shared_data: Arc::new(Mutex::new(LruCache::new(cap))),
+            shared_data: Mutex::new(LruCache::new(cap)),
             seed,
         }
     }
