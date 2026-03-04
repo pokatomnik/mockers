@@ -235,7 +235,7 @@ impl ServerParams {
 
         println!("{}", BANNER_MSG);
         match self.verbosity_level().await {
-            VerbosityLevel::Debug | VerbosityLevel::Trace => println!("{}", self.get_help().await),
+            VerbosityLevel::Debug | VerbosityLevel::Trace => println!("{}", self.get_help("Start parameters:").await),
             VerbosityLevel::Info => {}
         };
         println!(
@@ -291,8 +291,8 @@ impl WithGlobalConfigAPI for ServerParams {
 }
 
 impl GetInfoAsync for ServerParams {
-    async fn get_help(&self) -> String {
-        let mut buf = String::from(format!("Start parameters:{}", Self::EOL));
+    async fn get_help(&self, title: &str) -> String {
+        let mut buf = String::from(format!("{}:{}", title, Self::EOL));
         buf.push_str(&format!("================={}", Self::EOL));
         let host_info = format!(
             "Host:{}{}{}",

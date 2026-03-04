@@ -3,6 +3,7 @@ use crate::libs::create_params::CreateParams;
 use crate::libs::ls::LsParams;
 use crate::server::params::ServerParams;
 
+use crate::libs::config::ConfigParams;
 use crate::libs::delete_params::DeleteParams;
 use crate::libs::info_params::InfoParams;
 use clap::Subcommand;
@@ -29,4 +30,7 @@ pub enum Commands {
 
     #[clap(visible_aliases = ["off"], about = "Disable mock if It exists")]
     Disable(ActivityParams),
+
+    #[clap(visible_aliases = ["configuration", "settings", "preferences", "prefs"], about = "Show global Mockers configuration")]
+    Config(ConfigParams),
 }
