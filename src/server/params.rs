@@ -6,7 +6,7 @@ use crate::libs::preflight_type::PreflightType;
 use crate::middlewares::logger::VerbosityLevel;
 use crate::server::mockers_router::mockers_router;
 use crate::server::signal::make_signal;
-use clap::Args;
+use clap::{ArgAction, Args};
 use hyper::server::conn::http1;
 use hyper::service::Service;
 use hyper_util::rt::TokioIo;
@@ -42,7 +42,7 @@ pub struct ServerParams {
     #[arg(long, short, help = "Path to the directory containing mock files")]
     mocks: Option<String>,
 
-    #[arg(long, short, help = "Enable CORS headers")]
+    #[arg(long, short, action = ArgAction::SetTrue, help = "Enable CORS headers")]
     cors: Option<bool>,
 
     #[arg(long, help = "Handle browser's preflight requests automatically")]
