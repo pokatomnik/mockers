@@ -1,6 +1,7 @@
 use crate::libs::activity_params::ActivityParams;
 use crate::libs::create_params::CreateParams;
-use crate::libs::ls::LsParams;
+use crate::libs::init_params::InitParams;
+use crate::libs::ls_params::LsParams;
 use crate::server::params::ServerParams;
 
 use crate::libs::config::ConfigParams;
@@ -33,4 +34,7 @@ pub enum Commands {
 
     #[clap(visible_aliases = ["configuration", "settings", "preferences", "prefs"], about = "Show global Mockers configuration")]
     Config(ConfigParams),
+
+    #[clap(visible_aliases = ["setup"], about = "Initialize Mockers global configuration")]
+    Init(InitParams),
 }

@@ -19,6 +19,8 @@ path-absolutize = "3.1.1"
 raffia = "0.12.2"
 lru = "0.16.3"
 xxhash-rust = { version = "0.8.15", features = ["xxh3"] }
+dialoguer = "0.12.0"
+anyhow = "1.0.102"
 
 [profile.release]
 opt-level = "z"
