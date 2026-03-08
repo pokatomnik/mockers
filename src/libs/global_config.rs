@@ -9,11 +9,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-static GLOBAL_CONFIG_FILE_NAME: &'static str = ".mockers";
+pub(crate) static GLOBAL_CONFIG_FILE_NAME: &'static str = ".mockers";
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct GlobalConfig {
+pub(crate) struct GlobalConfig {
     host: Option<String>,
     port: Option<u16>,
     mocks: Option<String>,
@@ -24,6 +24,72 @@ struct GlobalConfig {
     admin_base_url: Option<String>,
     log_request: Option<VerbosityLevel>,
     verbosity: Option<VerbosityLevel>,
+}
+
+pub(crate) trait GlobalConfigBuilder {
+    fn with_host(self, host: String) -> Self;
+    fn with_port(self, port: u16) -> Self;
+    fn with_mocks(self, mocks: String) -> Self;
+    fn with_cors(self, cors: bool) -> Self;
+    fn with_preflight(self, preflight: PreflightType) -> Self;
+    fn with_delay_ms(self, delay_ms: u64) -> Self;
+    #[allow(unused)]
+    fn with_origin(self, origin: String) -> Self;
+    fn with_admin_base_url(self, admin_base_url: String) -> Self;
+    fn with_log_request(self, log_request: VerbosityLevel) -> Self;
+    fn with_verbosity(self, verbosity: VerbosityLevel) -> Self;
+}
+
+impl GlobalConfigBuilder for GlobalConfig {
+    fn with_host(mut self, host: String) -> Self {
+        self.host = Some(host);
+        self
+    }
+
+    fn with_port(mut self, port: u16) -> Self {
+        self.port = Some(port);
+        self
+    }
+
+    fn with_mocks(mut self, mocks: String) -> Self {
+        self.mocks = Some(mocks);
+        self
+    }
+
+    fn with_cors(mut self, cors: bool) -> Self {
+        self.cors = Some(cors);
+        self
+    }
+
+    fn with_preflight(mut self, preflight: PreflightType) -> Self {
+        self.preflight = Some(preflight);
+        self
+    }
+
+    fn with_delay_ms(mut self, delay_ms: u64) -> Self {
+        self.delay_ms = Some(delay_ms);
+        self
+    }
+
+    fn with_origin(mut self, origin: String) -> Self {
+        self.origin = Some(origin);
+        self
+    }
+
+    fn with_admin_base_url(mut self, admin_base_url: String) -> Self {
+        self.admin_base_url = Some(admin_base_url);
+        self
+    }
+
+    fn with_log_request(mut self, log_request: VerbosityLevel) -> Self {
+        self.log_request = Some(log_request);
+        self
+    }
+
+    fn with_verbosity(mut self, verbosity: VerbosityLevel) -> Self {
+        self.verbosity = Some(verbosity);
+        self
+    }
 }
 
 pub(crate) trait WithGlobalConfigAPI {
@@ -270,13 +336,19 @@ impl GetInfoAsync for GlobalConfigAPI {
         let log_request_info = format!(
             "Requests log level:{}{}{}",
             Self::TAB,
-            self.get_log_request().await.map(|v| v.to_string()).unwrap_or_else(|| Self::UNSET.to_string()),
+            self.get_log_request()
+                .await
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| Self::UNSET.to_string()),
             Self::EOL,
         );
         let verbosity_level_info = format!(
             "Verbosity level:{}{}{}",
             Self::TAB,
-            self.get_verbosity_level().await.map(|v| v.to_string()).unwrap_or_else(|| Self::UNSET.to_string()),
+            self.get_verbosity_level()
+                .await
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| Self::UNSET.to_string()),
             Self::EOL
         );
 

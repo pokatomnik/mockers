@@ -27,6 +27,8 @@ pub const DEFAULT_MOCKS_DIR_NAME: &'static str = "mocks";
 pub const DEFAULT_MOCKS_RESPONSE_DELAY: u64 = 0;
 pub const DEFAULT_CORS_ENABLED: bool = false;
 pub const CONFIG_FILE_NAME: &'static str = "config.json";
+// This variable should only be used when initializing the global configuration file.
+pub const DEFAULT_ADMIN_BASE_URL: &'static str = "/__admin";
 
 static BANNER_MSG: &'static str = include_str!("./banner.txt");
 
@@ -235,7 +237,9 @@ impl ServerParams {
 
         println!("{}", BANNER_MSG);
         match self.verbosity_level().await {
-            VerbosityLevel::Debug | VerbosityLevel::Trace => println!("{}", self.get_help("Start parameters:").await),
+            VerbosityLevel::Debug | VerbosityLevel::Trace => {
+                println!("{}", self.get_help("Start parameters:").await)
+            }
             VerbosityLevel::Info => {}
         };
         println!(
