@@ -10,6 +10,7 @@ use clap::{ArgAction, Args};
 use hyper::server::conn::http1;
 use hyper::service::Service;
 use hyper_util::rt::TokioIo;
+use log::{error, info};
 use path_absolutize::Absolutize;
 use routerify_ng::RouterService;
 use std::error::Error as StdError;
@@ -238,11 +239,11 @@ impl ServerParams {
         println!("{}", BANNER_MSG);
         match self.verbosity_level().await {
             VerbosityLevel::Debug | VerbosityLevel::Trace => {
-                println!("{}", self.get_help("Start parameters:").await)
+                info!("{}", self.get_help("Start parameters").await)
             }
             VerbosityLevel::Info => {}
         };
-        println!(
+        info!(
             "Server has started at {}:{}",
             self.get_host().await,
             self.get_port().await
@@ -263,7 +264,7 @@ impl ServerParams {
                                 let conn = http.serve_connection(io, request_service);
                                 let fut = graceful.watch(conn);
                                 if let Err(e) = fut.await {
-                                    eprintln!("Error serving connection: {:?}", e);
+                                    error!("Error serving connection: {:?}", e);
                                 }
                             }
                             Err(_) => {}
@@ -273,7 +274,7 @@ impl ServerParams {
 
                 _ = &mut shutdown_signal => {
                     drop(listener);
-                    eprintln!("graceful shutdown signal received");
+                    error!("graceful shutdown signal received");
                     break;
                 }
             }

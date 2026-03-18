@@ -6,12 +6,15 @@ mod server;
 
 use clap::Parser;
 use cmd::cli::Cli;
+use log::{LevelFilter, error};
+use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
 use std::error::Error as StdError;
 
 use crate::cmd::commands::Commands;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn StdError>> {
+    init_logger();
     let cli = Cli::parse();
 
     let result = match cli.command {
@@ -35,9 +38,30 @@ async fn main() -> Result<(), Box<dyn StdError>> {
     let result = result.map_err(|e| e.to_string());
 
     if let Err(err) = result {
-        eprintln!("Finished with error: {}", err.to_string());
+        error!("Finished with error: {}", err.to_string());
         return Err(err.into());
     }
 
     Ok(())
+}
+
+fn init_logger() {
+    let mut config = ConfigBuilder::new();
+
+    config
+        .set_time_level(LevelFilter::Info)
+        .set_target_level(LevelFilter::Off)
+        .set_location_level(LevelFilter::Off)
+        .set_thread_level(LevelFilter::Off)
+        .set_time_format_rfc3339();
+
+    let _ = config.set_time_offset_to_local();
+
+    TermLogger::init(
+        LevelFilter::Info,
+        config.build(),
+        TerminalMode::Stdout,
+        ColorChoice::Auto,
+    )
+    .unwrap();
 }

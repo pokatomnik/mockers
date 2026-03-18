@@ -8,6 +8,7 @@ use crate::server::route_error::MockersRouteError;
 use clap::ValueEnum;
 use http_body_util::Full;
 use hyper::Request;
+use log::info;
 use routerify_ng::ext::RequestExt;
 use serde::{Deserialize, Serialize};
 
@@ -49,13 +50,15 @@ pub async fn logger(
         output.push(NL);
         output.push_str(headers_info.as_str());
     };
-    if let Some(log_body) = log_body {
+    if let Some(log_body) = log_body
+        && !log_body.is_empty()
+    {
         output.push(NL);
         output.push_str("[BODY]:");
         output.push(NL);
         output.push_str(log_body.as_str());
     }
-    println!("{}", output);
+    info!("{}", output);
     Ok(req)
 }
 

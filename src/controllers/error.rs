@@ -1,12 +1,13 @@
 use crate::libs::response_ext::WellKnownResponses;
 use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;
-use hyper::{body::Bytes, Response, StatusCode};
+use hyper::{Response, StatusCode, body::Bytes};
+use log::error;
 use routerify_ng::RequestInfo;
 
 pub async fn error_handler(err: routerify_ng::RouteError, _: RequestInfo) -> Response<Full<Bytes>> {
     let err_message = &err.to_string();
-    eprintln!("Error while processing user request: {}", err);
+    error!("Error while processing user request: {}", err);
     if let Some(mockers_route_error) = try_unwrap_err(err) {
         return match mockers_route_error {
             MockersRouteError::IncorrectHTTPMethod => Response::builder()
