@@ -4,28 +4,32 @@ use std::fmt::{Display, Formatter};
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum MockersErrors {
+    // INTERNAL_SERVER_ERROR
+    InternalServerError,
+    // BAD_REQUEST
+    BadRequest,
+    // NOT_FOUND
+    NotFound,
     // REMOVE_MOCKS_FAILED_BY_PATH_AND_METHOD
-    RemoveMocksFailedByPathAndMethod,
+    // RemoveMocksFailedByPathAndMethod,
     // REMOVE_MOCKS_FAILED_BY_PATH
-    RemoveMocksFailedByPath,
-    // GET_ALL_MOCKS_FAILED
-    GetAllMocksFailed,
+    // RemoveMocksFailedByPath,
     // GET_MOCKS_BY_PATH_FAILED
-    GetMocksByPathFailed,
+    // GetMocksByPathFailed,
     // GET_MOCKS_BY_PATH_AND_METHOD_FAILED
-    GetMocksByPathAndMethodFailed,
+    // GetMocksByPathAndMethodFailed,
     // ADD_MOCK_FAILED
-    AddMockFailed,
+    // AddMockFailed,
     // NO_SUCH_MOCK
-    NoSuchMock,
+    // NoSuchMock,
     // MISSING_MOCKS_DIRECTORY
-    MissingMocksDirectory,
+    // MissingMocksDirectory,
     // DUMP_MOCK_BODY_FAILED
-    DumpMockBodyFailed,
+    // DumpMockBodyFailed,
     // DUMP_MOCK_CONFIG_FAILED,
-    DumpMockConfigFailed,
+    // DumpMockConfigFailed,
     // DUMP_MOCK_AND__MOCK_CONFIG_FAILED
-    DumpMockAndMockConfigFailed,
+    // DumpMockAndMockConfigFailed,
 }
 
 static UNKNOWN_ERROR: &'static str = "UNKNOWN_ERROR";

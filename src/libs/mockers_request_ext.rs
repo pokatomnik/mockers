@@ -120,11 +120,11 @@ impl<T> MockersRequestExt<T> for Request<T> {
 }
 
 pub(crate) trait BodyReader {
-    async fn body(&self) -> Option<String>;
+    async fn read(&self) -> Option<String>;
 }
 
 impl BodyReader for Full<Bytes> {
-    async fn body(&self) -> Option<String> {
+    async fn read(&self) -> Option<String> {
         let body = self
             .clone()
             .collect()

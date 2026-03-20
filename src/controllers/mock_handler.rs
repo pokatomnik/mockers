@@ -2,7 +2,6 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use crate::libs::absolute_mocks_path::AbsoluteMocksPath;
 use crate::libs::header_map_ext::{HeaderMapConverter, HeaderMapSanitizer};
-use crate::libs::in_memory_mocks::{MethodNormalizer, PathNormalizer};
 use crate::libs::mock_config::MockConfig;
 use crate::libs::mockers_request_ext::MockersRequestExt;
 use crate::libs::response_builder_ext::ResponseBuilderExt;
@@ -14,7 +13,7 @@ use crate::server::mockers_context::MockersContext;
 use crate::server::params::{CONFIG_FILE_NAME, DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY};
 use crate::server::route_error::MockersRouteError;
 use http_body_util::{BodyExt, Full};
-use hyper::{body::Bytes, Request, Response, StatusCode};
+use hyper::{Request, Response, StatusCode, body::Bytes};
 use reqwest::Url;
 use routerify_ng::ext::RequestExt;
 use tokio::join;
@@ -23,7 +22,6 @@ pub async fn mock_handler(
     req: Request<Full<Bytes>>,
 ) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     let context = req.data::<Arc<MockersContext>>();
-    let mocks_cache = context.map(|ctx| ctx.clone().response_cache.clone());
     let cors = match context.map(|context| &context.server_params) {
         None => DEFAULT_CORS_ENABLED,
         Some(sp) => sp.cors().await,
@@ -134,30 +132,6 @@ pub async fn mock_handler(
             .add_custom_headers(req.preflight_response_headers(handle_preflight).into_iter())
             .empty_body()
             .unwrap_or_default();
-        return Ok(response);
-    }
-
-    // Try respond from cache
-    let cached = match mocks_cache {
-        Some(mocks_cache) => {
-            let path = req.uri().path().to_string().normalize_path();
-            let method = req.method().to_string().normalize_method();
-            mocks_cache.get_mock_by_path_and_method(path, method).await
-        }
-        None => None,
-    };
-    if let Some(cached) = cached {
-        let mime = cached.get_mime().await;
-        let cached_headers = cached.headers.into_iter();
-        let body_bytes = cached.body.into();
-        let response = Response::builder()
-            .status(cached.status_code)
-            .add_content_type_header(mime.as_str())
-            .add_custom_headers(cached_headers)
-            .tap(|builder| if cors { builder.add_cors() } else { builder })
-            .body(body_bytes)
-            .unwrap_or_default();
-        tokio::time::sleep(Duration::from_millis(cached.delay_ms)).await;
         return Ok(response);
     }
 
