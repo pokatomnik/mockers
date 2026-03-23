@@ -34,6 +34,27 @@ impl MockConfig {
         serde_json::from_str::<HashMap<String, MockConfig>>(&contents).map_err(Box::from)
     }
 
+    pub async fn try_remove_from_file(
+        path: impl AsRef<Path>,
+        entry_name: impl Into<String>,
+    ) -> Result<(), Box<dyn StdError + Send + Sync>> {
+        let entry_name = entry_name.into();
+        let mut config_map = Self::try_read_from_file(path.as_ref()).await?;
+        config_map.remove(&entry_name);
+
+        if config_map.is_empty() {
+            return tokio::fs::remove_file(path.as_ref())
+                .await
+                .map_err(|e| -> Box<dyn StdError + Send + Sync> { e.into() });
+        }
+
+        let updated_json_str = serde_json::to_string_pretty(&config_map)?;
+
+        tokio::fs::write(&path, updated_json_str).await?;
+
+        return Ok(());
+    }
+
     pub async fn try_write_to_file(
         &self,
         path: impl AsRef<Path>,
