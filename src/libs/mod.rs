@@ -11,7 +11,6 @@ pub mod global_config;
 pub mod header_map_ext;
 pub mod headers;
 pub mod http_method;
-pub mod in_memory_mocks;
 pub mod info_params;
 pub mod init_params;
 pub mod ls_params;

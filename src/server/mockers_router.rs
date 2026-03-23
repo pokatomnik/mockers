@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::controllers::api::admin_page_handler::admin_page_handler;
+use crate::controllers::api::create_mock::create_mock;
 use crate::controllers::api::get_all_mocks::get_all_mocks;
 use crate::controllers::api::get_mock_config::get_mock_config;
 use crate::controllers::api::handle_options::handle_options;
@@ -32,6 +33,7 @@ pub fn admin_router(_params: &ServerParams) -> Result<Router<MockersRouteError>,
         // REST api routes
         .post("/api/v2/mocks", get_all_mocks)
         .post("/api/v2/mocks/config", get_mock_config)
+        .post("/api/v2/mocks/create", create_mock)
         // Swagger UI routes
         .get("/swagger", get_swagger_html)
         .get("/swagger/swagger-ui.css", get_swagger_ui_css)
