@@ -45,7 +45,14 @@ pub struct ServerParams {
     #[arg(long, short, help = "Path to the directory containing mock files")]
     mocks: Option<String>,
 
-    #[arg(long, short, action = ArgAction::SetTrue, help = "Enable CORS headers")]
+    #[arg(
+        long,
+        short,
+        action = ArgAction::Set,
+        num_args = 0..=1,
+        default_missing_value = "true",
+        require_equals = true,
+        help = "Enable CORS headers")]
     cors: Option<bool>,
 
     #[arg(long, help = "Handle browser's preflight requests automatically")]
