@@ -10,4 +10,15 @@
     "args": ["serve", "-v", "trace", "-l", "trace"],
     "request": "launch",
   },
+  {
+    "label": "Debug Mockers init",
+    "adapter": "CodeLLDB",
+    "build": {
+      "command": "cargo",
+      "args": ["build"],
+    },
+    "program": "$ZED_WORKTREE_ROOT/target/debug/mockers",
+    "args": ["init"],
+    "request": "launch",
+  },
 ]

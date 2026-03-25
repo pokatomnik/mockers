@@ -9,7 +9,7 @@ use clap::Args;
 use hyper::Method;
 use std::error::Error as StdError;
 use std::fs::Metadata;
-use std::path::{Path, PathBuf, MAIN_SEPARATOR};
+use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::pin::Pin;
 use std::str::FromStr;
 use tokio::sync::OnceCell;
@@ -117,16 +117,9 @@ impl DeleteParams {
                     .to_owned()
                     .with_last_removed()
                     .join(CONFIG_FILE_NAME);
-                let mut configs = MockConfig::try_read_from_file(&absolute_config_path)
+                MockConfig::try_remove_from_file(absolute_config_path, entry_name)
                     .await
                     .map_err(|x| -> Box<dyn StdError> { x })?;
-                configs.remove(&entry_name);
-                if configs.is_empty() {
-                    tokio::fs::remove_file(absolute_config_path).await?;
-                } else {
-                    let json = serde_json::to_string_pretty(&configs)?;
-                    tokio::fs::write(&absolute_config_path, json).await?;
-                }
 
                 Ok(())
             });

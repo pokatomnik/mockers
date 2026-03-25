@@ -37,7 +37,7 @@ pub async fn logger(
         false => None,
     };
     let log_body = match log_body {
-        true => req.body().clone().body().await,
+        true => req.body().clone().read().await,
         false => None,
     };
 
