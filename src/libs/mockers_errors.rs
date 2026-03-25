@@ -10,26 +10,6 @@ pub enum MockersErrors {
     BadRequest,
     // NOT_FOUND
     NotFound,
-    // REMOVE_MOCKS_FAILED_BY_PATH_AND_METHOD
-    // RemoveMocksFailedByPathAndMethod,
-    // REMOVE_MOCKS_FAILED_BY_PATH
-    // RemoveMocksFailedByPath,
-    // GET_MOCKS_BY_PATH_FAILED
-    // GetMocksByPathFailed,
-    // GET_MOCKS_BY_PATH_AND_METHOD_FAILED
-    // GetMocksByPathAndMethodFailed,
-    // ADD_MOCK_FAILED
-    // AddMockFailed,
-    // NO_SUCH_MOCK
-    // NoSuchMock,
-    // MISSING_MOCKS_DIRECTORY
-    // MissingMocksDirectory,
-    // DUMP_MOCK_BODY_FAILED
-    // DumpMockBodyFailed,
-    // DUMP_MOCK_CONFIG_FAILED,
-    // DumpMockConfigFailed,
-    // DUMP_MOCK_AND__MOCK_CONFIG_FAILED
-    // DumpMockAndMockConfigFailed,
 }
 
 static UNKNOWN_ERROR: &'static str = "UNKNOWN_ERROR";

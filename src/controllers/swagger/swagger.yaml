@@ -1,5 +1,5 @@
 ---
-openapi: 3.0.0
+openapi: "3.1.0"
 info:
   description: "Mockers"
   version: "0.1.0"
@@ -18,7 +18,7 @@ tags:
     description: "Mocks routes"
 
 paths:
-  /:
+  "/":
     get:
       tags:
         - admin
@@ -26,378 +26,282 @@ paths:
       operationId: getAdminPage
       responses:
         "200":
-          description: "Mockers admin page"
+          description: "Mockers admin page HTML"
           content:
             text/html:
               schema:
                 type: string
-  /api/v1/mocks:
-    get:
-      tags:
-        - admin
-      summary: "get all mocks at once"
-      operationId: getAllMocks
-      responses:
-        "200":
-          description: "all mocks"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AllMocksOk"
-        "500":
-          description: "failed to get all mocks"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AllMocksErr"
+  "/api/v2/mocks":
     post:
       tags:
         - admin
-      summary: "create a new mock"
-      operationId: createNewMock
+      summary: "Get all mocks"
+      operationId: getAllMocks
+      responses:
+        "200":
+          description: "Successfully retrieved all mocks"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MocksListOkResponse"
+        "500":
+          description: "Internal server error"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  "/api/v2/mocks/create":
+    post:
+      tags:
+        - admin
+      summary: "Create a new mock"
+      operationId: createMock
       requestBody:
+        required: true
+        description: "Mock creation parameters"
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MockCreateParams"
+      responses:
+        "200":
+          description: "Successfully created a new mock"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EmptyOkResponse"
+        "400":
+          description: "Bad request when creating a mock"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: "Error response when creating a mock"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  "/api/v2/mocks/config":
+    "post":
+      tags:
+        - admin
+      summary: "get mock config by mock config params"
+      operationId: getMockConfig
+      requestBody:
+        required: true
+        description: "get mock config"
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MockInfo"
+      responses:
+        "200":
+          description: "Successfully retrieved mock config"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MockConfigOkResponse"
+        "400":
+          description: "Bad request when getting mock config"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: "Not found when getting mock config"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: "Error response when getting mock config"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  "/api/v2/mocks/delete":
+    "post":
+      tags:
+        - admin
+      summary: "delete a mock by pathname and method"
+      operationId: deleteMock
+      requestBody:
+        description: "Mock info"
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateMockParams"
+              $ref: "#/components/schemas/MockInfo"
       responses:
         "200":
-          description: "a new mock created"
+          description: "Mock deleted successfully"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MocksUpdateOperationOk"
-        "500":
-          description: "failed to create a new mock"
+                $ref: "#/components/schemas/EmptyOkResponse"
+        "400":
+          description: "Bad request when deleting mock"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MockUpdateOperationErr"
-  /api/v1/mocks/{path_encoded}:
-    get:
-      tags:
-        - admin
-      summary: "get all mocks by specified path"
-      operationId: getMocksByPath
-      parameters:
-        - name: path_encoded
-          in: path
-          required: true
-          description: "Base64-encoded pathname"
-          schema:
-            type: string
-      responses:
-        "200":
-          description: "all mocks for specified path"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MocksByPathOk"
-        "500":
-          description: "failed to get mocks by path"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MocksByPathErr"
-    delete:
-      tags:
-        - admin
-      summary: "delete all mocks by pathname"
-      operationId: deleteMocksByPath
-      parameters:
-        - name: "path_encoded"
-          in: path
-          required: true
-          description: "Base-64 encoded pathname"
-          schema:
-            type: string
-      responses:
-        "200":
-          description: "mocks deleted by pathname"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MocksUpdateOperationOk"
-        "500":
-          description: "failed to delete mocks by pathname"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MockUpdateOperationErr"
-  /api/v1/mocks/{path_encoded}/{method}:
-    get:
-      tags:
-        - admin
-      summary: "get mock by path and method"
-      description: getMockByPathAndMethod
-      parameters:
-        - name: path_encoded
-          in: path
-          required: true
-          description: "Base64-encoded pathname"
-          schema:
-            type: string
-        - name: method
-          in: path
-          required: true
-          description: "HTTP method"
-          schema:
-            $ref: "#/components/schemas/HTTPMethods"
-      responses:
-        "200":
-          description: "mock by pathname and method"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MocksByPathAndMethodOk"
-        "500":
-          description: "failed to get mock by path and method"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MocksByPathAndMethodErr"
-    delete:
-      tags:
-        - admin
-      summary: "delete mock by pathname and method"
-      operationId: deleteMockByPathAndMethod
-      parameters:
-        - name: path_encoded
-          in: path
-          required: true
-          description: "Base64-encoded pathname"
-          schema:
-            type: string
-        - name: method
-          in: path
-          required: true
-          description: HTTP method
-          schema:
-            $ref: "#/components/schemas/HTTPMethods"
-      responses:
-        "200":
-          description: "mock removed by pathname and http method"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MocksUpdateOperationOk"
-        "500":
-          description: "failed to remove mock by pathname and http method"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MockUpdateOperationErr"
-  /api/v1/mocks/{path_encoded}/{method}/dump:
-    post:
-      tags:
-        - admin
-      summary: "dump existing mock to a file"
-      operationId: dumpMockByPathAndMethod
-      parameters:
-        - name: path_encoded
-          in: path
-          required: true
-          description: "Base64-encoded pathname"
-          schema:
-            type: string
-        - name: method
-          in: path
-          required: true
-          description: HTTP method
-          schema:
-            $ref: "#/components/schemas/HTTPMethods"
-      responses:
-        "200":
-          description: "mock dumped"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MocksUpdateOperationOk"
-        "500":
-          description: "failed to dump mock because of internal error"
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MockUpdateOperationErr"
+                $ref: "#/components/schemas/ErrorResponse"
         "404":
-          description: "failed to dump missing mock"
+          description: "Mock not found"
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MockUpdateOperationErr"
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: "Error response when deleting mock"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
-    MocksUpdateOperationOk:
+    MocksListOkResponse:
       type: object
-      description: "This response will be sent when mock created"
+      description: "List of all mocks"
+      required:
+        - ok
       properties:
         ok:
-          type: string
-    MockUpdateOperationErr:
+          example:
+            - method: GET
+              path: /users
+            - method: POST
+              path: /users/create
+          type: array
+          items:
+            $ref: "#/components/schemas/MockInfo"
+
+    MockConfigOkResponse:
       type: object
-      description: "Faile to create mock"
-      properties:
-        err:
-          $ref: "#/components/schemas/MockersAdminErrors"
-    AllMocksOk:
-      type: object
-      description: "All mocks Ok response"
-      properties:
-        ok:
-          $ref: "#/components/schemas/AllMocks"
-    AllMocksErr:
-      type: object
-      description: "Failed to get all mocks"
-      properties:
-        err:
-          $ref: "#/components/schemas/MockersAdminErrors"
-    MocksByPathOk:
-      type: object
-      description: "mocks by path Ok response"
-      properties:
-        ok:
-          $ref: "#/components/schemas/MocksByURLMap"
-    MocksByPathErr:
-      type: object
-      description: "failed to get mocks by path"
-      properties:
-        err:
-          $ref: "#/components/schemas/MockersAdminErrors"
-    MocksByPathAndMethodOk:
-      type: object
-      description: "mocks by path and method OK response"
-      properties:
-        ok:
-          nullable: true
-          allOf:
-            - $ref: "#/components/schemas/CachedResponse"
-    MocksByPathAndMethodErr:
-      type: object
-      description: "failed to get mocks by path and method"
-      properties:
-        err:
-          $ref: "#/components/schemas/MockersAdminErrors"
-    AllMocks:
-      type: object
-      description: "All mocks"
-      additionalProperties:
-        $ref: "#/components/schemas/MocksByURLMap"
+      description: "Mock config"
+      required:
+        - ok
       example:
-        "foo/bar/baz":
-          get:
-            statusCode: 201
-            delayMs: 0
-            headers:
-              "Content-Type": "application/json"
-              "X-Server": "Mockers"
-            body: { "foo": "bar" }
-    MocksByURLMap:
-      nullable: true
-      type: object
-      description: "All mocks by method"
+        ok:
+          delayMs: 2000
+          statusCode: 200
+          headers: {}
+          cacheMode: overwrite
       properties:
-        get:
-          $ref: "#/components/schemas/CachedResponse"
-        post:
-          $ref: "#/components/schemas/CachedResponse"
-        put:
-          $ref: "#/components/schemas/CachedResponse"
-        delete:
-          $ref: "#/components/schemas/CachedResponse"
-        patch:
-          $ref: "#/components/schemas/CachedResponse"
-        head:
-          $ref: "#/components/schemas/CachedResponse"
-        options:
-          $ref: "#/components/schemas/CachedResponse"
-        trace:
-          $ref: "#/components/schemas/CachedResponse"
-      example:
-        get:
-          statusCode: 201
-          headers:
-            "Content-Type": "application/json"
-            "X-Server": "Mockers"
-          body: { "foo": "bar" }
-        post:
-          statusCode: 202
-          headers:
-            "Content-Type": "application/json"
-            "X-Server": "Mockers"
-          body: { "foo": "baz" }
-    CachedResponse:
+        ok:
+          $ref: "#/components/schemas/MockConfig"
+
+    MockConfig:
       type: object
-      description: "Cached response"
-      required: [statusCode, delayMs, headers, body]
+      description: "Configuration for a mock"
       properties:
-        statusCode:
-          type: integer
-          description: "HTTP response status code"
-          example: 201
         delayMs:
+          description: "Delay in milliseconds before returning the mock response"
           type: integer
-          description: "Time to wait before respond in milliseconds"
-          example: 1000
+          example: 2000
+        statusCode:
+          description: "HTTP status code to return"
+          type: integer
+          example: 200
         headers:
           $ref: "#/components/schemas/HeadersMap"
+        cacheMode:
+          $ref: "#/components/schemas/CacheMode"
+        disabled:
+          description: "Whether the mock is disabled"
+          type: boolean
+          example: false
+
+    MockCreateParams:
+      type: object
+      description: "Request to create a mock"
+      required:
+        - mockKey
+        - mockConfig
+        - body
+      properties:
+        mockKey:
+          $ref: "#/components/schemas/MockInfo"
+        mockConfig:
+          $ref: "#/components/schemas/MockConfig"
         body:
           type: string
-          description: "HTTP response body"
-          example: { "foo": "bar" }
+          example: "hello from mock"
+
+    MockInfo:
+      type: object
+      description: "Information about a mock"
+      required:
+        - method
+        - path
+      example:
+        method: GET
+        path: /users
+      properties:
+        method:
+          $ref: "#/components/schemas/HTTPMethods"
+        path:
+          type: string
+          example: "/users"
+
+    EmptyOkResponse:
+      type: object
+      description: "Empty OK response"
+      required:
+        - ok
+      properties:
+        ok:
+          type: object
+          example: {}
+
+    ErrorResponse:
+      type: object
+      description: "General error response"
+      required:
+        - err
+      properties:
+        err:
+          $ref: "#/components/schemas/MockersAdminErrors"
+
     HeadersMap:
       type: object
+      description: "Key-value HTTP headers"
       additionalProperties:
         type: string
       example:
         "Content-Type": "application/json"
         "X-Server": "Mockers"
-    CreateMockParams:
-      type: object
-      required: [path, method, statusCode, headers, body]
-      properties:
-        path:
-          type: string
-          description: "url path to bind"
-        method:
-          $ref: "#/components/schemas/HTTPMethods"
-        statusCode:
-          type: integer
-          description: "HTTP status code to be sent"
-        delayMs:
-          type: integer
-          description: "Time in milliseconds before respond"
-          nullable: true
-        headers:
-          $ref: "#/components/schemas/HeadersMap"
-        body:
-          type: string
-          description: "HTTP body to be sent"
+
     MockersAdminErrors:
+      description: All possible mockers admin API errors
       type: string
-      description: All mockers admin API errors
+      example: INTERNAL_SERVER_ERROR
       enum:
-        - REMOVE_MOCKS_FAILED_BY_PATH_AND_METHOD
-        - REMOVE_MOCKS_FAILED_BY_PATH
-        - GET_ALL_MOCKS_FAILED
-        - GET_MOCKS_BY_PATH_FAILED
-        - GET_MOCKS_BY_PATH_AND_METHOD_FAILED
-        - ADD_MOCK_FAILED
-        - NO_SUCH_MOCK
-        - MISSING_MOCKS_DIRECTORY
-        - DUMP_MOCK_BODY_FAILED
-        - DUMP_MOCK_CONFIG_FAILED
-        - DUMP_MOCK_AND__MOCK_CONFIG_FAILED
-        - UNKNOWN_ERROR
+        - INTERNAL_SERVER_ERROR
+        - BAD_REQUEST
+        - NOT_FOUND
+
+    CacheMode:
+      type: string
+      description: "Cache mode for a mock"
+      example: overwrite
+      enum:
+        - no-cache
+        - overwrite
+
     HTTPMethods:
       type: string
-      description: "HTTP method"
+      description: "All possible HTTP methods"
       enum:
-        - get
-        - post
-        - put
-        - delete
-        - patch
-        - head
-        - options
-        - trace
+        - GET
+        - POST
+        - PUT
+        - DELETE
+        - PATCH
+        - HEAD
+        - OPTIONS
+        - TRACE
