@@ -45,6 +45,13 @@ pub struct ServerParams {
     #[arg(long, short, help = "Path to the directory containing mock files")]
     mocks: Option<String>,
 
+    // CORS flag uses specific clap attributes to handle boolean values flexibly:
+    // - `action = ArgAction::Set`: Allows explicit value setting via CLI argument.
+    // - `num_args = 0..=1`: Makes the value optional, allowing the flag to be present without a value.
+    // - `default_missing_value = "true"`: Sets the value to true if the flag is provided without a value (e.g., `--cors`).
+    // - `require_equals = true`: Requires the usage of an equals sign for explicit values (e.g., `--cors=true` or `--cors=false`).
+    // This combination enables three distinct usage patterns: omitting the flag (None),
+    // using the flag alone (Some(true)), and setting it explicitly (Some(true/false)).
     #[arg(
         long,
         short,
