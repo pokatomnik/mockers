@@ -1,0 +1,154 @@
+name: Manual release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semver version to release (example: 0.2.0). Leave empty to bump patch"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  prepare-release:
+    name: Prepare release version and tag
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+      - name: Checkout dungeon-master
+        uses: actions/checkout@v4
+        with:
+          ref: dungeon-master
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump Cargo.toml version and create tag
+        id: bump
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_version=$(sed -nE 's/^version = "([0-9]+\.[0-9]+\.[0-9]+)"/\1/p' Cargo.toml | head -n1)
+
+          if [[ -z "$current_version" ]]; then
+            echo "Could not parse current version from Cargo.toml"
+            exit 1
+          fi
+
+          requested_version="${{ github.event.inputs.version }}"
+
+          if [[ -n "$requested_version" ]]; then
+            if [[ ! "$requested_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Provided version '$requested_version' is not valid semver (X.Y.Z)"
+              exit 1
+            fi
+            new_version="$requested_version"
+          else
+            IFS='.' read -r major minor patch <<< "$current_version"
+            new_version="$major.$minor.$((patch + 1))"
+          fi
+
+          if [[ "$new_version" == "$current_version" ]]; then
+            echo "New version matches current version ($current_version); skipping"
+            exit 1
+          fi
+
+          sed -i -E "0,/^version = \"[0-9]+\.[0-9]+\.[0-9]+\"/s//version = \"$new_version\"/" Cargo.toml
+
+          git add Cargo.toml
+          git commit -m "chore(release): v$new_version"
+
+          tag="v$new_version"
+          git tag "$tag"
+          git push origin dungeon-master
+          git push origin "$tag"
+
+          echo "version=$new_version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: prepare-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            archive_ext: tar.gz
+          - name: Windows x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            archive_ext: zip
+          - name: macOS ARM64
+            os: macos-latest
+            target: aarch64-apple-darwin
+            archive_ext: tar.gz
+
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.tag }}
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Path dist | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/mockers.exe" "dist/mockers.exe"
+          Compress-Archive -Path dist/mockers.exe -DestinationPath "mockers-${{ needs.prepare-release.outputs.tag }}-${{ matrix.target }}.zip"
+
+      - name: Package artifact (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/mockers" "dist/mockers"
+          tar -czf "mockers-${{ needs.prepare-release.outputs.tag }}-${{ matrix.target }}.tar.gz" -C dist mockers
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: mockers-${{ needs.prepare-release.outputs.tag }}-${{ matrix.target }}.${{ matrix.archive_ext }}
+
+  publish:
+    name: Publish GitHub release
+    needs: [prepare-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare-release.outputs.tag }}
+          name: Release ${{ needs.prepare-release.outputs.tag }}
+          generate_release_notes: true
+          files: release-artifacts/**/*
