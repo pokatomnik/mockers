@@ -22,6 +22,7 @@ dialoguer = "0.12.0"
 anyhow = "1.0.102"
 log = "0.4.29"
 simplelog = "0.12.2"
+clap_complete = "4.6.0"
 
 [profile.release]
 opt-level = "z"

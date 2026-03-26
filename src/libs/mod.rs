@@ -1,6 +1,7 @@
 pub mod absolute_mocks_path;
 pub mod activity_params;
 pub mod cache_mode;
+pub mod completion_params;
 pub mod config;
 pub mod create_params;
 pub mod delete_params;

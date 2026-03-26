@@ -1,4 +1,5 @@
 use crate::libs::activity_params::ActivityParams;
+use crate::libs::completion_params::CompletionParams;
 use crate::libs::create_params::CreateParams;
 use crate::libs::init_params::InitParams;
 use crate::libs::ls_params::LsParams;
@@ -37,4 +38,7 @@ pub enum Commands {
 
     #[clap(visible_aliases = ["setup"], about = "Initialize Mockers global configuration")]
     Init(InitParams),
+
+    #[clap(about = "Prepare and print shell completion script")]
+    Completion(CompletionParams),
 }
