@@ -18,7 +18,7 @@ You want them fast.
 - custom status codes,
 - response delay,
 - custom headers,
-- runtime admin API,
+- admin API,
 - request forwarding to a real origin,
 - optional disk write-through caching.
 
@@ -201,12 +201,11 @@ If a config key is missing, defaults are used.
 For every incoming request, Mockers roughly does this:
 
 1. Build mock filename from request path + method.
-2. Check in-memory runtime cache first.
-3. If not in cache, try file-based mock.
-4. If file mock is missing (or disabled):
+2. Try file-based mock.
+3. If file mock is missing (or disabled):
    - if `--origin` is set -> proxy request to origin,
    - else -> return `404`.
-5. If proxied and `cacheMode=overwrite`, write response to disk asynchronously (`mock file + config.json`).
+4. If proxied and `cacheMode=overwrite`, write response to disk asynchronously (`mock file + config.json`).
 
 So you can warm up mocks from a real backend automatically.
 
@@ -319,22 +318,22 @@ mockers serve --admin-base-url /__admin
 
 Then you'll get:
 
-- REST API under `/__admin/api/v1/...`
+- REST API under `/__admin/api/v2/...`
 - Swagger UI under `/__admin/swagger`
+
+The admin API works directly with file-based mocks on disk.
+Creating a mock creates the mock file and updates `config.json`.
+Deleting a mock removes the mock file and cleans up its config entry.
+Listing mocks returns only route path + HTTP method pairs.
 
 ### Admin API routes
 
-- `GET /api/v1/mocks` — get all runtime mocks
-- `GET /api/v1/mocks/{path_encoded}` — get mocks by path
-- `GET /api/v1/mocks/{path_encoded}/{method}` — get one by path+method
-- `POST /api/v1/mocks` — create/update runtime mock
-- `POST /api/v1/mocks/{path_encoded}/{method}/dump` — dump runtime mock to files
-- `DELETE /api/v1/mocks/{path_encoded}/{method}` — delete one runtime mock
-- `DELETE /api/v1/mocks/{path_encoded}` — delete all methods for path
+- `POST /api/v2/mocks` — get all mocks (`path` + `method` only)
+- `POST /api/v2/mocks/create` — create a new file-based mock
+- `POST /api/v2/mocks/config` — get mock config by path+method
+- `POST /api/v2/mocks/delete` — delete a file-based mock by path+method
 
-`path_encoded` is Base64-encoded route path.
-
-Swagger also documents response schemas and known admin error codes.
+Swagger also documents request/response schemas and known admin error codes.
 
 ---
 
@@ -371,7 +370,7 @@ Optional: set `cacheMode: "overwrite"` for selected mocks to save upstream respo
 mockers serve --cors --preflight permissive
 ```
 
-### 4) Runtime manipulation via admin API
+### 4) File mock management via admin API
 
 ```bash
 mockers serve --admin-base-url /__admin
