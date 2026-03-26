@@ -399,6 +399,57 @@ JSON schema for `config.json`:
 
 ---
 
+## Shell completions
+`mockers` can generate shell completion scripts for supported shells.  
+To enable completions, add the following line to your shell startup file:
+
+```sh
+source <(mockers completion -s SHELL)
+```
+
+Replace SHELL with one of the supported shells:
+
+- `bash`
+- `zsh`
+- `fish`
+- `elvish`
+- `powershell`
+
+### Examples:
+
+#### Bash:
+Add this line to `~/.bashrc`:
+```sh
+source <(mockers completion -s bash)
+```
+
+#### Zsh
+Add this line to `~/.zshrc`:
+```sh
+source <(mockers completion -s zsh)
+```
+
+#### Fish
+Add this line to your Fish config file, usually ~/.config/fish/config.fish:
+```sh
+source (mockers completion -s fish | psub)
+```
+
+#### Elvish
+Add this line to your Elvish config file, usually ~/.config/elvish/rc.elv:
+```sh
+eval (mockers completion -s elvish | slurp)
+```
+
+#### PowerShell
+Add the generated script to your PowerShell profile:
+
+```sh
+mockers completion -s powershell | Out-String | Invoke-Expression
+```
+You can place this command in your PowerShell profile file so that completions are loaded automatically in every session.
+---
+
 ## Shout-out
 
 Huge thanks to [@Caik](https://github.com/Caik), whose [Go version](https://github.com/Caik/go-mock-server) sparked the original idea.
