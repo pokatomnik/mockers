@@ -236,6 +236,11 @@ impl InitParams {
             false => self.init_with_defaults().await,
         };
 
+        println!(
+            "Config saved to {}",
+            self.get_user_config_path()?.to_string_lossy().to_string()
+        );
+
         result.map_err(Box::from)
     }
 }
