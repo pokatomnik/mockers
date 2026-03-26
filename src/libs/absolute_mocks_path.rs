@@ -59,11 +59,17 @@ pub(crate) fn generic_get_absolute_mocks_path(
     let mocks_path = mocks_path.as_ref();
     if mocks_path.starts_with("~") {
         let mocks_path_as_str = mocks_path.to_string_lossy().to_string();
-        let mocks_path = mocks_path_as_str.trim_start_matches("~/").trim_start_matches("~\\");
+        let mocks_path = mocks_path_as_str
+            .trim_start_matches("~/")
+            .trim_start_matches("~\\");
         let Some(home_dir) = get_home_dir() else {
             return None;
         };
-        return home_dir.join(mocks_path).absolutize().ok().map(PathBuf::from);
+        return home_dir
+            .join(mocks_path)
+            .absolutize()
+            .ok()
+            .map(PathBuf::from);
     }
     let path = Path::new(&mocks_path).absolutize().ok()?;
     if PathBuf::from(&mocks_path).is_absolute() {
@@ -85,46 +91,144 @@ pub(crate) fn generic_get_absolute_mocks_path(
 mod tests {
     use super::*;
 
+    #[cfg(not(windows))]
     fn get_current_dir() -> Result<PathBuf, Box<dyn StdError + Sync + Send>> {
         Ok("/home/john_doe".into())
     }
 
+    #[cfg(windows)]
+    fn get_current_dir() -> Result<PathBuf, Box<dyn StdError + Sync + Send>> {
+        Ok(r"D:\home\john_doe".into())
+    }
+
+    #[cfg(not(windows))]
     fn get_home_dir() -> Option<PathBuf> {
         Some("/home/john_doe".into())
+    }
+
+    #[cfg(windows)]
+    fn get_home_dir() -> Option<PathBuf> {
+        Some(r"D:\home\john_doe".into())
+    }
+
+    #[cfg(not(windows))]
+    fn absolute_path() -> &'static str {
+        "/foo/bar/baz"
+    }
+
+    #[cfg(windows)]
+    fn absolute_path() -> &'static str {
+        r"D:\foo\bar\baz"
+    }
+
+    #[cfg(not(windows))]
+    fn absolute_expected() -> PathBuf {
+        PathBuf::from("/foo/bar/baz")
+    }
+
+    #[cfg(windows)]
+    fn absolute_expected() -> PathBuf {
+        PathBuf::from(r"D:\foo\bar\baz")
+    }
+
+    #[cfg(not(windows))]
+    fn relative_path() -> &'static str {
+        "foo/bar/baz"
+    }
+
+    #[cfg(windows)]
+    fn relative_path() -> &'static str {
+        r"foo\bar\baz"
+    }
+
+    #[cfg(not(windows))]
+    fn relative_expected() -> PathBuf {
+        PathBuf::from("/home/john_doe/foo/bar/baz")
+    }
+
+    #[cfg(windows)]
+    fn relative_expected() -> PathBuf {
+        PathBuf::from(r"D:\home\john_doe\foo\bar\baz")
+    }
+
+    #[cfg(not(windows))]
+    fn relative_with_parent_dir_path() -> &'static str {
+        "foo/bar/../baz"
+    }
+
+    #[cfg(windows)]
+    fn relative_with_parent_dir_path() -> &'static str {
+        r"foo\bar\..\baz"
+    }
+
+    #[cfg(not(windows))]
+    fn relative_with_parent_dir_expected() -> PathBuf {
+        PathBuf::from("/home/john_doe/foo/baz")
+    }
+
+    #[cfg(windows)]
+    fn relative_with_parent_dir_expected() -> PathBuf {
+        PathBuf::from(r"D:\home\john_doe\foo\baz")
+    }
+
+    #[cfg(not(windows))]
+    fn home_alias_path() -> &'static str {
+        "~/foo/bar/.."
+    }
+
+    #[cfg(windows)]
+    fn home_alias_path() -> &'static str {
+        r"~\foo\bar\.."
+    }
+
+    #[cfg(not(windows))]
+    fn home_alias_expected() -> PathBuf {
+        PathBuf::from("/home/john_doe/foo")
+    }
+
+    #[cfg(windows)]
+    fn home_alias_expected() -> PathBuf {
+        PathBuf::from(r"D:\home\john_doe\foo")
     }
 
     #[test]
     fn unix_absolute() {
         let actual =
-            generic_get_absolute_mocks_path("/foo/bar/baz", get_current_dir, get_home_dir).unwrap();
-        let expected = PathBuf::from("/foo/bar/baz");
+            generic_get_absolute_mocks_path(absolute_path(), get_current_dir, get_home_dir)
+                .unwrap();
+        let expected = absolute_expected();
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn unix_relative() {
         let actual =
-            generic_get_absolute_mocks_path("foo/bar/baz", get_current_dir, get_home_dir).unwrap();
-        let expected = PathBuf::from("/home/john_doe/foo/bar/baz");
+            generic_get_absolute_mocks_path(relative_path(), get_current_dir, get_home_dir)
+                .unwrap();
+        let expected = relative_expected();
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn relative_path_with_parent_dir_is_normalized() {
-        let actual =
-            generic_get_absolute_mocks_path("foo/bar/../baz", get_current_dir, get_home_dir)
-                .unwrap();
-        let expected = PathBuf::from("/home/john_doe/foo/baz");
+        let actual = generic_get_absolute_mocks_path(
+            relative_with_parent_dir_path(),
+            get_current_dir,
+            get_home_dir,
+        )
+        .unwrap();
 
+        let expected = relative_with_parent_dir_expected();
         assert_eq!(actual, expected);
     }
 
     #[test]
     fn with_home_alias() {
         let actual =
-            generic_get_absolute_mocks_path("~/foo/bar/..", get_current_dir, get_home_dir).unwrap();
-        let expected = PathBuf::from("/home/john_doe/foo");
+            generic_get_absolute_mocks_path(home_alias_path(), get_current_dir, get_home_dir)
+                .unwrap();
 
+        let expected = home_alias_expected();
         assert_eq!(actual, expected);
     }
 }
