@@ -1,6 +1,6 @@
 use crate::controllers::swagger::static_files::SWAGGER_YAML;
+use crate::libs::hyper_response_ext::HyperWellKnownResponses;
 use crate::libs::response_builder_ext::ResponseBuilderExt;
-use crate::libs::response_ext::WellKnownResponses;
 use crate::libs::yaml_builder::YamlBuilderCreate;
 use crate::server::mockers_context::MockersContext;
 use crate::server::route_error::MockersRouteError;

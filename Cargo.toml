@@ -23,6 +23,8 @@ anyhow = "1.0.102"
 log = "0.4.29"
 simplelog = "0.12.2"
 clap_complete = "4.6.0"
+futures-util = "0.3.32"
+bytes = "1.11.1"
 
 [profile.release]
 opt-level = "z"
