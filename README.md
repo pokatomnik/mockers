@@ -1,5 +1,5 @@
 # Mockers — tiny but powerful HTTP mock server in Rust 🎯
-
+![Mockers](./.assets/mockers-logo.svg)
 [![Rust](https://github.com/pokatomnik/mockers/actions/workflows/rust.yml/badge.svg)](https://github.com/pokatomnik/mockers/actions/workflows/rust.yml)
 
 `Mockers` is a CLI + HTTP server that lets you spin up fake APIs from files in seconds.
