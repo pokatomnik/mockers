@@ -398,6 +398,137 @@ JSON schema for `config.json`:
 
 ---
 
+## Docker
+
+### Build the image
+
+```sh
+docker build -t mockers .
+```
+
+This builds a production image for mockers.
+
+### Run the container
+
+The container is designed to run __only__ the `mockers serve` command.
+
+Inside the container, the following values are fixed:
+- `--host 0.0.0.0`
+- `--port 8080`
+- `--mocks /mocks`
+
+So the container always starts the application like this:
+
+```sh
+mockers serve --host 0.0.0.0 --port 8080 --mocks /mocks
+```
+
+The mocks directory must be mounted from the host into /mocks inside the container.
+
+### Basic example
+
+```sh
+docker run --rm \
+  -p 8080:8080 \
+  -v "$(pwd)/mocks:/mocks:ro" \
+  mockers
+```
+
+This will:
+
+- expose the server on port `8080`
+- mount the local `./mocks` directory into the container as `/mocks`
+- start `mockers serve`
+
+### Allowed runtime options
+Only a limited set of `mockers serve` options can be passed through the container interface:
+- `-c`, `--cors`
+- `-d`, `--delay-ms`
+- `-o`, `--origin`
+- `-a`, `--admin-base-url`
+- `-l`, `--log-request`
+- `-v`, `--verbosity`
+- `--preflight`
+- `--proxy-body-max-bytes`
+
+Example:
+
+```sh
+docker run --rm \
+  -p 8080:8080 \
+  -v "$(pwd)/mocks:/mocks:ro" \
+  mockers \
+  --cors \
+  --delay-ms 250 \
+  --origin https://example.com \
+  --admin-base-url /admin \
+  --log-request debug \
+  --verbosity info
+```
+
+### Important limitations
+
+- `serve`
+- `--host`
+- `--port`
+- `--mocks`
+
+If any unsupported option is passed, the container exits with an error.
+
+This keeps the container interface predictable and prevents invalid startup configurations.
+
+### Port mapping
+
+The application always listens on port `8080` inside the container.
+
+To expose it on a different host port, change the Docker port mapping:
+
+```sh
+docker run --rm \
+  -p 9090:8080 \
+  -v "$(pwd)/mocks:/mocks:ro" \
+  mockers
+```
+
+In this example:
+
+- host port: `9090`
+- container port: `8080`
+
+### Mocks directory
+The container always expects mocks at:
+```sh
+/mocks
+```
+
+A local directory must be mounted there when the container is started.
+
+Read-only mount is recommended if mockers only needs to read mock files:
+```sh
+-v "$(pwd)/mocks:/mocks:ro"
+```
+
+If write access is required, remove `:ro`:
+
+```sh
+-v "$(pwd)/mocks:/mocks"
+```
+
+### Full example
+```sh
+docker build -t mockers .
+
+docker run --rm \
+  -p 8080:8080 \
+  -v "$(pwd)/mocks:/mocks:ro" \
+  mockers \
+  --cors \
+  --delay-ms 150 \
+  --log-request debug
+```
+
+---
+
 ## Shell completions
 `mockers` can generate shell completion scripts for supported shells.  
 To enable completions, add the following line to your shell startup file:
