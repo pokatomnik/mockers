@@ -2,7 +2,9 @@ use http_body_util::Full;
 use hyper::http::response::Builder;
 use hyper::{Response, StatusCode, body::Bytes};
 
-pub(crate) trait WellKnownResponses {
+/// Well-known Hyper HTTP responses.
+/// This trait relates to Hyper, not Reqwest.
+pub(crate) trait HyperWellKnownResponses {
     fn not_found() -> Builder;
 
     fn internal_server_error() -> Builder;
@@ -18,7 +20,7 @@ pub(crate) trait WellKnownResponses {
     fn no_content() -> Builder;
 }
 
-impl WellKnownResponses for Response<Full<Bytes>> {
+impl HyperWellKnownResponses for Response<Full<Bytes>> {
     fn not_found() -> Builder {
         Response::builder().status(StatusCode::NOT_FOUND)
     }

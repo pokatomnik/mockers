@@ -1,8 +1,8 @@
+use crate::libs::hyper_response_ext::HyperWellKnownResponses;
 use crate::libs::response_builder_ext::ResponseBuilderExt;
-use crate::libs::response_ext::WellKnownResponses;
 use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;
-use hyper::{body::Bytes, Request, Response};
+use hyper::{Request, Response, body::Bytes};
 
 pub(crate) async fn handle_options(
     req: Request<Full<Bytes>>,

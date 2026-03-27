@@ -2,15 +2,19 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use crate::libs::absolute_mocks_path::AbsoluteMocksPath;
 use crate::libs::header_map_ext::{HeaderMapConverter, HeaderMapSanitizer};
+use crate::libs::hyper_response_ext::HyperWellKnownResponses;
 use crate::libs::mock_config::MockConfig;
 use crate::libs::mockers_request_ext::MockersRequestExt;
+use crate::libs::reqwest_response_ext::ReqwestResponseExt;
 use crate::libs::response_builder_ext::ResponseBuilderExt;
-use crate::libs::response_ext::WellKnownResponses;
 use crate::libs::tap::Tap;
 use crate::libs::url_ext::UrlExt;
 use crate::libs::{cache_mode::CacheMode, get_mime::get_mime};
 use crate::server::mockers_context::MockersContext;
-use crate::server::params::{CONFIG_FILE_NAME, DEFAULT_CORS_ENABLED, DEFAULT_MOCKS_RESPONSE_DELAY};
+use crate::server::params::CONFIG_FILE_NAME;
+use crate::server::params::DEFAULT_CORS_ENABLED;
+use crate::server::params::DEFAULT_MOCKS_RESPONSE_DELAY;
+use crate::server::params::HARD_MAX_PROXY_RESPONSE_BODY_BYTES;
 use crate::server::route_error::MockersRouteError;
 use http_body_util::{BodyExt, Full};
 use hyper::{Request, Response, StatusCode, body::Bytes};
@@ -42,6 +46,12 @@ pub async fn mock_handler(
         None => None,
         Some(sp) => sp.origin().await,
     };
+    let proxy_max_body_bytes = match context.map(|ctx| &ctx.server_params) {
+        None => None,
+        Some(sp) => Some(sp.proxy_body_max_bytes().await),
+    }
+    .unwrap_or(HARD_MAX_PROXY_RESPONSE_BODY_BYTES);
+
     let client = context.map(|context| context.clone().client.clone());
 
     let method = req.method().to_string().to_lowercase();
@@ -200,8 +210,35 @@ pub async fn mock_handler(
 
     let resp_headers = response.headers().clone();
     let save_headers = resp_headers.clone();
+    let response_content_length = response.content_length();
 
-    let response_bytes = response.bytes().await.unwrap_or_default();
+    if let Some(response_content_length) = response_content_length
+        && response_content_length > proxy_max_body_bytes as u64
+    {
+        let response = Response::bad_gateway()
+            .tap(|builder| if cors { builder.add_cors() } else { builder })
+            .add_custom_headers(custom_headers.into_iter())
+            .empty_body()
+            .unwrap_or_default();
+        return Ok(response);
+    }
+
+    let response_bytes = response
+        .read_until_cap(
+            proxy_max_body_bytes,
+            response_content_length.map(|l| l as usize),
+        )
+        .await;
+
+    let Ok(response_bytes) = response_bytes else {
+        let response = Response::bad_gateway()
+            .tap(|builder| if cors { builder.add_cors() } else { builder })
+            .add_custom_headers(custom_headers.into_iter())
+            .empty_body()
+            .unwrap_or_default();
+        return Ok(response);
+    };
+
     let save_bytes = response_bytes.clone();
 
     let response = Response::builder()

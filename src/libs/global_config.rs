@@ -24,6 +24,7 @@ pub(crate) struct GlobalConfig {
     admin_base_url: Option<String>,
     log_request: Option<VerbosityLevel>,
     verbosity: Option<VerbosityLevel>,
+    proxy_body_max_bytes: Option<usize>,
 }
 
 pub(crate) trait GlobalConfigBuilder {
@@ -120,6 +121,10 @@ impl GlobalConfig {
             .or_else(|| self.admin_base_url.clone());
         let log_request = other.map(|o| o.log_request).flatten().or(self.log_request);
         let verbosity = other.map(|o| o.verbosity).flatten().or(self.verbosity);
+        let proxy_body_max_bytes = other
+            .map(|o| o.proxy_body_max_bytes)
+            .flatten()
+            .or(self.proxy_body_max_bytes);
         GlobalConfig {
             host,
             port,
@@ -131,6 +136,7 @@ impl GlobalConfig {
             admin_base_url,
             log_request,
             verbosity,
+            proxy_body_max_bytes,
         }
     }
 }
@@ -258,6 +264,10 @@ impl GlobalConfigAPI {
 
     pub async fn get_verbosity_level(&self) -> Option<VerbosityLevel> {
         self.get_config().await.verbosity
+    }
+
+    pub async fn get_proxy_body_max_bytes(&self) -> Option<usize> {
+        self.get_config().await.proxy_body_max_bytes
     }
 }
 

@@ -1,11 +1,11 @@
 use crate::controllers::entities::mock_info::MockInfo;
 use crate::libs::absolute_mocks_path::AbsoluteMocksPath;
 use crate::libs::fs_walker::FSWalker;
+use crate::libs::hyper_response_ext::HyperWellKnownResponses;
 use crate::libs::mockers_errors::MockersErrors;
 use crate::libs::path_buf_ext::PathBufExt;
 use crate::libs::protocol_result::ProtocolResultConverter;
 use crate::libs::response_builder_ext::ResponseBuilderExt;
-use crate::libs::response_ext::WellKnownResponses;
 use crate::server::mockers_context::MockersContext;
 use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;

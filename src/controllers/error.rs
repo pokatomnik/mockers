@@ -1,4 +1,4 @@
-use crate::libs::response_ext::WellKnownResponses;
+use crate::libs::hyper_response_ext::HyperWellKnownResponses;
 use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;
 use hyper::{Response, StatusCode, body::Bytes};

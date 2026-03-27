@@ -30,6 +30,10 @@ pub const DEFAULT_CORS_ENABLED: bool = false;
 pub const CONFIG_FILE_NAME: &'static str = "config.json";
 // This variable should only be used when initializing the global configuration file.
 pub const DEFAULT_ADMIN_BASE_URL: &'static str = "/__admin";
+/// Maximum number of bytes allowed to fetch from remote server
+pub const DEFAULT_PROXY_RESPONSE_BODY_BYTES: usize = 1024 * 1024 * 16;
+/// Default maxumum number of bytes allowed to fetch from remote server
+pub const HARD_MAX_PROXY_RESPONSE_BODY_BYTES: usize = DEFAULT_PROXY_RESPONSE_BODY_BYTES * 2;
 
 static BANNER_MSG: &'static str = include_str!("./banner.txt");
 
@@ -83,6 +87,9 @@ pub struct ServerParams {
 
     #[arg(long, short, help = "Verbosity level")]
     verbosity: Option<VerbosityLevel>,
+
+    #[arg(long, help = "Maximum response size in bytes")]
+    proxy_body_max_bytes: Option<usize>,
 
     #[clap(skip)]
     global_config: OnceCell<GlobalConfigAPI>,
@@ -207,6 +214,29 @@ impl ServerParams {
             None => self.get_global_config().await.get_verbosity_level().await,
         }
         .unwrap_or(VerbosityLevel::Info)
+    }
+
+    /// Returns the maximum response size in bytes for proxy requests.
+    ///
+    /// This method determines the value by checking the following sources in order:
+    /// 1. `self.proxy_body_max_bytes`: The value passed via the command line argument `--proxy-body-max-bytes`.
+    /// 2. `get_proxy_body_max_bytes()`: The value defined in the global configuration file.
+    /// 3. `DEFAULT_PROXY_RESPONSE_BODY_BYTES`: The default constant if neither source provides a value.
+    ///
+    /// The final value is capped by `HARD_MAX_PROXY_RESPONSE_BODY_BYTES` to ensure it does not exceed the hard limit.
+    pub async fn proxy_body_max_bytes(&self) -> usize {
+        let proxy_body_max_bytes = match self.proxy_body_max_bytes {
+            Some(proxy_body_max_bytes) => Some(proxy_body_max_bytes),
+            None => {
+                self.get_global_config()
+                    .await
+                    .get_proxy_body_max_bytes()
+                    .await
+            }
+        }
+        .unwrap_or(DEFAULT_PROXY_RESPONSE_BODY_BYTES);
+
+        std::cmp::min(proxy_body_max_bytes, HARD_MAX_PROXY_RESPONSE_BODY_BYTES)
     }
 
     pub async fn test(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
