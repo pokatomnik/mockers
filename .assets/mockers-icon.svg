@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" fill="none">
+  <defs>
+    
+<linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+  <stop offset="0%" stop-color="#0B1220"/>
+  <stop offset="55%" stop-color="#0F172A"/>
+  <stop offset="100%" stop-color="#111827"/>
+</linearGradient>
+<linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+  <stop offset="0%" stop-color="#67E8F9"/>
+  <stop offset="50%" stop-color="#60A5FA"/>
+  <stop offset="100%" stop-color="#A78BFA"/>
+</linearGradient>
+<linearGradient id="accent2" x1="100%" y1="0%" x2="0%" y2="100%">
+  <stop offset="0%" stop-color="#A78BFA"/>
+  <stop offset="100%" stop-color="#67E8F9"/>
+</linearGradient>
+<filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+  <feGaussianBlur stdDeviation="6" result="blur"/>
+  <feColorMatrix in="blur" type="matrix"
+    values="1 0 0 0 0
+            0 1 0 0 0
+            0 0 1 0 0
+            0 0 0 .45 0"/>
+  <feMerge>
+    <feMergeNode/>
+    <feMergeNode in="SourceGraphic"/>
+  </feMerge>
+</filter>
+<filter id="bigGlow" x="-40%" y="-40%" width="180%" height="180%">
+  <feGaussianBlur stdDeviation="14" result="blur"/>
+  <feColorMatrix in="blur" type="matrix"
+    values="1 0 0 0 0
+            0 1 0 0 0
+            0 0 1 0 0
+            0 0 0 .22 0"/>
+  <feMerge>
+    <feMergeNode/>
+    <feMergeNode in="SourceGraphic"/>
+  </feMerge>
+</filter>
+
+  </defs>
+  
+    <g transform="translate(0,0) scale(1.0)">
+      <rect x="24" y="24" width="208" height="208" rx="48" fill="url(#bg)"/>
+      <rect x="24" y="24" width="208" height="208" rx="48" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+      <circle cx="128" cy="128" r="80" fill="url(#accent)" opacity="0.10" filter="url(#bigGlow)"/>
+      <circle cx="128" cy="128" r="64" fill="none" stroke="url(#accent)" stroke-width="10" opacity="0.95" filter="url(#softGlow)"/>
+      <circle cx="128" cy="128" r="40" fill="none" stroke="url(#accent2)" stroke-width="6" opacity="0.55"/>
+      <line x1="128" y1="40" x2="128" y2="56" stroke="url(#accent)" stroke-width="6" stroke-linecap="round"/>
+      <line x1="128" y1="200" x2="128" y2="216" stroke="url(#accent)" stroke-width="6" stroke-linecap="round"/>
+      <line x1="40" y1="128" x2="56" y2="128" stroke="url(#accent)" stroke-width="6" stroke-linecap="round"/>
+      <line x1="200" y1="128" x2="216" y2="128" stroke="url(#accent)" stroke-width="6" stroke-linecap="round"/>
+
+      <path d="M92 74 H146 L172 100 V176 Q172 188 160 188 H92 Q80 188 80 176 V86 Q80 74 92 74 Z"
+            fill="#0B1220" stroke="rgba(255,255,255,0.14)" stroke-width="2"/>
+      <path d="M146 74 V94 Q146 100 152 100 H172" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="2"/>
+
+      <path d="M96 156 L96 110 L116 138 L128 118 L140 138 L160 110 L160 156"
+            fill="none" stroke="url(#accent)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" filter="url(#softGlow)"/>
+      <circle cx="96" cy="110" r="6" fill="#67E8F9"/>
+      <circle cx="116" cy="138" r="6" fill="#60A5FA"/>
+      <circle cx="128" cy="118" r="6" fill="#A78BFA"/>
+      <circle cx="140" cy="138" r="6" fill="#60A5FA"/>
+      <circle cx="160" cy="110" r="6" fill="#67E8F9"/>
+      <circle cx="96" cy="156" r="6" fill="#67E8F9"/>
+      <circle cx="160" cy="156" r="6" fill="#67E8F9"/>
+
+      <rect x="92" y="168" width="72" height="12" rx="6" fill="url(#accent)" opacity="0.18"/>
+      <text x="128" y="177" text-anchor="middle"
+            font-family="Inter, Segoe UI, Arial, sans-serif"
+            font-size="9" font-weight="800" letter-spacing="1.8"
+            fill="#C7D2FE">ROUTE.FILE</text>
+    </g>
+    
+</svg>
