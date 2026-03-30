@@ -5,6 +5,7 @@ pub mod completion_params;
 pub mod config;
 pub mod create_params;
 pub mod delete_params;
+pub mod doc_params;
 pub mod fs_walker;
 pub mod get_info_async;
 pub mod get_mime;

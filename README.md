@@ -149,6 +149,40 @@ This gives you:
 - `POST /users/create`
 - `POST /auth/login`
 
+### Reading a real `mocks/` tree
+
+When your project already has a populated `mocks/` directory, you can read it as a contract map.
+
+Example:
+
+```text
+mocks/
+├─ auth/
+│  ├─ login.post
+│  ├─ refresh.post
+│  └─ config.json
+├─ users/
+│  ├─ me.get
+│  ├─ me.patch
+│  └─ config.json
+└─ health.get
+```
+
+How to interpret this:
+
+- `auth/login.post` means `POST /auth/login`
+- `auth/refresh.post` means `POST /auth/refresh`
+- `users/me.get` means `GET /users/me`
+- `users/me.patch` means `PATCH /users/me`
+- `health.get` means `GET /health`
+
+Important details:
+
+- File extension is always the HTTP method (`.get`, `.post`, `.patch`, ...).
+- Path segments come from folders + filename stem.
+- `config.json` is local to its folder and config keys must match mock filenames in that same folder.
+- Body is returned exactly from file content, while `Content-Type` is auto-detected from bytes (JSON/CSS/text/binary, etc.).
+
 ---
 
 ## Mock config file (`config.json`)

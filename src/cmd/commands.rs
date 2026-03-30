@@ -1,6 +1,7 @@
 use crate::libs::activity_params::ActivityParams;
 use crate::libs::completion_params::CompletionParams;
 use crate::libs::create_params::CreateParams;
+use crate::libs::doc_params::DocParams;
 use crate::libs::init_params::InitParams;
 use crate::libs::ls_params::LsParams;
 use crate::server::params::ServerParams;
@@ -9,8 +10,10 @@ use crate::libs::config::ConfigParams;
 use crate::libs::delete_params::DeleteParams;
 use crate::libs::info_params::InfoParams;
 use clap::Subcommand;
+use strum_macros::EnumDiscriminants;
 
-#[derive(Subcommand, Debug, Clone)]
+#[derive(Subcommand, Debug, Clone, EnumDiscriminants)]
+#[strum_discriminants(name(Doc), vis(pub(crate)), derive(clap::ValueEnum))]
 pub enum Commands {
     #[clap(visible_aliases = ["run", "start", "s"], about = "Run server")]
     Serve(ServerParams),
@@ -41,4 +44,7 @@ pub enum Commands {
 
     #[clap(about = "Prepare and print shell completion script")]
     Completion(CompletionParams),
+
+    #[clap(about = "Show documentation by command")]
+    Doc(DocParams),
 }

@@ -34,6 +34,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
         Commands::Config(config_params) => Ok(config_params.show_config().await),
         Commands::Init(init_params) => init_params.init().await,
         Commands::Completion(completion_params) => completion_params.generate().await,
+        Commands::Doc(help_params) => help_params.show_help().await,
     };
 
     let result = result.map_err(|e| e.to_string());
