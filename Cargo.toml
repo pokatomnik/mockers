@@ -25,6 +25,9 @@ simplelog = "0.12.2"
 clap_complete = "4.6.0"
 futures-util = "0.3.32"
 bytes = "1.11.1"
+strum = "0.28.0"
+strum_macros = "0.28.0"
+termimad = "0.34.1"
 
 [profile.release]
 opt-level = "z"
