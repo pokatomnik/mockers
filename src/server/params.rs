@@ -3,6 +3,7 @@ use crate::libs::create_params::DEFAULT_DELAY_MS;
 use crate::libs::get_info_async::GetInfoAsync;
 use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
 use crate::libs::preflight_type::PreflightType;
+use crate::libs::tls_acceptor_ext::TLSAcceptorLoader;
 use crate::middlewares::logger::VerbosityLevel;
 use crate::server::mockers_router::mockers_router;
 use crate::server::signal::make_signal;
@@ -21,6 +22,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::OnceCell;
+use tokio_rustls::TlsAcceptor;
 
 pub const DEFAULT_HOST: &'static str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 8080;
@@ -280,6 +282,11 @@ impl ServerParams {
         let router = mockers_router(&self).await?;
         let router_service = Arc::new(RouterService::new(router)?);
 
+        let tls_acceptor = match self.get_absolute_mocks_path().await {
+            Some(amp) => TlsAcceptor::load(amp).await.map(Arc::new),
+            None => None,
+        };
+
         println!("{}", BANNER_MSG);
         match self.verbosity_level().await {
             VerbosityLevel::Debug | VerbosityLevel::Trace => {
@@ -299,21 +306,53 @@ impl ServerParams {
                     let router_service = Arc::clone(&router_service);
                     let graceful = graceful.clone();
                     let http = http.clone();
+                    let tls_acceptor = tls_acceptor.clone();
 
-                    tokio::spawn(async move {
-                        match router_service.call(&stream).await {
-                            Ok(request_service) => {
-                                let io = TokioIo::new(stream);
+                    if let Some(tls_acceptor) = tls_acceptor {
+                        tokio::spawn(async move {
+                            let stream = match tls_acceptor.accept(stream).await {
+                                Ok(stream) => stream,
+                                Err(e) => {
+                                    error!("TLS handshake failed: {:?}", e);
+                                    return;
+                                }
+                            };
 
-                                let conn = http.serve_connection(io, request_service);
-                                let fut = graceful.watch(conn);
-                                if let Err(e) = fut.await {
-                                    error!("Error serving connection: {:?}", e);
+                            let io = TokioIo::new(stream);
+                            let tcp_stream = io.inner().get_ref().0;
+
+                            match router_service.call(tcp_stream).await {
+                                Ok(request_service) => {
+                                    let conn = http.serve_connection(io, request_service);
+                                    let fut = graceful.watch(conn);
+
+                                    if let Err(e) = fut.await {
+                                        error!("Error serving HTTPS connection: {:?}", e);
+                                    }
+                                }
+                                Err(e) => {
+                                    error!("Failed to create HTTPS request service: {:?}", e);
                                 }
                             }
-                            Err(_) => {}
-                        }
-                    });
+                        });
+                    } else {
+                        tokio::spawn(async move {
+                            match router_service.call(&stream).await {
+                                Ok(request_service) => {
+                                    let io = TokioIo::new(stream);
+                                    let conn = http.serve_connection(io, request_service);
+                                    let fut = graceful.watch(conn);
+
+                                    if let Err(e) = fut.await {
+                                        error!("Error serving HTTP connection: {:?}", e);
+                                    }
+                                }
+                                Err(e) => {
+                                    error!("Failed to create HTTP request service: {:?}", e);
+                                }
+                            }
+                        });
+                    }
                 },
 
                 _ = &mut shutdown_signal => {
