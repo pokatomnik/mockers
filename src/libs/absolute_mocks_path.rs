@@ -3,6 +3,7 @@ use crate::server::params::DEFAULT_MOCKS_DIR_NAME;
 use path_absolutize::Absolutize;
 use std::env::{current_dir, home_dir};
 use std::error::Error as StdError;
+use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 
 pub(crate) trait WithMocks {
@@ -11,6 +12,8 @@ pub(crate) trait WithMocks {
 
 pub(crate) trait AbsoluteMocksPath {
     async fn get_absolute_mocks_path(&self) -> Option<PathBuf>;
+
+    async fn expect_mocks_path_to_exist(&self) -> anyhow::Result<()>;
 }
 
 impl<T> AbsoluteMocksPath for T
@@ -43,6 +46,46 @@ where
         current_dir()
             .map(|cwd| cwd.join(DEFAULT_MOCKS_DIR_NAME))
             .ok()
+    }
+
+    async fn expect_mocks_path_to_exist(&self) -> anyhow::Result<()> {
+        let Some(ref path) = self.get_absolute_mocks_path().await else {
+            return Err(anyhow::Error::msg("Mocks dir not set"));
+        };
+        let path_metadata = tokio::fs::metadata(path).await;
+
+        let is_dir = path_metadata
+            .as_ref()
+            .map(Metadata::is_dir)
+            .unwrap_or(false);
+
+        if is_dir {
+            return Ok(());
+        }
+
+        let wrong_target = path_metadata
+            .map(|m| m.is_file() || m.is_symlink())
+            .unwrap_or(false);
+
+        if wrong_target {
+            let err_msg = format!(
+                "The specified path '{}' is not a directory",
+                &path.display()
+            );
+            return Err(anyhow::Error::msg(err_msg));
+        }
+
+        if path.is_absolute() {
+            let absolute_path = path.absolutize()?;
+            tokio::fs::create_dir_all(absolute_path).await?;
+            return Ok(());
+        }
+
+        let cwd = std::env::current_dir()?;
+        let absolute_path: PathBuf = cwd.join(&path).absolutize()?.into();
+        tokio::fs::create_dir_all(absolute_path).await?;
+
+        Ok(())
     }
 }
 

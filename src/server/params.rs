@@ -12,7 +12,6 @@ use hyper::server::conn::http1;
 use hyper::service::Service;
 use hyper_util::rt::TokioIo;
 use log::{error, info};
-use path_absolutize::Absolutize;
 use routerify_ng::RouterService;
 use std::error::Error as StdError;
 use std::io::Error as IoError;
@@ -113,42 +112,6 @@ impl ServerParams {
         Err(message.into())
     }
 
-    async fn expect_mocks_path_to_exist(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
-        let Some(ref path) = self.get_absolute_mocks_path().await else {
-            return Err("Mocks dir not set".into());
-        };
-        let metadata_result = tokio::fs::metadata(path).await;
-
-        if let Ok(ref metadata) = metadata_result
-            && metadata.is_dir()
-        {
-            return Ok(());
-        }
-
-        let wrong_target = metadata_result
-            .map(|m| m.is_file() || m.is_symlink())
-            .unwrap_or(false);
-        if wrong_target {
-            let err_msg = format!(
-                "The specified path '{}' is not a directory",
-                &path.display()
-            );
-            return Err(err_msg.into());
-        }
-
-        if path.is_absolute() {
-            let absolute_path = path.absolutize()?;
-            tokio::fs::create_dir_all(absolute_path).await?;
-            return Ok(());
-        }
-
-        let cwd = std::env::current_dir()?;
-        let absolute_path: PathBuf = cwd.join(&path).absolutize()?.into();
-        tokio::fs::create_dir_all(absolute_path).await?;
-
-        Ok(())
-    }
-
     async fn get_host(&self) -> String {
         match self.host {
             Some(ref host) => Some(host.clone()),
@@ -243,7 +206,7 @@ impl ServerParams {
 
     pub async fn test(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
         if let Err(e) = self.expect_mocks_path_to_exist().await {
-            return Err(e);
+            return Err(e.into());
         }
 
         if let Err(e) = self.check_admin_base_url() {
@@ -303,7 +266,7 @@ impl ServerParams {
         loop {
             tokio::select! {
                 Ok((stream, _)) = listener.accept() => {
-                    let router_service = Arc::clone(&router_service);
+                    let router_service = router_service.clone();
                     let graceful = graceful.clone();
                     let http = http.clone();
                     let tls_acceptor = tls_acceptor.clone();
