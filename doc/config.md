@@ -68,6 +68,7 @@ In practice:
 
 - `Host`
 - `Port`
+- `HTTPS Port`
 - `Mocks path`
 - `Cors`
 - `Preflight`
@@ -91,6 +92,7 @@ The global configuration structure supports these keys (`camelCase`):
 
 - `host` (string)
 - `port` (number)
+- `httpPort` (number)
 - `mocks` (string)
 - `cors` (boolean)
 - `preflight` (`"mirror"` or `"permissive"`)
@@ -100,8 +102,6 @@ The global configuration structure supports these keys (`camelCase`):
 - `logRequest` (`"info"`, `"debug"`, `"trace"`)
 - `verbosity` (`"info"`, `"debug"`, `"trace"`)
 - `proxyBodyMaxBytes` (number)
-
-> Note: `proxyBodyMaxBytes` is part of the global config model and used by `serve`, but current `config` output does not print this field.
 
 ---
 
@@ -119,7 +119,7 @@ or interactive mode:
 mockers init --interactive
 ```
 
-`init` writes a default global config (host, port, mocks, CORS, preflight, delay, admin base URL, log level, verbosity).
+`init` writes a default global config (host, port, https port, mocks, CORS, preflight, delay, admin base URL, log level, verbosity).
 
 ---
 
@@ -129,7 +129,7 @@ mockers init --interactive
 
 For `serve`, additional built-in runtime defaults are applied when values are missing:
 - `host = 127.0.0.1`
-- `port = 8080`
+- `port = 8080` (or `8443` when HTTPS enabled)
 - `mocks = mocks`
 - `cors = false`
 - `delayMs = 0`
@@ -148,6 +148,7 @@ Global config:
 =================
 Host:            127.0.0.1
 Port:            8080
+HTTPS Port:      8443
 Mocks path:      mocks
 Cors:            false
 Preflight:       permissive

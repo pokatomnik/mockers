@@ -11,6 +11,7 @@ use crate::middlewares::logger::VerbosityLevel;
 use crate::server::params::DEFAULT_ADMIN_BASE_URL;
 use crate::server::params::DEFAULT_CORS_ENABLED;
 use crate::server::params::DEFAULT_HOST;
+use crate::server::params::DEFAULT_HTTPS_PORT;
 use crate::server::params::DEFAULT_MOCKS_DIR_NAME;
 use crate::server::params::DEFAULT_PORT;
 
@@ -94,6 +95,21 @@ impl InitParams {
             .interact_text()
             .unwrap_or_else(|_| DEFAULT_PORT.to_string());
         port_input.parse().unwrap_or(DEFAULT_PORT)
+    }
+
+    fn ask_https_port() -> u16 {
+        let https_port_input = dialoguer::Input::new()
+            .with_initial_text(DEFAULT_HTTPS_PORT.to_string())
+            .default(DEFAULT_HTTPS_PORT.to_string())
+            .with_prompt("Specify https port to listen on")
+            .validate_with(|v: &String| -> Result<(), &'static str> {
+                v.parse::<u16>()
+                    .map(|_| ())
+                    .map_err(|_| "Invalid port number")
+            })
+            .interact_text()
+            .unwrap_or_else(|_| DEFAULT_HTTPS_PORT.to_string());
+        https_port_input.parse().unwrap_or(DEFAULT_HTTPS_PORT)
     }
 
     fn ask_mocks() -> String {
@@ -191,6 +207,7 @@ impl InitParams {
         let global_config = tokio::task::spawn_blocking(|| {
             let host = Self::ask_host();
             let port: u16 = Self::ask_port();
+            let https_port: u16 = Self::ask_https_port();
             let mocks: String = Self::ask_mocks();
             let cors: bool = Self::ask_cors();
             let preflight: PreflightType = Self::ask_preflight();
@@ -202,6 +219,7 @@ impl InitParams {
             GlobalConfig::default()
                 .with_host(host)
                 .with_port(port)
+                .with_https_port(https_port)
                 .with_mocks(mocks)
                 .with_cors(cors)
                 .with_preflight(preflight)
@@ -254,6 +272,7 @@ impl FairDefaults<GlobalConfig> for GlobalConfig {
         GlobalConfig::default()
             .with_host(DEFAULT_HOST.to_string())
             .with_port(DEFAULT_PORT)
+            .with_https_port(DEFAULT_HTTPS_PORT)
             .with_mocks(DEFAULT_MOCKS_DIR_NAME.to_string())
             .with_cors(DEFAULT_CORS_ENABLED)
             .with_preflight(PreflightType::Permissive)

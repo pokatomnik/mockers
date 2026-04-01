@@ -3,15 +3,17 @@ use crate::libs::create_params::DEFAULT_DELAY_MS;
 use crate::libs::get_info_async::GetInfoAsync;
 use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
 use crate::libs::preflight_type::PreflightType;
+use crate::libs::tls_acceptor_ext::TLSAcceptorLoader;
 use crate::middlewares::logger::VerbosityLevel;
 use crate::server::mockers_router::mockers_router;
+use crate::server::route_error::MockersRouteError;
 use crate::server::signal::make_signal;
 use clap::{ArgAction, Args};
 use hyper::server::conn::http1;
 use hyper::service::Service;
 use hyper_util::rt::TokioIo;
+use hyper_util::server::graceful::GracefulShutdown;
 use log::{error, info};
-use path_absolutize::Absolutize;
 use routerify_ng::RouterService;
 use std::error::Error as StdError;
 use std::io::Error as IoError;
@@ -21,9 +23,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::OnceCell;
+use tokio_rustls::TlsAcceptor;
 
 pub const DEFAULT_HOST: &'static str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 8080;
+pub const DEFAULT_HTTPS_PORT: u16 = 8443;
 pub const DEFAULT_MOCKS_DIR_NAME: &'static str = "mocks";
 pub const DEFAULT_MOCKS_RESPONSE_DELAY: u64 = 0;
 pub const DEFAULT_CORS_ENABLED: bool = false;
@@ -43,8 +47,11 @@ pub struct ServerParams {
     #[arg(long, help = "Host to listen on")]
     host: Option<String>,
 
-    #[arg(long, short, help = "Port to listen on")]
+    #[arg(long, short, help = "HTTP port to listen on")]
     port: Option<u16>,
+
+    #[arg(long, help = "HTTPS port to listen on")]
+    https_port: Option<u16>,
 
     #[arg(long, short, help = "Path to the directory containing mock files")]
     mocks: Option<String>,
@@ -93,6 +100,15 @@ pub struct ServerParams {
 
     #[clap(skip)]
     global_config: OnceCell<GlobalConfigAPI>,
+
+    #[clap(skip)]
+    graceful: OnceCell<Arc<GracefulShutdown>>,
+
+    #[clap(skip)]
+    http: OnceCell<Arc<http1::Builder>>,
+
+    #[clap(skip)]
+    router_service: OnceCell<Arc<RouterService<MockersRouteError>>>,
 }
 
 impl ServerParams {
@@ -111,43 +127,7 @@ impl ServerParams {
         Err(message.into())
     }
 
-    async fn expect_mocks_path_to_exist(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
-        let Some(ref path) = self.get_absolute_mocks_path().await else {
-            return Err("Mocks dir not set".into());
-        };
-        let metadata_result = tokio::fs::metadata(path).await;
-
-        if let Ok(ref metadata) = metadata_result
-            && metadata.is_dir()
-        {
-            return Ok(());
-        }
-
-        let wrong_target = metadata_result
-            .map(|m| m.is_file() || m.is_symlink())
-            .unwrap_or(false);
-        if wrong_target {
-            let err_msg = format!(
-                "The specified path '{}' is not a directory",
-                &path.display()
-            );
-            return Err(err_msg.into());
-        }
-
-        if path.is_absolute() {
-            let absolute_path = path.absolutize()?;
-            tokio::fs::create_dir_all(absolute_path).await?;
-            return Ok(());
-        }
-
-        let cwd = std::env::current_dir()?;
-        let absolute_path: PathBuf = cwd.join(&path).absolutize()?.into();
-        tokio::fs::create_dir_all(absolute_path).await?;
-
-        Ok(())
-    }
-
-    async fn get_host(&self) -> String {
+    pub async fn get_host(&self) -> String {
         match self.host {
             Some(ref host) => Some(host.clone()),
             None => self.get_global_config().await.get_host().await,
@@ -155,12 +135,20 @@ impl ServerParams {
         .unwrap_or_else(|| DEFAULT_HOST.to_string())
     }
 
-    async fn get_port(&self) -> u16 {
+    pub async fn get_port(&self) -> u16 {
         match self.port {
             Some(port) => Some(port),
             None => self.get_global_config().await.get_port().await,
         }
         .unwrap_or(DEFAULT_PORT)
+    }
+
+    pub async fn get_https_port(&self) -> u16 {
+        match self.https_port {
+            Some(port) => Some(port),
+            None => self.get_global_config().await.get_https_port().await,
+        }
+        .unwrap_or(DEFAULT_HTTPS_PORT)
     }
 
     pub async fn admin_base_url(&self) -> Option<String> {
@@ -241,7 +229,7 @@ impl ServerParams {
 
     pub async fn test(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
         if let Err(e) = self.expect_mocks_path_to_exist().await {
-            return Err(e);
+            return Err(e.into());
         }
 
         if let Err(e) = self.check_admin_base_url() {
@@ -251,15 +239,15 @@ impl ServerParams {
         Ok(())
     }
 
-    async fn listener(&self) -> Result<TcpListener, IoError> {
-        let socket_addr = format!("{}:{}", self.get_host().await, self.get_port().await)
+    async fn listener(&self, port: u16, fallback_port: u16) -> Result<TcpListener, IoError> {
+        let socket_addr = format!("{}:{}", self.get_host().await, port)
             .to_socket_addrs()?
             .next();
         if let Some(socket_addr) = socket_addr {
             return TcpListener::bind(socket_addr).await;
         }
 
-        let fallback_addr = format!("{}:{}", DEFAULT_HOST, DEFAULT_PORT)
+        let fallback_addr = format!("{}:{}", DEFAULT_HOST, fallback_port)
             .to_socket_addrs()?
             .next();
         if let Some(fallback_addr) = fallback_addr {
@@ -272,13 +260,40 @@ impl ServerParams {
         ))
     }
 
-    pub async fn start_server(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
-        let http = Arc::new(http1::Builder::new());
-        let graceful = Arc::new(hyper_util::server::graceful::GracefulShutdown::new());
-        let listener = self.listener().await?;
+    async fn graceful_shutdown(&self) -> Arc<GracefulShutdown> {
+        self.graceful
+            .get_or_init(async || Arc::new(hyper_util::server::graceful::GracefulShutdown::new()))
+            .await
+            .clone()
+    }
+
+    async fn http(&self) -> Arc<http1::Builder> {
+        self.http
+            .get_or_init(async || Arc::new(http1::Builder::new()))
+            .await
+            .clone()
+    }
+
+    async fn router_service(&self) -> anyhow::Result<Arc<RouterService<MockersRouteError>>> {
+        self.router_service
+            .get_or_try_init(async || {
+                let mockers_router = mockers_router(&self)
+                    .await
+                    .map_err(anyhow::Error::from_boxed)?;
+                let router_service =
+                    RouterService::new(mockers_router).map_err(anyhow::Error::from_boxed)?;
+                Ok(Arc::new(router_service))
+            })
+            .await
+            .map(Arc::clone)
+    }
+
+    async fn start_http_server(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
+        let http = self.http().await;
+        let graceful = self.graceful_shutdown().await;
+        let listener = self.listener(self.get_port().await, DEFAULT_PORT).await?;
         let mut shutdown_signal = make_signal();
-        let router = mockers_router(&self).await?;
-        let router_service = Arc::new(RouterService::new(router)?);
+        let router_service = self.router_service().await?;
 
         println!("{}", BANNER_MSG);
         match self.verbosity_level().await {
@@ -294,24 +309,26 @@ impl ServerParams {
         );
 
         loop {
+            let router_service = router_service.clone();
+            let graceful = graceful.clone();
+            let http = http.clone();
+
             tokio::select! {
                 Ok((stream, _)) = listener.accept() => {
-                    let router_service = Arc::clone(&router_service);
-                    let graceful = graceful.clone();
-                    let http = http.clone();
-
                     tokio::spawn(async move {
                         match router_service.call(&stream).await {
                             Ok(request_service) => {
                                 let io = TokioIo::new(stream);
-
                                 let conn = http.serve_connection(io, request_service);
                                 let fut = graceful.watch(conn);
+
                                 if let Err(e) = fut.await {
-                                    error!("Error serving connection: {:?}", e);
+                                    error!("Error serving HTTP connection: {:?}", e);
                                 }
                             }
-                            Err(_) => {}
+                            Err(e) => {
+                                error!("Failed to create HTTP request service: {:?}", e);
+                            }
                         }
                     });
                 },
@@ -325,6 +342,89 @@ impl ServerParams {
         }
         Ok(())
     }
+
+    async fn start_https_server(
+        &self,
+        tls_acceptor: Arc<TlsAcceptor>,
+    ) -> Result<(), Box<dyn StdError + Send + Sync>> {
+        let http = self.http().await;
+        let graceful = self.graceful_shutdown().await;
+        let listener = self
+            .listener(self.get_https_port().await, DEFAULT_HTTPS_PORT)
+            .await?;
+        let mut shutdown_signal = make_signal();
+        let router_service = self.router_service().await?;
+
+        println!("{}", BANNER_MSG);
+        match self.verbosity_level().await {
+            VerbosityLevel::Debug | VerbosityLevel::Trace => {
+                info!("{}", self.get_help("Start parameters").await)
+            }
+            VerbosityLevel::Info => {}
+        };
+        info!(
+            "Server has started at {}:{}",
+            self.get_host().await,
+            self.get_https_port().await
+        );
+
+        loop {
+            let router_service = router_service.clone();
+            let graceful = graceful.clone();
+            let http = http.clone();
+            let tls_acceptor = tls_acceptor.clone();
+
+            tokio::select! {
+                Ok((stream, _)) = listener.accept() => {
+                    tokio::spawn(async move {
+                        let stream = match tls_acceptor.accept(stream).await {
+                            Ok(stream) => stream,
+                            Err(e) => {
+                                error!("TLS handshake failed: {:?}", e);
+                                return;
+                            }
+                        };
+
+                        let io = TokioIo::new(stream);
+                        let tcp_stream = io.inner().get_ref().0;
+
+                        match router_service.call(tcp_stream).await {
+                            Ok(request_service) => {
+                                let conn = http.serve_connection(io, request_service);
+                                let fut = graceful.watch(conn);
+
+                                if let Err(e) = fut.await {
+                                    error!("Error serving HTTPS connection: {:?}", e);
+                                }
+                            }
+                            Err(e) => {
+                                error!("Failed to create HTTPS request service: {:?}", e);
+                            }
+                        }
+                    });
+                },
+
+                _ = &mut shutdown_signal => {
+                    drop(listener);
+                    error!("graceful shutdown signal received");
+                    break;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn start_server(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
+        let tls_acceptor = match self.get_absolute_mocks_path().await {
+            Some(amp) => TlsAcceptor::load(amp).await.map(Arc::new),
+            None => None,
+        };
+
+        match tls_acceptor {
+            Some(tls_acceptor) => self.start_https_server(tls_acceptor).await,
+            None => self.start_http_server().await,
+        }
+    }
 }
 
 impl WithMocks for ServerParams {
@@ -336,95 +436,5 @@ impl WithMocks for ServerParams {
 impl WithGlobalConfigAPI for ServerParams {
     async fn get_global_config(&self) -> &GlobalConfigAPI {
         self.global_config.get_or_init(GlobalConfigAPI::new).await
-    }
-}
-
-impl GetInfoAsync for ServerParams {
-    async fn get_help(&self, title: &str) -> String {
-        let mut buf = String::from(format!("{}:{}", title, Self::EOL));
-        buf.push_str(&format!("================={}", Self::EOL));
-        let host_info = format!(
-            "Host:{}{}{}",
-            Self::TAB.repeat(3),
-            self.get_host().await,
-            Self::EOL
-        );
-        let port_info = format!(
-            "Port:{}{}{}",
-            Self::TAB.repeat(3),
-            self.get_port().await,
-            Self::EOL
-        );
-        let mocks_path_info = format!(
-            "Mocks path:{}{}{}",
-            Self::TAB.repeat(2),
-            self.get_absolute_mocks_path()
-                .await
-                .map(|v| v.to_string_lossy().to_string())
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL,
-        );
-        let cors_info = format!(
-            "Cors:{}{}{}",
-            Self::TAB.repeat(3),
-            self.cors().await,
-            Self::EOL
-        );
-        let preflight_info = format!(
-            "Preflight:{}{}{}",
-            Self::TAB.repeat(2),
-            self.preflight()
-                .await
-                .map(|pt| pt.to_string())
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL
-        );
-        let delay_ms_info = format!(
-            "Delay in milliseconds:{}{}{}",
-            Self::TAB,
-            self.delay_ms().await,
-            Self::EOL
-        );
-        let origin_info = format!(
-            "Origin:{}{}{}",
-            Self::TAB.repeat(3),
-            self.origin()
-                .await
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL,
-        );
-        let admin_base_url_info = format!(
-            "Admin base URL:{}{}{}",
-            Self::TAB.repeat(2),
-            self.admin_base_url()
-                .await
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL,
-        );
-        let log_request_info = format!(
-            "Requests log level:{}{}{}",
-            Self::TAB,
-            self.log_request().await,
-            Self::EOL,
-        );
-        let verbosity_level_info = format!(
-            "Verbosity level:{}{}{}",
-            Self::TAB,
-            self.verbosity_level().await,
-            Self::EOL
-        );
-
-        buf.push_str(&host_info);
-        buf.push_str(&port_info);
-        buf.push_str(&mocks_path_info);
-        buf.push_str(&cors_info);
-        buf.push_str(&preflight_info);
-        buf.push_str(&delay_ms_info);
-        buf.push_str(&origin_info);
-        buf.push_str(&admin_base_url_info);
-        buf.push_str(&log_request_info);
-        buf.push_str(&verbosity_level_info);
-
-        buf
     }
 }

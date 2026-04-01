@@ -53,6 +53,7 @@ Defaults:
 
 - host: `127.0.0.1`
 - port: `8080`
+- https port: `8443`
 - mocks dir: `./mocks`
 
 If `./mocks` does not exist, Mockers creates it.
@@ -91,6 +92,7 @@ mockers serve [OPTIONS]
 | --- | --- | --- |
 | `--host` | `127.0.0.1` | Interface to bind to |
 | `--port`, `-p` | `8080` | Port to listen on |
+| `--https-port` | `8443` | HTTPS port to listen on |
 | `--mocks`, `-m` | `mocks` | Directory with mock files |
 | `--cors`, `-c` | `false` | Adds CORS headers (`Access-Control-Allow-Origin: *`) |
 | `--preflight` | unset | Auto-handle browser OPTIONS preflight requests |
@@ -98,6 +100,18 @@ mockers serve [OPTIONS]
 | `--origin`, `-o` | unset | Fallback upstream server when mock is missing |
 | `--admin-base-url`, `-a` | unset | Enables admin API + Swagger under given absolute base path |
 | `--log-request`, `-l` | `info` | Request logging level: `info`, `debug`, `trace` |
+
+### HTTPS support
+
+`mockers serve` can run with HTTPS enabled.
+
+To turn it on, put a TLS certificate and private key into your `mocks` directory and name them `cert.pem` and `key.pem`. No magic, just files.
+
+Mockers uses a separate port for HTTPS, so HTTP and HTTPS do not have to fight over the same one. Configure it with the `httpsPort` field in the global config file or with the `--https-port` flag.
+
+If `cert.pem`, `key.pem`, and an HTTPS port are present, Mockers will start serving HTTPS.
+
+For local development, you can generate certificates with any tool you prefer. Mockers does not care. If you want the easy route, use [mkcert](https://github.com/filosottile/mkcert). It can create a local root CA, add it to your system trust store, and issue a certificate for `127.0.0.1` or a local domain.
 
 ### Preflight modes
 

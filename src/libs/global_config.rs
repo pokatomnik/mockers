@@ -16,6 +16,7 @@ pub(crate) static GLOBAL_CONFIG_FILE_NAME: &'static str = ".mockers";
 pub(crate) struct GlobalConfig {
     host: Option<String>,
     port: Option<u16>,
+    https_port: Option<u16>,
     mocks: Option<String>,
     cors: Option<bool>,
     preflight: Option<PreflightType>,
@@ -30,6 +31,7 @@ pub(crate) struct GlobalConfig {
 pub(crate) trait GlobalConfigBuilder {
     fn with_host(self, host: String) -> Self;
     fn with_port(self, port: u16) -> Self;
+    fn with_https_port(self, https_port: u16) -> Self;
     fn with_mocks(self, mocks: String) -> Self;
     fn with_cors(self, cors: bool) -> Self;
     fn with_preflight(self, preflight: PreflightType) -> Self;
@@ -49,6 +51,11 @@ impl GlobalConfigBuilder for GlobalConfig {
 
     fn with_port(mut self, port: u16) -> Self {
         self.port = Some(port);
+        self
+    }
+
+    fn with_https_port(mut self, https_port: u16) -> Self {
+        self.https_port = Some(https_port);
         self
     }
 
@@ -104,6 +111,7 @@ impl GlobalConfig {
             .flatten()
             .or_else(|| self.host.clone());
         let port = other.map(|o| o.port).flatten().or(self.port);
+        let https_port = other.map(|o| o.https_port).flatten().or(self.https_port);
         let mocks = other
             .map(|o| o.mocks.clone())
             .flatten()
@@ -128,6 +136,7 @@ impl GlobalConfig {
         GlobalConfig {
             host,
             port,
+            https_port,
             mocks,
             cors,
             preflight,
@@ -234,6 +243,10 @@ impl GlobalConfigAPI {
         self.get_config().await.port
     }
 
+    pub async fn get_https_port(&self) -> Option<u16> {
+        self.get_config().await.https_port
+    }
+
     pub async fn get_mocks(&self) -> Option<String> {
         self.get_config().await.mocks
     }
@@ -287,6 +300,15 @@ impl GetInfoAsync for GlobalConfigAPI {
             "Port:{}{}{}",
             Self::TAB.repeat(3),
             self.get_port()
+                .await
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| Self::UNSET.to_string()),
+            Self::EOL
+        );
+        let https_port_info = format!(
+            "HTTPS Port:{}{}{}",
+            Self::TAB.repeat(2),
+            self.get_https_port()
                 .await
                 .map(|v| v.to_string())
                 .unwrap_or_else(|| Self::UNSET.to_string()),
@@ -361,9 +383,19 @@ impl GetInfoAsync for GlobalConfigAPI {
                 .unwrap_or_else(|| Self::UNSET.to_string()),
             Self::EOL
         );
+        let proxy_body_max_bytes = format!(
+            "Proxy body max bytes:{}{}{}",
+            Self::TAB,
+            self.get_proxy_body_max_bytes()
+                .await
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| Self::UNSET.to_string()),
+            Self::EOL,
+        );
 
         buf.push_str(&host_info);
         buf.push_str(&port_info);
+        buf.push_str(&https_port_info);
         buf.push_str(&mocks_path_info);
         buf.push_str(&cors_info);
         buf.push_str(&preflight_info);
@@ -372,6 +404,7 @@ impl GetInfoAsync for GlobalConfigAPI {
         buf.push_str(&admin_base_url_info);
         buf.push_str(&log_request_info);
         buf.push_str(&verbosity_level_info);
+        buf.push_str(&proxy_body_max_bytes);
 
         buf
     }

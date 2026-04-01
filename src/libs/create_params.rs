@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 use std::error::Error as StdError;
-use std::fs::Metadata;
 use std::io::Error as IoError;
 use std::io::ErrorKind;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
 use crate::libs::cache_mode::CacheMode;
@@ -12,7 +11,6 @@ use crate::libs::mock_config::MockConfig;
 use crate::libs::path_buf_ext::PathBufExt;
 use crate::server::params::CONFIG_FILE_NAME;
 use clap::Args;
-use path_absolutize::Absolutize;
 use serde_json::json;
 use tokio::sync::OnceCell;
 use tokio::try_join;
@@ -90,49 +88,9 @@ impl CreateParams {
         None
     }
 
-    async fn expect_mocks_path_to_exist(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
-        let Some(ref path) = self.get_absolute_mocks_path().await else {
-            return Err("Mocks dir not set".into());
-        };
-        let path_metadata = tokio::fs::metadata(path).await;
-
-        let is_dir = path_metadata
-            .as_ref()
-            .map(Metadata::is_dir)
-            .unwrap_or(false);
-
-        if is_dir {
-            return Ok(());
-        }
-
-        let wrong_target = path_metadata
-            .map(|m| m.is_file() || m.is_symlink())
-            .unwrap_or(false);
-
-        if wrong_target {
-            let err_msg = format!(
-                "The specified path '{}' is not a directory",
-                &path.display()
-            );
-            return Err(err_msg.into());
-        }
-
-        if path.is_absolute() {
-            let absolute_path = path.absolutize()?;
-            tokio::fs::create_dir_all(absolute_path).await?;
-            return Ok(());
-        }
-
-        let cwd = std::env::current_dir()?;
-        let absolute_path: PathBuf = cwd.join(&path).absolutize()?.into();
-        tokio::fs::create_dir_all(absolute_path).await?;
-
-        Ok(())
-    }
-
     pub async fn test(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
         if let Err(e) = self.expect_mocks_path_to_exist().await {
-            return Err(e);
+            return Err(e.into());
         }
 
         Ok(())
