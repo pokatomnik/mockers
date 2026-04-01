@@ -53,6 +53,7 @@ Defaults:
 
 - host: `127.0.0.1`
 - port: `8080`
+- https port: `8443`
 - mocks dir: `./mocks`
 
 If `./mocks` does not exist, Mockers creates it.
@@ -91,6 +92,7 @@ mockers serve [OPTIONS]
 | --- | --- | --- |
 | `--host` | `127.0.0.1` | Interface to bind to |
 | `--port`, `-p` | `8080` | Port to listen on |
+| `--https-port` | `8443` | HTTPS port to listen on |
 | `--mocks`, `-m` | `mocks` | Directory with mock files |
 | `--cors`, `-c` | `false` | Adds CORS headers (`Access-Control-Allow-Origin: *`) |
 | `--preflight` | unset | Auto-handle browser OPTIONS preflight requests |
