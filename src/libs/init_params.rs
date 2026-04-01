@@ -272,6 +272,7 @@ impl FairDefaults<GlobalConfig> for GlobalConfig {
         GlobalConfig::default()
             .with_host(DEFAULT_HOST.to_string())
             .with_port(DEFAULT_PORT)
+            .with_https_port(DEFAULT_HTTPS_PORT)
             .with_mocks(DEFAULT_MOCKS_DIR_NAME.to_string())
             .with_cors(DEFAULT_CORS_ENABLED)
             .with_preflight(PreflightType::Permissive)

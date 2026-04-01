@@ -55,7 +55,7 @@ impl GlobalConfigBuilder for GlobalConfig {
     }
 
     fn with_https_port(mut self, https_port: u16) -> Self {
-        self.port = Some(https_port);
+        self.https_port = Some(https_port);
         self
     }
 
