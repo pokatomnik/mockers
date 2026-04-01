@@ -383,6 +383,15 @@ impl GetInfoAsync for GlobalConfigAPI {
                 .unwrap_or_else(|| Self::UNSET.to_string()),
             Self::EOL
         );
+        let proxy_body_max_bytes = format!(
+            "Proxy body max bytes:{}{}{}",
+            Self::TAB,
+            self.get_proxy_body_max_bytes()
+                .await
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| Self::UNSET.to_string()),
+            Self::EOL,
+        );
 
         buf.push_str(&host_info);
         buf.push_str(&port_info);
@@ -395,6 +404,7 @@ impl GetInfoAsync for GlobalConfigAPI {
         buf.push_str(&admin_base_url_info);
         buf.push_str(&log_request_info);
         buf.push_str(&verbosity_level_info);
+        buf.push_str(&proxy_body_max_bytes);
 
         buf
     }

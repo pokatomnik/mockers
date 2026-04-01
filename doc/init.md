@@ -49,6 +49,7 @@ When run without `--interactive`, the command writes a "fair defaults" configura
 {
   "host": "127.0.0.1",
   "port": 8080,
+  "httpsPort": 8443,
   "mocks": "mocks",
   "cors": false,
   "preflight": "permissive",
@@ -74,13 +75,14 @@ Prompts include:
 
 1. Host/IP
 2. Port
-3. Mocks directory
-4. CORS on/off
-5. Preflight mode (`permissive` or `mirror`)
-6. Global delay (ms)
-7. Admin base URL
-8. Request log level (`info`, `debug`, `trace`)
-9. Verbosity level (`info`, `debug`, `trace`)
+3. HTTPS Port
+4. Mocks directory
+5. CORS on/off
+6. Preflight mode (`permissive` or `mirror`)
+7. Global delay (ms)
+8. Admin base URL
+9. Request log level (`info`, `debug`, `trace`)
+10. Verbosity level (`info`, `debug`, `trace`)
 
 Prompt behavior details:
 
