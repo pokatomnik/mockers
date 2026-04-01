@@ -16,6 +16,7 @@ pub(crate) static GLOBAL_CONFIG_FILE_NAME: &'static str = ".mockers";
 pub(crate) struct GlobalConfig {
     host: Option<String>,
     port: Option<u16>,
+    https_port: Option<u16>,
     mocks: Option<String>,
     cors: Option<bool>,
     preflight: Option<PreflightType>,
@@ -104,6 +105,7 @@ impl GlobalConfig {
             .flatten()
             .or_else(|| self.host.clone());
         let port = other.map(|o| o.port).flatten().or(self.port);
+        let https_port = other.map(|o| o.https_port).flatten().or(self.https_port);
         let mocks = other
             .map(|o| o.mocks.clone())
             .flatten()
@@ -128,6 +130,7 @@ impl GlobalConfig {
         GlobalConfig {
             host,
             port,
+            https_port,
             mocks,
             cors,
             preflight,
@@ -232,6 +235,10 @@ impl GlobalConfigAPI {
 
     pub async fn get_port(&self) -> Option<u16> {
         self.get_config().await.port
+    }
+
+    pub async fn get_https_port(&self) -> Option<u16> {
+        self.get_config().await.https_port
     }
 
     pub async fn get_mocks(&self) -> Option<String> {
