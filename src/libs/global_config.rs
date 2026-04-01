@@ -31,6 +31,7 @@ pub(crate) struct GlobalConfig {
 pub(crate) trait GlobalConfigBuilder {
     fn with_host(self, host: String) -> Self;
     fn with_port(self, port: u16) -> Self;
+    fn with_https_port(self, https_port: u16) -> Self;
     fn with_mocks(self, mocks: String) -> Self;
     fn with_cors(self, cors: bool) -> Self;
     fn with_preflight(self, preflight: PreflightType) -> Self;
@@ -50,6 +51,11 @@ impl GlobalConfigBuilder for GlobalConfig {
 
     fn with_port(mut self, port: u16) -> Self {
         self.port = Some(port);
+        self
+    }
+
+    fn with_https_port(mut self, https_port: u16) -> Self {
+        self.port = Some(https_port);
         self
     }
 
@@ -299,6 +305,15 @@ impl GetInfoAsync for GlobalConfigAPI {
                 .unwrap_or_else(|| Self::UNSET.to_string()),
             Self::EOL
         );
+        let https_port_info = format!(
+            "HTTPS Port:{}{}{}",
+            Self::TAB.repeat(2),
+            self.get_https_port()
+                .await
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| Self::UNSET.to_string()),
+            Self::EOL
+        );
         let mocks_path_info = format!(
             "Mocks path:{}{}{}",
             Self::TAB.repeat(2),
@@ -371,6 +386,7 @@ impl GetInfoAsync for GlobalConfigAPI {
 
         buf.push_str(&host_info);
         buf.push_str(&port_info);
+        buf.push_str(&https_port_info);
         buf.push_str(&mocks_path_info);
         buf.push_str(&cors_info);
         buf.push_str(&preflight_info);
