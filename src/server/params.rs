@@ -277,7 +277,7 @@ impl ServerParams {
     async fn router_service(&self) -> anyhow::Result<Arc<RouterService<MockersRouteError>>> {
         self.router_service
             .get_or_try_init(async || {
-                let mockers_router = mockers_router(&self)
+                let mockers_router = mockers_router(&self, "/swagger")
                     .await
                     .map_err(anyhow::Error::from_boxed)?;
                 let router_service =

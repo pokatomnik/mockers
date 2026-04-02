@@ -27,7 +27,9 @@ use reqwest::Client;
 use routerify_ng::Router;
 use routerify_ng::{Middleware, RouteError};
 
-pub fn admin_router(_params: &ServerParams) -> Result<Router<MockersRouteError>, RouteError> {
+pub fn admin_router(
+    swagger_base_path: &'static str,
+) -> Result<Router<MockersRouteError>, RouteError> {
     Router::builder()
         // TODO web app routes
         .get("/", admin_page_handler)
@@ -37,21 +39,36 @@ pub fn admin_router(_params: &ServerParams) -> Result<Router<MockersRouteError>,
         .post("/api/v2/mocks/create", create_mock)
         .post("/api/v2/mocks/delete", delete_mock)
         // Swagger UI routes
-        .get("/swagger", get_swagger_html)
-        .get("/swagger/swagger-ui.css", get_swagger_ui_css)
-        .get("/swagger/index.css", get_index_css)
-        .get("/swagger/favicon-32x32.png", get_favicon_32)
-        .get("/swagger/favicon-16x16.png", get_favicon_16)
-        .get("/swagger/swagger-ui-bundle.js", get_swagger_ui_bundle_js)
+        .get(format!("{}", swagger_base_path), get_swagger_html)
         .get(
-            "/swagger/swagger-ui-standalone-preset.js",
+            format!("{}/swagger-ui.css", swagger_base_path),
+            get_swagger_ui_css,
+        )
+        .get(format!("{}/index.css", swagger_base_path), get_index_css)
+        .get(
+            format!("{}/favicon-32x32.png", swagger_base_path),
+            get_favicon_32,
+        )
+        .get(
+            format!("{}/favicon-16x16.png", swagger_base_path),
+            get_favicon_16,
+        )
+        .get(
+            format!("{}/swagger-ui-bundle.js", swagger_base_path),
+            get_swagger_ui_bundle_js,
+        )
+        .get(
+            format!("{}/swagger-ui-standalone-preset.js", swagger_base_path),
             get_swagger_ui_standalone_preset,
         )
         .get(
-            "/swagger/swagger-initializer.js",
+            format!("{}/swagger-initializer.js", swagger_base_path),
             get_swagger_initializer_js,
         )
-        .get("/swagger/swagger.yaml", get_mockers_yaml)
+        .get(
+            format!("{}/swagger.yaml", swagger_base_path),
+            get_mockers_yaml,
+        )
         .any(handle_options)
         .middleware(Middleware::post(admin_api_cors))
         .build()
@@ -59,6 +76,7 @@ pub fn admin_router(_params: &ServerParams) -> Result<Router<MockersRouteError>,
 
 pub async fn mockers_router(
     params: &ServerParams,
+    swagger_base_path: &'static str,
 ) -> Result<Router<MockersRouteError>, RouteError> {
     let router_builder = {
         let mut router = Router::builder().data(Arc::new(MockersContext {
@@ -68,7 +86,7 @@ pub async fn mockers_router(
         if let Some((admin_base_url, admin_router)) = params
             .admin_base_url()
             .await
-            .zip(admin_router(&params).ok())
+            .zip(admin_router(swagger_base_path).ok())
         {
             router = router.scope(admin_base_url, admin_router)
         }
