@@ -12,7 +12,7 @@ use crate::libs::info_params::InfoParams;
 use clap::Subcommand;
 use strum_macros::EnumDiscriminants;
 
-#[derive(Subcommand, Debug, Clone, EnumDiscriminants)]
+#[derive(Subcommand, Clone, EnumDiscriminants)]
 #[strum_discriminants(name(Doc), vis(pub(crate)), derive(clap::ValueEnum))]
 pub enum Commands {
     #[clap(visible_aliases = ["run", "start", "s"], about = "Run server")]

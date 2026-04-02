@@ -38,10 +38,11 @@ pub const DEFAULT_ADMIN_BASE_URL: &'static str = "/__admin";
 pub const DEFAULT_PROXY_RESPONSE_BODY_BYTES: usize = 1024 * 1024 * 16;
 /// Default maxumum number of bytes allowed to fetch from remote server
 pub const HARD_MAX_PROXY_RESPONSE_BODY_BYTES: usize = DEFAULT_PROXY_RESPONSE_BODY_BYTES * 2;
+static SWAGGER_BASE_PATH: &'static str = "/swagger";
 
 static BANNER_MSG: &'static str = include_str!("./banner.txt");
 
-#[derive(Args, Debug, Clone)]
+#[derive(Args, Clone)]
 #[clap(rename_all = "kebab-case")]
 pub struct ServerParams {
     #[arg(long, help = "Host to listen on")]
@@ -109,6 +110,9 @@ pub struct ServerParams {
 
     #[clap(skip)]
     router_service: OnceCell<Arc<RouterService<MockersRouteError>>>,
+
+    #[clap(skip)]
+    tls_acceptor: OnceCell<Option<Arc<TlsAcceptor>>>,
 }
 
 impl ServerParams {
@@ -239,19 +243,12 @@ impl ServerParams {
         Ok(())
     }
 
-    async fn listener(&self, port: u16, fallback_port: u16) -> Result<TcpListener, IoError> {
+    async fn listener(&self, port: u16) -> Result<TcpListener, IoError> {
         let socket_addr = format!("{}:{}", self.get_host().await, port)
             .to_socket_addrs()?
             .next();
         if let Some(socket_addr) = socket_addr {
             return TcpListener::bind(socket_addr).await;
-        }
-
-        let fallback_addr = format!("{}:{}", DEFAULT_HOST, fallback_port)
-            .to_socket_addrs()?
-            .next();
-        if let Some(fallback_addr) = fallback_addr {
-            return TcpListener::bind(fallback_addr).await;
         }
 
         Err(IoError::new(
@@ -277,7 +274,7 @@ impl ServerParams {
     async fn router_service(&self) -> anyhow::Result<Arc<RouterService<MockersRouteError>>> {
         self.router_service
             .get_or_try_init(async || {
-                let mockers_router = mockers_router(&self)
+                let mockers_router = mockers_router(&self, SWAGGER_BASE_PATH)
                     .await
                     .map_err(anyhow::Error::from_boxed)?;
                 let router_service =
@@ -288,10 +285,20 @@ impl ServerParams {
             .map(Arc::clone)
     }
 
+    async fn tls_acceptor(&self) -> Option<Arc<TlsAcceptor>> {
+        self.tls_acceptor
+            .get_or_init(async || match self.get_absolute_mocks_path().await {
+                Some(amp) => TlsAcceptor::load(amp).await.map(Arc::new),
+                None => None,
+            })
+            .await
+            .to_owned()
+    }
+
     async fn start_http_server(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
         let http = self.http().await;
         let graceful = self.graceful_shutdown().await;
-        let listener = self.listener(self.get_port().await, DEFAULT_PORT).await?;
+        let listener = self.listener(self.get_port().await).await?;
         let mut shutdown_signal = make_signal();
         let router_service = self.router_service().await?;
 
@@ -303,10 +310,13 @@ impl ServerParams {
             VerbosityLevel::Info => {}
         };
         info!(
-            "Server has started at {}:{}",
+            "HTTP Server has started at {}:{}",
             self.get_host().await,
             self.get_port().await
         );
+        if let Some(swagger_url) = self.get_swagger_base_url().await {
+            info!("Swagger available at {swagger_url}")
+        }
 
         loop {
             let router_service = router_service.clone();
@@ -349,9 +359,7 @@ impl ServerParams {
     ) -> Result<(), Box<dyn StdError + Send + Sync>> {
         let http = self.http().await;
         let graceful = self.graceful_shutdown().await;
-        let listener = self
-            .listener(self.get_https_port().await, DEFAULT_HTTPS_PORT)
-            .await?;
+        let listener = self.listener(self.get_https_port().await).await?;
         let mut shutdown_signal = make_signal();
         let router_service = self.router_service().await?;
 
@@ -363,10 +371,13 @@ impl ServerParams {
             VerbosityLevel::Info => {}
         };
         info!(
-            "Server has started at {}:{}",
+            "HTTPS Server has started at {}:{}",
             self.get_host().await,
             self.get_https_port().await
         );
+        if let Some(swagger_url) = self.get_swagger_base_url().await {
+            info!("Swagger available at {swagger_url}")
+        }
 
         loop {
             let router_service = router_service.clone();
@@ -414,11 +425,31 @@ impl ServerParams {
         Ok(())
     }
 
-    pub async fn start_server(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
-        let tls_acceptor = match self.get_absolute_mocks_path().await {
-            Some(amp) => TlsAcceptor::load(amp).await.map(Arc::new),
-            None => None,
+    async fn get_swagger_base_url(&self) -> Option<String> {
+        let tls_enabled = self.tls_acceptor().await.is_some();
+
+        let Some(ref admin_base_url) = self.admin_base_url().await else {
+            return None;
         };
+
+        let protocol = match tls_enabled {
+            true => "https",
+            false => "http",
+        };
+
+        let host = self.get_host().await;
+        let port = match tls_enabled {
+            true => self.get_https_port().await,
+            false => self.get_port().await,
+        };
+
+        let swagger_url = format!("{protocol}://{host}:{port}{admin_base_url}{SWAGGER_BASE_PATH}");
+
+        Some(swagger_url)
+    }
+
+    pub async fn start_server(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
+        let tls_acceptor = self.tls_acceptor().await;
 
         match tls_acceptor {
             Some(tls_acceptor) => self.start_https_server(tls_acceptor).await,
