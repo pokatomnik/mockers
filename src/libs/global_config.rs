@@ -41,6 +41,7 @@ pub(crate) trait GlobalConfigBuilder {
     fn with_admin_base_url(self, admin_base_url: String) -> Self;
     fn with_log_request(self, log_request: VerbosityLevel) -> Self;
     fn with_verbosity(self, verbosity: VerbosityLevel) -> Self;
+    fn with_proxy_body_max_bytes(self, proxy_body_max_bytes: usize) -> Self;
 }
 
 impl GlobalConfigBuilder for GlobalConfig {
@@ -96,6 +97,11 @@ impl GlobalConfigBuilder for GlobalConfig {
 
     fn with_verbosity(mut self, verbosity: VerbosityLevel) -> Self {
         self.verbosity = Some(verbosity);
+        self
+    }
+
+    fn with_proxy_body_max_bytes(mut self, proxy_body_max_bytes: usize) -> Self {
+        self.proxy_body_max_bytes = Some(proxy_body_max_bytes);
         self
     }
 }

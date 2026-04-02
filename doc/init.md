@@ -56,14 +56,14 @@ When run without `--interactive`, the command writes a "fair defaults" configura
   "delayMs": 0,
   "adminBaseUrl": "/__admin",
   "logRequest": "info",
-  "verbosity": "info"
+  "verbosity": "info",
+  "proxyBodyMaxBytes": 16777216
 }
 ```
 
 Notes:
 
 - `origin` is not set by default.
-- `proxyBodyMaxBytes` is also not set by `init`; runtime fallback is used unless provided elsewhere.
 
 ---
 

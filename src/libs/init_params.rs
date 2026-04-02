@@ -14,6 +14,8 @@ use crate::server::params::DEFAULT_HOST;
 use crate::server::params::DEFAULT_HTTPS_PORT;
 use crate::server::params::DEFAULT_MOCKS_DIR_NAME;
 use crate::server::params::DEFAULT_PORT;
+use crate::server::params::DEFAULT_PROXY_RESPONSE_BODY_BYTES;
+use crate::server::params::HARD_MAX_PROXY_RESPONSE_BODY_BYTES;
 
 #[derive(Args, Debug, Clone)]
 pub struct InitParams {
@@ -203,6 +205,30 @@ impl InitParams {
             .unwrap_or(VerbosityLevel::Info)
     }
 
+    fn ask_proxy_body_max_bytes() -> usize {
+        let proxy_body_max_bytes = dialoguer::Input::new()
+            .with_initial_text(DEFAULT_PROXY_RESPONSE_BODY_BYTES.to_string())
+            .default(DEFAULT_PROXY_RESPONSE_BODY_BYTES.to_string())
+            .with_prompt("Specify the maximum size of the response body of the proxied server")
+            .validate_with(|v: &String| -> Result<(), String> {
+                if let Ok(parsed) = v.parse::<usize>()
+                    && parsed <= HARD_MAX_PROXY_RESPONSE_BODY_BYTES
+                {
+                    return Ok(());
+                }
+
+                return Err(format!(
+                    "Choose value between {} and {}",
+                    0, HARD_MAX_PROXY_RESPONSE_BODY_BYTES
+                ));
+            })
+            .interact()
+            .unwrap_or_else(|_| DEFAULT_PROXY_RESPONSE_BODY_BYTES.to_string());
+        proxy_body_max_bytes
+            .parse()
+            .unwrap_or(DEFAULT_PROXY_RESPONSE_BODY_BYTES)
+    }
+
     async fn init_interactive(&self) -> Result<(), anyhow::Error> {
         let global_config = tokio::task::spawn_blocking(|| {
             let host = Self::ask_host();
@@ -215,6 +241,7 @@ impl InitParams {
             let admin_base_url: String = Self::ask_admin_base_url();
             let log_request: VerbosityLevel = Self::ask_log_request_level();
             let verbosity: VerbosityLevel = Self::ask_verbosity_level();
+            let proxy_body_max_bytes = Self::ask_proxy_body_max_bytes();
 
             GlobalConfig::default()
                 .with_host(host)
@@ -227,6 +254,7 @@ impl InitParams {
                 .with_admin_base_url(admin_base_url)
                 .with_log_request(log_request)
                 .with_verbosity(verbosity)
+                .with_proxy_body_max_bytes(proxy_body_max_bytes)
         })
         .await
         .unwrap_or_else(|_| GlobalConfig::fair_defaults());
@@ -254,10 +282,18 @@ impl InitParams {
             false => self.init_with_defaults().await,
         };
 
-        println!(
-            "Config saved to {}",
-            self.get_user_config_path()?.to_string_lossy().to_string()
-        );
+        let message = match result {
+            Ok(_) => &format!(
+                "🎉 Config saved to {}",
+                self.get_user_config_path()?.to_string_lossy().to_string()
+            ),
+            Err(ref e) => &format!("❌ Failed to save config: {}", e),
+        };
+
+        match result {
+            Ok(_) => println!("\n{}", message),
+            Err(_) => eprintln!("\n{}", message),
+        }
 
         result.map_err(Box::from)
     }
