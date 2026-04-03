@@ -25,7 +25,7 @@ use tokio::net::TcpListener;
 use tokio::sync::OnceCell;
 use tokio_rustls::TlsAcceptor;
 
-pub const DEFAULT_HOST: &'static str = "127.0.0.1";
+pub const DEFAULT_HOST: &'static str = "0.0.0.0";
 pub const DEFAULT_PORT: u16 = 8080;
 pub const DEFAULT_HTTPS_PORT: u16 = 8443;
 pub const DEFAULT_MOCKS_DIR_NAME: &'static str = "mocks";
@@ -302,7 +302,7 @@ impl ServerParams {
         let mut shutdown_signal = make_signal();
         let router_service = self.router_service().await?;
 
-        println!("{}", BANNER_MSG);
+        println!("{BANNER_MSG}");
         match self.verbosity_level().await {
             VerbosityLevel::Debug | VerbosityLevel::Trace => {
                 info!("{}", self.get_help("Start parameters").await)
@@ -363,7 +363,7 @@ impl ServerParams {
         let mut shutdown_signal = make_signal();
         let router_service = self.router_service().await?;
 
-        println!("{}", BANNER_MSG);
+        println!("{BANNER_MSG}");
         match self.verbosity_level().await {
             VerbosityLevel::Debug | VerbosityLevel::Trace => {
                 info!("{}", self.get_help("Start parameters").await)

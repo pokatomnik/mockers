@@ -6,6 +6,7 @@ WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+COPY doc ./doc
 
 RUN cargo build --release
 
@@ -14,15 +15,13 @@ FROM debian:bookworm-slim AS runtime
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates bash \
+    && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /mocks
+    && mkdir -p /app/mocks
 
 COPY --from=builder /app/target/release/mockers /usr/local/bin/mockers
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 8080
+EXPOSE 8443
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/mockers"]

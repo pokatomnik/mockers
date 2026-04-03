@@ -47,7 +47,7 @@ When run without `--interactive`, the command writes a "fair defaults" configura
 
 ```json
 {
-  "host": "127.0.0.1",
+  "host": "0.0.0.0",
   "port": 8080,
   "httpsPort": 8443,
   "mocks": "mocks",

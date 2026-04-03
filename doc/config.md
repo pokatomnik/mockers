@@ -128,7 +128,7 @@ mockers init --interactive
 `mockers config` reflects only values found in `.mockers` files.
 
 For `serve`, additional built-in runtime defaults are applied when values are missing:
-- `host = 127.0.0.1`
+- `host = 0.0.0.0`
 - `port = 8080` (or `8443` when HTTPS enabled)
 - `mocks = mocks`
 - `cors = false`
@@ -146,7 +146,7 @@ So seeing `[unset]` in `mockers config` does **not** necessarily mean the server
 ```text
 Global config:
 =================
-Host:            127.0.0.1
+Host:            0.0.0.0
 Port:            8080
 HTTPS Port:      8443
 Mocks path:      mocks
