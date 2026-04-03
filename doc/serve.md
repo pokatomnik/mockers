@@ -28,7 +28,7 @@ Command aliases: `run`, `start`, `s`.
 ### Network and paths
 
 - `--host <HOST>` — interface/host to bind.
-  - Default: `127.0.0.1`.
+  - Default: `0.0.0.0`.
 - `--port, -p <PORT>` — server port.
   - Default: `8080`.
 - `--mocks, -m <MOCKS>` — path to the mocks directory.
