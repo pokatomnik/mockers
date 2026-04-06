@@ -66,7 +66,7 @@ pub fn admin_router(
             get_swagger_initializer_js,
         )
         .get(
-            format!("{}/swagger.yaml", swagger_base_path),
+            format!("{}/swagger.json", swagger_base_path),
             get_mockers_yaml,
         )
         .any(handle_options)

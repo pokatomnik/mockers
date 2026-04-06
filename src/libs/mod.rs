@@ -28,4 +28,3 @@ pub mod response_builder_ext;
 pub mod tap;
 pub mod tls_acceptor_ext;
 pub mod url_ext;
-pub mod yaml_builder;
