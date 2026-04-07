@@ -11,7 +11,7 @@ use crate::controllers::mock_handler::mock_handler;
 use crate::controllers::swagger::get_favicon_16::get_favicon_16;
 use crate::controllers::swagger::get_favicon_32::get_favicon_32;
 use crate::controllers::swagger::get_index_css::get_index_css;
-use crate::controllers::swagger::get_mockers_json::get_mockers_yaml as get_mockers_json;
+use crate::controllers::swagger::get_mockers_json::get_mockers_json;
 use crate::controllers::swagger::get_swagger_html::get_swagger_html;
 use crate::controllers::swagger::get_swagger_initializer_js::get_swagger_initializer_js;
 use crate::controllers::swagger::get_swagger_ui_bundle_js::get_swagger_ui_bundle_js;

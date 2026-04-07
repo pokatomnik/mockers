@@ -1,8 +1,15 @@
 use crate::controllers::swagger::static_files::SWAGGER_JSON;
+use crate::libs::absolute_mocks_path::AbsoluteMocksPath;
+use crate::libs::create_params::DEFAULT_STATUS_CODE;
+use crate::libs::fs_cached_reader::FSCachedReader;
+use crate::libs::fs_walker::FSWalker;
+use crate::libs::get_mime::get_mime;
 use crate::libs::hyper_response_ext::HyperWellKnownResponses;
+use crate::libs::mock_config::MockConfig;
+use crate::libs::path_buf_ext::PathBufExt;
 use crate::libs::response_builder_ext::ResponseBuilderExt;
 use crate::server::mockers_context::MockersContext;
-use crate::server::params::ServerParams;
+use crate::server::params::{CONFIG_FILE_NAME, ServerParams};
 use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;
 use hyper::body::Bytes;
@@ -11,7 +18,7 @@ use routerify_ng::ext::RequestExt;
 use serde_json::json;
 use std::sync::{Arc, LazyLock};
 
-pub async fn get_mockers_yaml(
+pub async fn get_mockers_json(
     req: Request<Full<Bytes>>,
 ) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     let Some(server_params) = (match req.data::<Arc<MockersContext>>() {
@@ -25,10 +32,14 @@ pub async fn get_mockers_yaml(
         return Ok(OPENAPI_FULFILL_JSON_ERROR.clone());
     };
 
-    if postprocess_openapi(&mut openapi_specs, &server_params)
+    if add_servers(&mut openapi_specs, &server_params)
         .await
         .is_err()
     {
+        return Ok(OPENAPI_FULFILL_JSON_ERROR.clone());
+    }
+
+    if add_mocks(&mut openapi_specs, &server_params).await.is_err() {
         return Ok(OPENAPI_FULFILL_JSON_ERROR.clone());
     }
 
@@ -44,15 +55,127 @@ pub async fn get_mockers_yaml(
     Ok(response)
 }
 
-async fn postprocess_openapi(
+async fn add_servers(
     specs: &mut serde_json::Value,
     server_params: &ServerParams,
 ) -> anyhow::Result<()> {
-    let specs = specs.as_object_mut();
-    let admin_base_url = server_params.admin_base_url().await;
+    let specs = specs
+        .as_object_mut()
+        .ok_or(anyhow::Error::msg("Invalid json structure"))?;
+    let admin_base_url = server_params
+        .admin_base_url()
+        .await
+        .ok_or(anyhow::Error::msg("Admin base URL not specified"))?;
 
-    if let Some((specs, admin_base_url)) = specs.zip(admin_base_url) {
-        specs.insert("servers".to_string(), json!([{ "url": admin_base_url }]));
+    specs.insert("servers".to_string(), json!([{ "url": admin_base_url }]));
+
+    Ok(())
+}
+
+async fn add_mocks(
+    specs: &mut serde_json::Value,
+    server_params: &ServerParams,
+) -> anyhow::Result<()> {
+    let specs = specs
+        .as_object_mut()
+        .map(|s| s.get_mut("paths"))
+        .flatten()
+        .map(|v| v.as_object_mut())
+        .flatten()
+        .ok_or(anyhow::Error::msg("Invalid json structure"))?;
+
+    let absolute_mocks_path = server_params
+        .get_absolute_mocks_path()
+        .await
+        .ok_or(anyhow::Error::msg("Mocks absolute path not specified"))?;
+
+    let fs_cached_reader = FSCachedReader::default();
+    let walker = FSWalker::new(&absolute_mocks_path);
+
+    for (metadata, path) in walker.into_iter().await {
+        if metadata.is_dir() || metadata.is_symlink() || !path.is_mock_file() {
+            continue;
+        }
+
+        let mock_pathname = path
+            .to_string_lossy()
+            .to_string()
+            .replace(&absolute_mocks_path.to_string_lossy().to_string(), "")
+            .rsplit_once('.')
+            .map(|(path, _)| path.to_string());
+        let Some(mock_pathname) = mock_pathname else {
+            continue;
+        };
+
+        let Some((file_name, http_method)) = path
+            .file_name()
+            .map(|f| {
+                f.to_string_lossy()
+                    .to_string()
+                    .rsplit_once('.')
+                    .map(|(a, b)| (a.to_string(), b.to_string()))
+            })
+            .flatten()
+            .map(|(file_name, method)| (file_name.to_string(), method.to_lowercase()))
+        else {
+            continue;
+        };
+        let entry_name = format!("{file_name}.{http_method}");
+
+        let full_config_path = path.with_last_removed().join(CONFIG_FILE_NAME);
+        let mock_config = fs_cached_reader
+            .read(full_config_path)
+            .await
+            .as_ref()
+            .as_ref()
+            .ok()
+            .map(|v| String::from_utf8(v.clone()).ok())
+            .flatten()
+            .map(|v| MockConfig::try_from_str(v).ok())
+            .flatten()
+            .unwrap_or_default()
+            .get(&entry_name)
+            .cloned()
+            .unwrap_or_default();
+
+        let contents = tokio::fs::read(&path).await.unwrap_or_default();
+        let mime = get_mime(&contents).await;
+
+        specs
+            .entry(mock_pathname)
+            .or_insert(json!({
+                // Mocks are being served from the root URL
+                "servers": [{ "url": "/" }]
+            }))
+            .as_object_mut()
+            .ok_or(anyhow::Error::msg("Failed to insert"))?
+            .entry(http_method)
+            .or_insert(json!({ "tags": ["mocks"] }))
+            .as_object_mut()
+            .ok_or(anyhow::Error::msg("Failed to insert"))?
+            .entry("responses")
+            .or_insert(json!({}))
+            .as_object_mut()
+            .ok_or(anyhow::Error::msg("Failed to insert"))?
+            .entry(
+                mock_config
+                    .status_code()
+                    .unwrap_or(DEFAULT_STATUS_CODE)
+                    .to_string(),
+            )
+            .or_insert(json!({}))
+            .as_object_mut()
+            .ok_or(anyhow::Error::msg("Failed to insert"))?
+            .entry("content")
+            .or_insert(json!({}))
+            .as_object_mut()
+            .ok_or(anyhow::Error::msg("Failed to insert"))?
+            .entry(mime.as_str())
+            .or_insert(json!({}))
+            .as_object_mut()
+            .ok_or(anyhow::Error::msg("Failed to insert"))?
+            .entry("schema")
+            .or_insert(json!({}));
     }
 
     Ok(())
