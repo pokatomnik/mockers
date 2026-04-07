@@ -1,0 +1,348 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "description": "Mockers",
+    "version": "0.1.0",
+    "title": "Mockers",
+    "termsOfService": "https://github.com/pokatomnik/mockers/LICENSE.md",
+    "contact": { "email": "pokatomnik@yandex.ru" },
+    "license": {
+      "name": "MIT",
+      "url": "https://github.com/pokatomnik/mockers/LICENSE"
+    }
+  },
+  "tags": [
+    { "name": "admin", "description": "Mockers admin page" },
+    { "name": "mocks", "description": "Mocks routes" }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "get admin page HTML (TBD)",
+        "operationId": "getAdminPage",
+        "responses": {
+          "200": {
+            "description": "Mockers admin page HTML",
+            "content": { "text/html": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    },
+    "/api/v2/mocks": {
+      "post": {
+        "tags": ["admin"],
+        "summary": "Get all mocks",
+        "operationId": "getAllMocks",
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved all mocks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MocksListOkResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/mocks/create": {
+      "post": {
+        "tags": ["admin"],
+        "summary": "Create a new mock",
+        "operationId": "createMock",
+        "requestBody": {
+          "required": true,
+          "description": "Mock creation parameters",
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MockCreateParams" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully created a new mock",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmptyOkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request when creating a mock",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error response when creating a mock",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/mocks/config": {
+      "post": {
+        "tags": ["admin"],
+        "summary": "get mock config by mock config params",
+        "operationId": "getMockConfig",
+        "requestBody": {
+          "required": true,
+          "description": "get mock config",
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MockInfo" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved mock config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MockConfigOkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request when getting mock config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found when getting mock config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error response when getting mock config",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/mocks/delete": {
+      "post": {
+        "tags": ["admin"],
+        "summary": "delete a mock by pathname and method",
+        "operationId": "deleteMock",
+        "requestBody": {
+          "description": "Mock info",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/MockInfo" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mock deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmptyOkResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request when deleting mock",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Mock not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error response when deleting mock",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "MocksListOkResponse": {
+        "type": "object",
+        "description": "List of all mocks",
+        "required": ["ok"],
+        "properties": {
+          "ok": {
+            "example": [
+              { "method": "GET", "path": "/users" },
+              { "method": "POST", "path": "/users/create" }
+            ],
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/MockInfo" }
+          }
+        }
+      },
+      "MockConfigOkResponse": {
+        "type": "object",
+        "description": "Mock config",
+        "required": ["ok"],
+        "example": {
+          "ok": {
+            "delayMs": 2000,
+            "statusCode": 200,
+            "headers": {},
+            "cacheMode": "overwrite"
+          }
+        },
+        "properties": { "ok": { "$ref": "#/components/schemas/MockConfig" } }
+      },
+      "MockConfig": {
+        "type": "object",
+        "description": "Configuration for a mock",
+        "properties": {
+          "delayMs": {
+            "description": "Delay in milliseconds before returning the mock response",
+            "type": "integer",
+            "example": 2000
+          },
+          "statusCode": {
+            "description": "HTTP status code to return",
+            "type": "integer",
+            "example": 200
+          },
+          "headers": { "$ref": "#/components/schemas/HeadersMap" },
+          "cacheMode": { "$ref": "#/components/schemas/CacheMode" },
+          "disabled": {
+            "description": "Whether the mock is disabled",
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
+      "MockCreateParams": {
+        "type": "object",
+        "description": "Request to create a mock",
+        "required": ["mockKey", "mockConfig", "body"],
+        "properties": {
+          "mockKey": { "$ref": "#/components/schemas/MockInfo" },
+          "mockConfig": { "$ref": "#/components/schemas/MockConfig" },
+          "body": { "type": "string", "example": "hello from mock" }
+        }
+      },
+      "MockInfo": {
+        "type": "object",
+        "description": "Information about a mock",
+        "required": ["method", "path"],
+        "example": { "method": "GET", "path": "/users" },
+        "properties": {
+          "method": { "$ref": "#/components/schemas/HTTPMethods" },
+          "path": { "type": "string", "example": "/users" }
+        }
+      },
+      "EmptyOkResponse": {
+        "type": "object",
+        "description": "Empty OK response",
+        "required": ["ok"],
+        "properties": { "ok": { "type": "object", "example": {} } }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "description": "General error response",
+        "required": ["err"],
+        "properties": {
+          "err": { "$ref": "#/components/schemas/MockersAdminErrors" }
+        }
+      },
+      "HeadersMap": {
+        "type": "object",
+        "description": "Key-value HTTP headers",
+        "additionalProperties": { "type": "string" },
+        "example": { "Content-Type": "application/json", "X-Server": "Mockers" }
+      },
+      "MockersAdminErrors": {
+        "description": "All possible mockers admin API errors",
+        "type": "string",
+        "example": "INTERNAL_SERVER_ERROR",
+        "enum": ["INTERNAL_SERVER_ERROR", "BAD_REQUEST", "NOT_FOUND"]
+      },
+      "CacheMode": {
+        "type": "string",
+        "description": "Cache mode for a mock",
+        "example": "overwrite",
+        "enum": ["no-cache", "overwrite"]
+      },
+      "HTTPMethods": {
+        "type": "string",
+        "description": "All possible HTTP methods",
+        "enum": [
+          "GET",
+          "POST",
+          "PUT",
+          "DELETE",
+          "PATCH",
+          "HEAD",
+          "OPTIONS",
+          "TRACE"
+        ]
+      }
+    }
+  }
+}

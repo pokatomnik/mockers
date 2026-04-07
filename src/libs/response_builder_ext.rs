@@ -1,15 +1,16 @@
+use crate::libs::get_mime::TEXT_CSS;
 use crate::libs::headers::{CORS_HEADER_KEYS, CORS_HEADER_VALUE};
 use http_body_util::Full;
-use hyper::{
-    body::Bytes,
-    header::{HeaderName, HeaderValue, CONTENT_TYPE},
-    http::response::Builder,
-    Response,
-};
-use mimetype_detector::{
-    APPLICATION_JAVASCRIPT, APPLICATION_JSON, IMAGE_PNG, TEXT_HTML, TEXT_PLAIN,
-};
-use crate::libs::get_mime::TEXT_CSS;
+use hyper::Response;
+use hyper::body::Bytes;
+use hyper::header::{CONTENT_TYPE, HeaderName, HeaderValue};
+use hyper::http::response::Builder;
+use mimetype_detector::APPLICATION_JAVASCRIPT;
+use mimetype_detector::APPLICATION_JSON;
+use mimetype_detector::APPLICATION_OCTET_STREAM;
+use mimetype_detector::IMAGE_PNG;
+use mimetype_detector::TEXT_HTML;
+use mimetype_detector::TEXT_PLAIN;
 
 pub(crate) trait ResponseBuilderExt {
     fn add_cors(self) -> Self;
@@ -20,13 +21,13 @@ pub(crate) trait ResponseBuilderExt {
 
     fn content_type_json(self) -> Self;
 
+    fn content_type_octet_stream(self) -> Self;
+
     fn content_type_html(self) -> Self;
 
     fn content_type_png(self) -> Self;
 
     fn content_type_css(self) -> Self;
-
-    fn content_type_yaml(self) -> Self;
 
     fn content_type_js(self) -> Self;
 
@@ -84,6 +85,16 @@ impl ResponseBuilderExt for Builder {
         self
     }
 
+    fn content_type_octet_stream(mut self) -> Self {
+        if let Some(headers) = self.headers_mut() {
+            headers.insert(
+                CONTENT_TYPE,
+                HeaderValue::from_static(APPLICATION_OCTET_STREAM),
+            );
+        }
+        self
+    }
+
     fn content_type_html(mut self) -> Self {
         if let Some(headers) = self.headers_mut() {
             headers.insert(CONTENT_TYPE, HeaderValue::from_static(TEXT_HTML));
@@ -101,13 +112,6 @@ impl ResponseBuilderExt for Builder {
     fn content_type_css(mut self) -> Self {
         if let Some(headers) = self.headers_mut() {
             headers.insert(CONTENT_TYPE, HeaderValue::from_static(TEXT_CSS));
-        }
-        self
-    }
-
-    fn content_type_yaml(mut self) -> Self {
-        if let Some(headers) = self.headers_mut() {
-            headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/yaml"));
         }
         self
     }

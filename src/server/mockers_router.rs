@@ -11,9 +11,9 @@ use crate::controllers::mock_handler::mock_handler;
 use crate::controllers::swagger::get_favicon_16::get_favicon_16;
 use crate::controllers::swagger::get_favicon_32::get_favicon_32;
 use crate::controllers::swagger::get_index_css::get_index_css;
-use crate::controllers::swagger::get_mockers_yaml::get_mockers_yaml;
 use crate::controllers::swagger::get_swagger_html::get_swagger_html;
 use crate::controllers::swagger::get_swagger_initializer_js::get_swagger_initializer_js;
+use crate::controllers::swagger::get_swagger_json::get_swagger_json;
 use crate::controllers::swagger::get_swagger_ui_bundle_js::get_swagger_ui_bundle_js;
 use crate::controllers::swagger::get_swagger_ui_css::get_swagger_ui_css;
 use crate::controllers::swagger::get_swagger_ui_standalone_preset::get_swagger_ui_standalone_preset;
@@ -66,8 +66,8 @@ pub fn admin_router(
             get_swagger_initializer_js,
         )
         .get(
-            format!("{}/swagger.yaml", swagger_base_path),
-            get_mockers_yaml,
+            format!("{}/swagger.json", swagger_base_path),
+            get_swagger_json,
         )
         .any(handle_options)
         .middleware(Middleware::post(admin_api_cors))

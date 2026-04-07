@@ -4,6 +4,7 @@ pub static SWAGGER_INDEX_CSS: &[u8] = include_bytes!("./index.css");
 pub static SWAGGER_FAVICON_32_PNG: &[u8] = include_bytes!("./favicon-32x32.png");
 pub static SWAGGER_FAVICON_16_PNG: &[u8] = include_bytes!("./favicon-16x16.png");
 pub static SWAGGER_UI_BUNDLE_JS: &[u8] = include_bytes!("./swagger-ui-bundle.js");
-pub static SWAGGER_UI_STANDALONE_PRESET_JS: &[u8] = include_bytes!("./swagger-ui-standalone-preset.js");
+pub static SWAGGER_UI_STANDALONE_PRESET_JS: &[u8] =
+    include_bytes!("./swagger-ui-standalone-preset.js");
 pub static SWAGGER_INITIALIZER_JS: &[u8] = include_bytes!("./swagger-initializer.js");
-pub static SWAGGER_YAML: &[u8] = include_bytes!("./swagger.yaml");
+pub static SWAGGER_JSON: &'static str = include_str!("./swagger.json");

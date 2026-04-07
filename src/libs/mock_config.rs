@@ -27,11 +27,27 @@ impl Default for MockConfig {
 }
 
 impl MockConfig {
+    /// Attempts to read and parse a JSON file into a map of MockConfig entries.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - A path to the JSON file containing the configuration.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing a `HashMap` where keys are entry names (Strings)
+    /// and values are `MockConfig` objects. Returns an error if the file cannot
+    /// be read or if the content is not valid JSON.
     pub async fn try_read_from_file(
         path: impl AsRef<Path>,
-    ) -> Result<HashMap<String, MockConfig>, Box<dyn StdError + Send + Sync>> {
+    ) -> Result<HashMap<String, Self>, Box<dyn StdError + Send + Sync>> {
         let contents = tokio::fs::read_to_string(path).await?;
-        serde_json::from_str::<HashMap<String, MockConfig>>(&contents).map_err(Box::from)
+        let result = Self::try_from_str(contents)?;
+        Ok(result)
+    }
+
+    pub fn try_from_str(source: impl Into<String>) -> Result<HashMap<String, Self>, impl StdError> {
+        serde_json::from_str::<HashMap<String, Self>>(&source.into())
     }
 
     pub async fn try_remove_from_file(
@@ -76,8 +92,8 @@ impl MockConfig {
         Ok(())
     }
 
-    pub fn new() -> MockConfig {
-        MockConfig {
+    pub fn new() -> Self {
+        Self {
             delay_ms: None,
             status_code: None,
             headers: None,
