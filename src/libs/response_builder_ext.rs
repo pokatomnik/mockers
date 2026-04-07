@@ -1,16 +1,16 @@
 use crate::libs::get_mime::TEXT_CSS;
 use crate::libs::headers::{CORS_HEADER_KEYS, CORS_HEADER_VALUE};
 use http_body_util::Full;
-use hyper::{
-    Response,
-    body::Bytes,
-    header::{CONTENT_TYPE, HeaderName, HeaderValue},
-    http::response::Builder,
-};
-use mimetype_detector::{
-    APPLICATION_JAVASCRIPT, APPLICATION_JSON, APPLICATION_OCTET_STREAM, IMAGE_PNG, TEXT_HTML,
-    TEXT_PLAIN,
-};
+use hyper::Response;
+use hyper::body::Bytes;
+use hyper::header::{CONTENT_TYPE, HeaderName, HeaderValue};
+use hyper::http::response::Builder;
+use mimetype_detector::APPLICATION_JAVASCRIPT;
+use mimetype_detector::APPLICATION_JSON;
+use mimetype_detector::APPLICATION_OCTET_STREAM;
+use mimetype_detector::IMAGE_PNG;
+use mimetype_detector::TEXT_HTML;
+use mimetype_detector::TEXT_PLAIN;
 
 pub(crate) trait ResponseBuilderExt {
     fn add_cors(self) -> Self;

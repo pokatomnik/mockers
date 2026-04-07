@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::controllers::swagger::static_files::SWAGGER_JSON;
 use crate::libs::absolute_mocks_path::AbsoluteMocksPath;
 use crate::libs::create_params::DEFAULT_STATUS_CODE;
@@ -13,12 +14,13 @@ use crate::server::params::{CONFIG_FILE_NAME, ServerParams};
 use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;
 use hyper::body::Bytes;
+use hyper::header::CONTENT_TYPE;
 use hyper::{Request, Response};
 use routerify_ng::ext::RequestExt;
 use serde_json::json;
 use std::sync::{Arc, LazyLock};
 
-pub async fn get_mockers_json(
+pub async fn get_swagger_json(
     req: Request<Full<Bytes>>,
 ) -> Result<Response<Full<Bytes>>, MockersRouteError> {
     let Some(server_params) = (match req.data::<Arc<MockersContext>>() {
@@ -138,8 +140,21 @@ async fn add_mocks(
             .cloned()
             .unwrap_or_default();
 
+        if mock_config.is_disabled() {
+            continue;
+        }
+
         let contents = tokio::fs::read(&path).await.unwrap_or_default();
-        let mime = get_mime(&contents).await;
+
+        let content_type_header_value = mock_config
+            .headers()
+            .map(|h| h.into_iter().map(|(k, v)| (k.to_lowercase(), v.to_string())).collect::<HashMap<String, String>>())
+            .map(|h| h.get(&CONTENT_TYPE.to_string()).cloned())
+            .flatten();
+        let mime = match content_type_header_value {
+            Some(ct) => ct.to_owned(),
+            None => get_mime(&contents).await,
+        };
 
         specs
             .entry(mock_pathname)
