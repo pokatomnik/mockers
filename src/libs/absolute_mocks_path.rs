@@ -135,7 +135,7 @@ mod tests {
     }
 
     #[cfg(windows)]
-    fn get_current_dir() -> Result<PathBuf, Box<dyn StdError + Sync + Send>> {
+    fn get_current_dir() -> anyhow::Result<PathBuf> {
         Ok(r"D:\home\john_doe".into())
     }
 
