@@ -1,6 +1,6 @@
-use std::path::{Path, PathBuf, MAIN_SEPARATOR};
+use std::fs::Metadata;
+use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::str::FromStr;
-use std::{error::Error as StdError, fs::Metadata};
 
 use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
 use crate::libs::fs_walker::FSWalker;
@@ -30,10 +30,10 @@ impl ActivityParams {
     async fn find_matching_mocks(
         &self,
         filter_fn: impl Fn((&Metadata, &PathBuf)) -> bool,
-    ) -> Result<Vec<(Metadata, PathBuf)>, Box<dyn StdError + Sync + Send>> {
+    ) -> anyhow::Result<Vec<(Metadata, PathBuf)>> {
         let absolute_mocks_path = self.get_absolute_mocks_path().await;
         let Some(absolute_mocks_path) = absolute_mocks_path else {
-            return Err("No mocks path".into());
+            return Err(anyhow::Error::msg("No mocks path"));
         };
         let mocks = FSWalker::new(&absolute_mocks_path)
             .into_iter()
@@ -96,7 +96,7 @@ impl ActivityParams {
         absolute_config_path: impl AsRef<Path>,
         entry_name: &str,
         is_disabled: bool,
-    ) -> Result<(), Box<dyn StdError + Sync + Send>> {
+    ) -> anyhow::Result<()> {
         let absolute_config_path = absolute_config_path.as_ref();
 
         let mock_config = MockConfig::try_read_from_file(&absolute_config_path)
@@ -113,10 +113,7 @@ impl ActivityParams {
         Ok(())
     }
 
-    async fn set_disabled_status(
-        &self,
-        status: bool,
-    ) -> Result<(), Box<dyn StdError + Sync + Send>> {
+    async fn set_disabled_status(&self, status: bool) -> anyhow::Result<()> {
         let name_lower = self.name.to_lowercase();
         let mocks = self
             .find_matching_mocks(|(_, pathbuf)| {
@@ -174,11 +171,11 @@ impl ActivityParams {
         Ok(())
     }
 
-    pub async fn enable(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
+    pub async fn enable(&self) -> anyhow::Result<()> {
         self.set_disabled_status(false).await
     }
 
-    pub async fn disable(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
+    pub async fn disable(&self) -> anyhow::Result<()> {
         self.set_disabled_status(true).await
     }
 }

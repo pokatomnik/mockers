@@ -1,7 +1,4 @@
 use std::collections::HashMap;
-use std::error::Error as StdError;
-use std::io::Error as IoError;
-use std::io::ErrorKind;
 use std::path::Path;
 
 use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
@@ -88,7 +85,7 @@ impl CreateParams {
         None
     }
 
-    pub async fn test(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
+    pub async fn test(&self) -> anyhow::Result<()> {
         if let Err(e) = self.expect_mocks_path_to_exist().await {
             return Err(e.into());
         }
@@ -96,9 +93,9 @@ impl CreateParams {
         Ok(())
     }
 
-    pub async fn create_mock(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    pub async fn create_mock(&self) -> anyhow::Result<()> {
         let Some(mocks_absolute_path) = self.get_absolute_mocks_path().await else {
-            return Err("Mocks dir not set".into());
+            return Err(anyhow::Error::msg("Mocks dir not set"));
         };
         let full_mock_path = mocks_absolute_path.extend_with_url_path(self.route());
         let destination_directory = full_mock_path.with_last_removed();
@@ -108,8 +105,7 @@ impl CreateParams {
             let dst_dir = destination_directory.display();
             let mock = format!("{}.{}", dst_dir, &method_lower);
             let err_message = format!("Can't create mock \"{}\"", mock);
-            let error = IoError::new(ErrorKind::NotFound, err_message.as_str());
-            return Err(error.into());
+            return Err(anyhow::Error::msg(err_message));
         };
 
         tokio::fs::create_dir_all(&destination_directory).await?;
@@ -132,11 +128,10 @@ impl CreateParams {
     async fn write_default_mock(
         absolute_path: impl AsRef<Path>,
         contents: Option<String>,
-    ) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    ) -> anyhow::Result<()> {
         let contents = contents.unwrap_or_else(|| json!({ "hello": "world" }).to_string());
-        tokio::fs::write(&absolute_path, &contents)
-            .await
-            .map_err(Box::from)
+        tokio::fs::write(&absolute_path, &contents).await?;
+        Ok(())
     }
 }
 

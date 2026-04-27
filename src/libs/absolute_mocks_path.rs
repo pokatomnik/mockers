@@ -2,7 +2,6 @@ use crate::libs::global_config::WithGlobalConfigAPI;
 use crate::server::params::DEFAULT_MOCKS_DIR_NAME;
 use path_absolutize::Absolutize;
 use std::env::{current_dir, home_dir};
-use std::error::Error as StdError;
 use std::fs::Metadata;
 use std::path::{Path, PathBuf};
 
@@ -22,7 +21,7 @@ where
 {
     async fn get_absolute_mocks_path(&self) -> Option<PathBuf> {
         let mocks_from_args = self.get_mocks().and_then(|mocks| {
-            generic_get_absolute_mocks_path(mocks, || current_dir().map_err(Box::from), home_dir)
+            generic_get_absolute_mocks_path(mocks, || Ok(current_dir()?), home_dir)
         });
         if let Some(mocks_from_args) = mocks_from_args {
             return Some(mocks_from_args);
@@ -33,11 +32,7 @@ where
                 .get_mocks()
                 .await
                 .and_then(|mocks| {
-                    generic_get_absolute_mocks_path(
-                        mocks,
-                        || current_dir().map_err(Box::from),
-                        home_dir,
-                    )
+                    generic_get_absolute_mocks_path(mocks, || Ok(current_dir()?), home_dir)
                 });
         if let Some(mocks_from_global_config) = mocks_from_global_config {
             return Some(mocks_from_global_config);
@@ -96,7 +91,7 @@ where
 /// If an absolute path is specified, the function simply returns it.
 pub(crate) fn generic_get_absolute_mocks_path(
     mocks_path: impl AsRef<Path>,
-    get_current_dir: impl FnOnce() -> Result<PathBuf, Box<dyn StdError + Sync + Send>>,
+    get_current_dir: impl FnOnce() -> anyhow::Result<PathBuf>,
     get_home_dir: impl FnOnce() -> Option<PathBuf>,
 ) -> Option<PathBuf> {
     let mocks_path = mocks_path.as_ref();
@@ -135,7 +130,7 @@ mod tests {
     use super::*;
 
     #[cfg(not(windows))]
-    fn get_current_dir() -> Result<PathBuf, Box<dyn StdError + Sync + Send>> {
+    fn get_current_dir() -> anyhow::Result<PathBuf> {
         Ok("/home/john_doe".into())
     }
 

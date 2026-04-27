@@ -1,16 +1,15 @@
-use mimetype_detector::detect;
 use mimetype_detector::APPLICATION_JSON;
 use mimetype_detector::APPLICATION_OCTET_STREAM;
 use mimetype_detector::TEXT_PLAIN;
+use mimetype_detector::TEXT_UTF8;
 use mimetype_detector::TEXT_UTF16_BE;
 use mimetype_detector::TEXT_UTF16_LE;
-use mimetype_detector::TEXT_UTF8;
+use mimetype_detector::detect;
 
 use lru::LruCache;
 use raffia::ast::Stylesheet;
 use raffia::{Parser, Syntax};
 use serde::de::IgnoredAny;
-use serde::ser::StdError;
 use std::num::NonZeroUsize;
 use std::sync::LazyLock;
 use tokio::sync::Mutex;
@@ -79,9 +78,9 @@ impl MimeCache {
         mime
     }
 
-    async fn get_mime(source: &[u8]) -> Result<String, Box<dyn StdError + Sync + Send>> {
+    async fn get_mime(source: &[u8]) -> anyhow::Result<String> {
         let source_vec = source.to_owned();
-        tokio::task::spawn_blocking(move || {
+        let result = tokio::task::spawn_blocking(move || {
             // Serde-based probe, the most common case
             if Self::is_json(source_vec.as_slice()) {
                 return APPLICATION_JSON.to_string();
@@ -104,8 +103,9 @@ impl MimeCache {
                 false => TEXT_UTF8.to_string(),
             }
         })
-        .await
-        .map_err(Box::from)
+        .await?;
+
+        Ok(result)
     }
 }
 

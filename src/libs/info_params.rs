@@ -10,9 +10,8 @@ use crate::libs::path_buf_ext::PathBufExt;
 use crate::server::params::CONFIG_FILE_NAME;
 use clap::Args;
 use hyper::Method;
-use std::error::Error as StdError;
 use std::fs::Metadata;
-use std::path::{Path, PathBuf, MAIN_SEPARATOR};
+use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::str::FromStr;
 use tokio::join;
 use tokio::sync::OnceCell;
@@ -42,9 +41,9 @@ impl InfoParams {
     async fn find_matching_mocks(
         &self,
         filter_fn: impl Fn((&Metadata, &PathBuf)) -> bool,
-    ) -> Result<Vec<(Metadata, PathBuf)>, Box<dyn StdError + Sync + Send>> {
+    ) -> anyhow::Result<Vec<(Metadata, PathBuf)>> {
         let Some(absolute_mocks_path) = self.get_absolute_mocks_path().await else {
-            return Err("No mocks path".into());
+            return Err(anyhow::Error::msg("No mocks path"));
         };
         let mocks = FSWalker::new(&absolute_mocks_path)
             .into_iter()
@@ -107,10 +106,10 @@ impl InfoParams {
         full_mock_body_path: impl AsRef<Path>,
         config: &MockConfig,
         body: &[u8],
-    ) -> Result<(), Box<dyn StdError + Sync + Send>> {
+    ) -> anyhow::Result<()> {
         let absolute_mocks_path = self.get_absolute_mocks_path().await;
         let Some(absolute_mocks_path) = absolute_mocks_path else {
-            return Err("No mocks path".into());
+            return Err(anyhow::Error::msg("No mocks path"));
         };
         let full_mock_body_path = full_mock_body_path
             .as_ref()
@@ -154,17 +153,14 @@ impl InfoParams {
         Ok(())
     }
 
-    async fn show_mock_info(
-        &self,
-        full_mock_body_path: impl AsRef<Path>,
-    ) -> Result<(), Box<dyn StdError + Sync + Send>> {
+    async fn show_mock_info(&self, full_mock_body_path: impl AsRef<Path>) -> anyhow::Result<()> {
         let entry_name = full_mock_body_path
             .as_ref()
             .file_name()
             .map(|s| s.to_string_lossy().to_string());
 
         let Some(entry_name) = entry_name else {
-            return Err("Unknown file name".into());
+            return Err(anyhow::Error::msg("Unknown file name"));
         };
 
         let full_dir_path = full_mock_body_path.as_ref().to_owned().with_last_removed();
@@ -190,7 +186,7 @@ impl InfoParams {
         .await
     }
 
-    pub async fn show_info(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
+    pub async fn show_info(&self) -> anyhow::Result<()> {
         let name_lower = self.name.to_lowercase();
         let mocks = self
             .find_matching_mocks(|(_, pathbuf)| {
