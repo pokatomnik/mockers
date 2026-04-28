@@ -1,7 +1,6 @@
 use crate::cmd::cli::Cli;
 use clap::{Args, CommandFactory};
 use clap_complete::{Shell, generate};
-use std::error::Error as StdError;
 
 #[derive(Args, Debug, Clone)]
 pub(crate) struct CompletionParams {
@@ -10,7 +9,7 @@ pub(crate) struct CompletionParams {
 }
 
 impl CompletionParams {
-    pub async fn generate(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    pub async fn generate(&self) -> anyhow::Result<()> {
         let mut cmd = Cli::command();
         let name = &cmd.get_name().to_string();
         generate(self.shell, &mut cmd, name, &mut std::io::stdout());

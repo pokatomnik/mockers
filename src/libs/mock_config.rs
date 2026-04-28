@@ -1,7 +1,6 @@
 use crate::libs::cache_mode::CacheMode;
 use crate::libs::create_params::{DEFAULT_DELAY_MS, DEFAULT_STATUS_CODE};
 use serde::{Deserialize, Serialize};
-use std::error::Error as StdError;
 use std::{collections::HashMap, path::Path};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -40,28 +39,27 @@ impl MockConfig {
     /// be read or if the content is not valid JSON.
     pub async fn try_read_from_file(
         path: impl AsRef<Path>,
-    ) -> Result<HashMap<String, Self>, Box<dyn StdError + Send + Sync>> {
+    ) -> anyhow::Result<HashMap<String, Self>> {
         let contents = tokio::fs::read_to_string(path).await?;
         let result = Self::try_from_str(contents)?;
         Ok(result)
     }
 
-    pub fn try_from_str(source: impl Into<String>) -> Result<HashMap<String, Self>, impl StdError> {
-        serde_json::from_str::<HashMap<String, Self>>(&source.into())
+    pub fn try_from_str(source: impl Into<String>) -> anyhow::Result<HashMap<String, Self>> {
+        serde_json::from_str::<HashMap<String, Self>>(&source.into()).map_err(anyhow::Error::from)
     }
 
     pub async fn try_remove_from_file(
         path: impl AsRef<Path>,
         entry_name: impl Into<String>,
-    ) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    ) -> anyhow::Result<()> {
         let entry_name = entry_name.into();
         let mut config_map = Self::try_read_from_file(path.as_ref()).await?;
         config_map.remove(&entry_name);
 
         if config_map.is_empty() {
-            return tokio::fs::remove_file(path.as_ref())
-                .await
-                .map_err(|e| -> Box<dyn StdError + Send + Sync> { e.into() });
+            tokio::fs::remove_file(path.as_ref()).await?;
+            return Ok(());
         }
 
         let updated_json_str = serde_json::to_string_pretty(&config_map)?;
@@ -75,7 +73,7 @@ impl MockConfig {
         &self,
         path: impl AsRef<Path>,
         entry_name: impl Into<String>,
-    ) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    ) -> anyhow::Result<()> {
         let json = match Self::try_read_from_file(&path).await {
             Ok(mut existing_config) => {
                 existing_config.insert(entry_name.into(), self.clone());

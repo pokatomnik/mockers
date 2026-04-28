@@ -1,6 +1,5 @@
 use crate::cmd::commands::Doc;
 use clap::Args;
-use std::error::Error as StdError;
 use termimad::MadSkin;
 
 #[derive(Args, Debug, Clone)]
@@ -35,7 +34,7 @@ impl DocParams {
         self.print_markdown(markdown);
     }
 
-    pub async fn show_help(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    pub async fn show_help(&self) -> anyhow::Result<()> {
         self.print_markdown_by_kind();
         Ok(())
     }

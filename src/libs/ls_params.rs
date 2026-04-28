@@ -26,9 +26,9 @@ impl LsParams {
             .unwrap_or(None)
     }
 
-    pub async fn ls_mocks(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn ls_mocks(&self) -> anyhow::Result<()> {
         let Some(absolute_mocks_path) = self.get_absolute_mocks_path().await else {
-            return Err("No mocks path".into());
+            return Err(anyhow::Error::msg("No mocks path"));
         };
         let mocks: Vec<(String, Method)> = FSWalker::new(&absolute_mocks_path)
             .into_iter()

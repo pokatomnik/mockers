@@ -7,7 +7,6 @@ use crate::libs::path_buf_ext::PathBufExt;
 use crate::server::params::CONFIG_FILE_NAME;
 use clap::Args;
 use hyper::Method;
-use std::error::Error as StdError;
 use std::fs::Metadata;
 use std::path::{MAIN_SEPARATOR, Path, PathBuf};
 use std::pin::Pin;
@@ -32,9 +31,9 @@ impl DeleteParams {
     async fn find_matching_mocks(
         &self,
         filter_fn: impl Fn((&Metadata, &PathBuf)) -> bool,
-    ) -> Result<Vec<(Metadata, PathBuf)>, Box<dyn StdError + Sync + Send>> {
+    ) -> anyhow::Result<Vec<(Metadata, PathBuf)>> {
         let Some(absolute_mocks_path) = self.get_absolute_mocks_path().await else {
-            return Err("Mocks dir not set".into());
+            return Err(anyhow::Error::msg("Mocks dir not set"));
         };
         let mocks = FSWalker::new(&absolute_mocks_path)
             .into_iter()
@@ -92,23 +91,18 @@ impl DeleteParams {
         eprintln!("Failed to delete mock");
     }
 
-    async fn delete_mock_by_path(
-        &self,
-        absolute_path: impl AsRef<Path>,
-    ) -> Result<(), Box<dyn StdError>> {
+    async fn delete_mock_by_path(&self, absolute_path: impl AsRef<Path>) -> anyhow::Result<()> {
         let absolute_mock_path = absolute_path.as_ref();
         let entry_name = (&absolute_mock_path)
             .file_name()
             .map(|en| en.to_string_lossy().to_string());
 
-        let remove_mock_fut: Pin<Box<dyn Future<Output = Result<(), Box<dyn StdError>>>>> =
-            Box::pin(async {
-                tokio::fs::remove_file(&absolute_mock_path)
-                    .await
-                    .map_err(Box::from)
-            });
+        let remove_mock_fut: Pin<Box<dyn Future<Output = anyhow::Result<()>>>> = Box::pin(async {
+            tokio::fs::remove_file(&absolute_mock_path).await?;
+            Ok(())
+        });
 
-        let remove_config_fut: Pin<Box<dyn Future<Output = Result<(), Box<dyn StdError>>>>> =
+        let remove_config_fut: Pin<Box<dyn Future<Output = anyhow::Result<()>>>> =
             Box::pin(async {
                 let Some(entry_name) = entry_name else {
                     return Ok(());
@@ -117,9 +111,7 @@ impl DeleteParams {
                     .to_owned()
                     .with_last_removed()
                     .join(CONFIG_FILE_NAME);
-                MockConfig::try_remove_from_file(absolute_config_path, entry_name)
-                    .await
-                    .map_err(|x| -> Box<dyn StdError> { x })?;
+                MockConfig::try_remove_from_file(absolute_config_path, entry_name).await?;
 
                 Ok(())
             });
@@ -127,7 +119,7 @@ impl DeleteParams {
         try_join!(remove_config_fut, remove_mock_fut).map(|_| ())
     }
 
-    pub async fn delete_mock(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
+    pub async fn delete_mock(&self) -> anyhow::Result<()> {
         let name_lower = self.name.to_lowercase();
         let mocks = self
             .find_matching_mocks(|(_, pathbuf)| {
@@ -163,9 +155,8 @@ impl DeleteParams {
             return Ok(self.show_if_multiple(&absolute_mocks_path, &matching_mocks));
         }
 
-        self.delete_mock_by_path(first_matching_mock)
-            .await
-            .map_err(|e| -> Box<dyn StdError + Send + Sync> { e.to_string().into() })
+        self.delete_mock_by_path(first_matching_mock).await?;
+        Ok(())
     }
 }
 

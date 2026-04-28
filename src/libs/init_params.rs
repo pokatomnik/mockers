@@ -1,5 +1,4 @@
 use clap::Args;
-use std::error::Error as StdError;
 use std::path::PathBuf;
 
 use crate::libs::create_params::DEFAULT_DELAY_MS;
@@ -265,7 +264,7 @@ impl InitParams {
         Ok(())
     }
 
-    pub async fn init(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    pub async fn init(&self) -> anyhow::Result<()> {
         let exists = self.check_if_config_exists().await?;
 
         let proceed = match exists {
@@ -295,7 +294,7 @@ impl InitParams {
             Err(_) => eprintln!("\n{}", message),
         }
 
-        result.map_err(Box::from)
+        return result.map_err(anyhow::Error::from);
     }
 }
 

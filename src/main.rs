@@ -8,22 +8,21 @@ use clap::Parser;
 use cmd::cli::Cli;
 use log::{LevelFilter, error};
 use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode};
-use std::error::Error as StdError;
 
 use crate::cmd::commands::Commands;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn StdError>> {
+async fn main() -> anyhow::Result<()> {
     init_logger();
     let cli = Cli::parse();
 
     let result = match cli.command {
         Commands::Serve(server_params) => match server_params.test().await {
-            Err(err) => Err(err),
+            Err(err) => Err(anyhow::Error::from(err)),
             Ok(_) => server_params.start_server().await,
         },
         Commands::Create(create_params) => match create_params.test().await {
-            Err(err) => Err(err),
+            Err(err) => Err(anyhow::Error::from(err)),
             Ok(_) => create_params.create_mock().await,
         },
         Commands::List(ls_params) => ls_params.ls_mocks().await,
@@ -41,7 +40,7 @@ async fn main() -> Result<(), Box<dyn StdError>> {
 
     if let Err(err) = result {
         error!("Finished with error: {}", err.to_string());
-        return Err(err.into());
+        return Err(anyhow::Error::msg(err));
     }
 
     Ok(())

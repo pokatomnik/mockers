@@ -15,9 +15,6 @@ use hyper_util::rt::TokioIo;
 use hyper_util::server::graceful::GracefulShutdown;
 use log::{error, info};
 use routerify_ng::RouterService;
-use std::error::Error as StdError;
-use std::io::Error as IoError;
-use std::io::ErrorKind;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -116,7 +113,7 @@ pub struct ServerParams {
 }
 
 impl ServerParams {
-    fn check_admin_base_url(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
+    fn check_admin_base_url(&self) -> anyhow::Result<()> {
         let path = &self.admin_base_url.as_ref().map(PathBuf::from);
         let Some(path) = path else {
             return Ok(());
@@ -128,7 +125,7 @@ impl ServerParams {
             "Admin base URL should be absolute path: \"{}\"",
             path.to_string_lossy().to_string()
         );
-        Err(message.into())
+        Err(anyhow::Error::msg(message))
     }
 
     pub async fn get_host(&self) -> String {
@@ -231,30 +228,29 @@ impl ServerParams {
         std::cmp::min(proxy_body_max_bytes, HARD_MAX_PROXY_RESPONSE_BODY_BYTES)
     }
 
-    pub async fn test(&self) -> Result<(), Box<dyn StdError + Sync + Send>> {
+    pub async fn test(&self) -> anyhow::Result<()> {
         if let Err(e) = self.expect_mocks_path_to_exist().await {
             return Err(e.into());
         }
 
         if let Err(e) = self.check_admin_base_url() {
-            return Err(e);
+            return Err(anyhow::Error::from(e));
         }
 
         Ok(())
     }
 
-    async fn listener(&self, port: u16) -> Result<TcpListener, IoError> {
+    async fn listener(&self, port: u16) -> anyhow::Result<TcpListener> {
         let socket_addr = format!("{}:{}", self.get_host().await, port)
             .to_socket_addrs()?
             .next();
         if let Some(socket_addr) = socket_addr {
-            return TcpListener::bind(socket_addr).await;
+            return TcpListener::bind(socket_addr)
+                .await
+                .map_err(anyhow::Error::from);
         }
 
-        Err(IoError::new(
-            ErrorKind::AddrNotAvailable,
-            "Incorrect default host and/or port",
-        ))
+        Err(anyhow::Error::msg("Incorrect default host and/or port"))
     }
 
     async fn graceful_shutdown(&self) -> Arc<GracefulShutdown> {
@@ -295,7 +291,7 @@ impl ServerParams {
             .to_owned()
     }
 
-    async fn start_http_server(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    async fn start_http_server(&self) -> anyhow::Result<()> {
         let http = self.http().await;
         let graceful = self.graceful_shutdown().await;
         let listener = self.listener(self.get_port().await).await?;
@@ -353,10 +349,7 @@ impl ServerParams {
         Ok(())
     }
 
-    async fn start_https_server(
-        &self,
-        tls_acceptor: Arc<TlsAcceptor>,
-    ) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    async fn start_https_server(&self, tls_acceptor: Arc<TlsAcceptor>) -> anyhow::Result<()> {
         let http = self.http().await;
         let graceful = self.graceful_shutdown().await;
         let listener = self.listener(self.get_https_port().await).await?;
@@ -448,7 +441,7 @@ impl ServerParams {
         Some(swagger_url)
     }
 
-    pub async fn start_server(&self) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    pub async fn start_server(&self) -> anyhow::Result<()> {
         let tls_acceptor = self.tls_acceptor().await;
 
         match tls_acceptor {
