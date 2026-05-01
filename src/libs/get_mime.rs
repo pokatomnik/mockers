@@ -1,10 +1,10 @@
-use mimetype_detector::detect;
 use mimetype_detector::APPLICATION_JSON;
 use mimetype_detector::APPLICATION_OCTET_STREAM;
 use mimetype_detector::TEXT_PLAIN;
+use mimetype_detector::TEXT_UTF8;
 use mimetype_detector::TEXT_UTF16_BE;
 use mimetype_detector::TEXT_UTF16_LE;
-use mimetype_detector::TEXT_UTF8;
+use mimetype_detector::detect;
 
 use lru::LruCache;
 use raffia::ast::Stylesheet;
