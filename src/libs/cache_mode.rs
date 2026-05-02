@@ -3,12 +3,18 @@ use serde::{Deserialize, Deserializer, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
-#[derive(ValueEnum, Clone, Debug, Serialize, PartialEq, PartialOrd)]
+#[derive(ValueEnum, Clone, Copy, Debug, Serialize, PartialEq, PartialOrd)]
 #[clap(rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum CacheMode {
     Overwrite,
     NoCache,
+}
+
+impl CacheMode {
+    pub fn all_values() -> Vec<CacheMode> {
+        return vec![CacheMode::NoCache, CacheMode::Overwrite];
+    }
 }
 
 impl Display for CacheMode {

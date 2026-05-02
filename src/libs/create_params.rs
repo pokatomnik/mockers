@@ -4,9 +4,12 @@ use std::path::Path;
 use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
 use crate::libs::cache_mode::CacheMode;
 use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
+use crate::libs::http_method::HyperHTTPMethodExt;
 use crate::libs::mock_config::MockConfig;
 use crate::libs::path_buf_ext::PathBufExt;
+use crate::libs::status_code_ext::StatusCode;
 use crate::server::params::CONFIG_FILE_NAME;
+use crate::server::params::DEFAULT_PORT;
 use clap::Args;
 use serde_json::json;
 use tokio::sync::OnceCell;
@@ -42,47 +45,180 @@ pub struct CreateParams {
     #[arg(long, default_value_t = false, help = "Should mock be disabled or not")]
     disabled: bool,
 
+    #[arg(long, short, default_value_t = false, help = "Run in interactive mode")]
+    interactive: bool,
+
     /// Pathname to create mock for
-    route: String,
+    route: Option<String>,
 
     #[clap(skip)]
     global_config: OnceCell<GlobalConfigAPI>,
 }
 
 impl CreateParams {
-    fn method(&self) -> &str {
-        &self.method
+    fn method(&self) -> String {
+        let all_http_methods = hyper::Method::get_all_methods()
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<String>>();
+        let method = self.method.to_owned();
+        match self.interactive {
+            true => dialoguer::FuzzySelect::new()
+                .with_prompt("Select HTTP method")
+                .items(&all_http_methods)
+                .default(0)
+                .interact()
+                .ok()
+                .and_then(|idx| all_http_methods.get(idx))
+                .cloned()
+                .unwrap_or(DEFAULT_METHOD.to_string()),
+            false => method,
+        }
     }
 
-    fn route(&self) -> &str {
-        &self.route
+    fn route(&self) -> String {
+        let dialog = dialoguer::Input::new().with_prompt("Specify URL path");
+        match (self.interactive, &self.route) {
+            (true, Some(route)) => dialog
+                .with_initial_text(route)
+                .interact()
+                .unwrap_or_default(),
+            (false, Some(route)) => route.clone(),
+            (true, None) | (false, None) => dialog.interact().unwrap_or_default(),
+        }
     }
 
     fn status_code(&self) -> u16 {
-        self.status_code
+        let all_codes = u16::get_all_status_codes();
+        let codes: Vec<String> = all_codes.iter().map(StatusCode::pretty_print).collect();
+        match &self.interactive {
+            true => dialoguer::FuzzySelect::new()
+                .with_prompt("Specify http Response code")
+                .items(&codes)
+                .default(0)
+                .interact()
+                .ok()
+                .and_then(|idx| all_codes.get(idx).cloned())
+                .unwrap_or(DEFAULT_PORT),
+            false => self.status_code,
+        }
+    }
+
+    fn delay_ms(&self) -> Option<u64> {
+        match &self.interactive {
+            false => self.delay_ms,
+            true => {
+                let res = dialoguer::Input::new()
+                    .with_prompt("Specify delay in milliseconds before response")
+                    .validate_with(|v: &String| {
+                        v.parse::<u64>()
+                            .map(|_| ())
+                            .map_err(|_| "Invalid delay time")
+                    })
+                    .interact()
+                    .ok()
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .unwrap_or(DEFAULT_DELAY_MS);
+                Some(res)
+            }
+        }
     }
 
     fn cache_mode(&self) -> Option<CacheMode> {
-        self.cache_mode.clone()
+        let all_cache_modes = CacheMode::all_values();
+        let prompt = format!(
+            "Select cache mode. Prefer \"{}\" to cache non-existing responses and \"{}\" not to cache them at all.",
+            CacheMode::Overwrite,
+            CacheMode::NoCache
+        );
+        match &self.interactive {
+            true => {
+                let res = dialoguer::Select::new()
+                    .with_prompt(prompt)
+                    .items(&all_cache_modes)
+                    .default(0)
+                    .interact()
+                    .ok()
+                    .and_then(|idx| all_cache_modes.get(idx))
+                    .cloned()
+                    .unwrap_or(CacheMode::NoCache);
+                return Some(res);
+            }
+            false => self.cache_mode().clone(),
+        }
     }
 
-    fn headers(&self) -> impl Iterator<Item = (&str, &str)> {
-        self.headers.iter().filter_map(|v| {
-            v.split_once(':')
-                .map(|(k, v)| (k.trim(), v.trim()))
-                .filter(|(k, v)| !k.is_empty() && !v.is_empty())
-        })
+    fn headers(&self) -> Vec<(String, String)> {
+        if !&self.interactive {
+            return self
+                .headers
+                .iter()
+                .filter_map(|v| {
+                    v.split_once(':')
+                        .map(|(k, v)| (k.trim(), v.trim()))
+                        .filter(|(k, v)| !k.is_empty() && !v.is_empty())
+                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                })
+                .collect();
+        }
+
+        let mut acc = Vec::new();
+
+        while dialoguer::Confirm::new()
+            .with_prompt(match acc.is_empty() {
+                true => "Add headers?",
+                false => "Add more headers?",
+            })
+            .interact()
+            .unwrap_or(false)
+        {
+            let header_key = dialoguer::Input::new()
+                .with_prompt("Specify header key")
+                .interact()
+                .ok()
+                .unwrap_or("".to_string())
+                .trim()
+                .to_string();
+            let header_value = dialoguer::Input::new()
+                .with_prompt("Specify header value")
+                .interact()
+                .ok()
+                .unwrap_or("".to_string())
+                .trim()
+                .to_string();
+            acc.push((header_key, header_value));
+        }
+
+        return acc;
     }
 
     fn is_disabled(&self) -> bool {
-        self.disabled
+        match self.interactive {
+            true => dialoguer::Confirm::new()
+                .with_prompt("Create this mock disabled?")
+                .default(false)
+                .show_default(true)
+                .interact()
+                .unwrap_or(false),
+            false => self.disabled,
+        }
     }
 
-    fn contents(&self) -> Option<&str> {
-        if let Some(ref c) = self.contents {
-            return Some(c);
+    fn contents(&self) -> Option<String> {
+        let initial_text = self.contents.as_ref().cloned().unwrap_or_default();
+        match &self.interactive {
+            false => self.contents.to_owned(),
+            true => {
+                let res = dialoguer::Input::new()
+                    .with_prompt("Write mock contents")
+                    .allow_empty(false)
+                    .with_initial_text(initial_text)
+                    .interact()
+                    .ok()
+                    .unwrap_or_default();
+                return Some(res);
+            }
         }
-        None
     }
 
     pub async fn test(&self) -> anyhow::Result<()> {
@@ -137,13 +273,17 @@ impl CreateParams {
 
 impl From<&CreateParams> for MockConfig {
     fn from(value: &CreateParams) -> Self {
-        let owned_headers = value.headers().fold(HashMap::new(), |mut map, (key, val)| {
-            map.insert(key.to_string(), val.to_string());
-            map
-        });
+        let owned_headers =
+            value
+                .headers()
+                .into_iter()
+                .fold(HashMap::new(), |mut map, (key, val)| {
+                    map.insert(key, val);
+                    map
+                });
         MockConfig::new()
             .with_headers(owned_headers)
-            .with_delay_ms(value.delay_ms.unwrap_or(DEFAULT_DELAY_MS))
+            .with_delay_ms(value.delay_ms().unwrap_or(DEFAULT_DELAY_MS))
             .with_status_code(value.status_code())
             .with_cache_mode(value.cache_mode().unwrap_or(CacheMode::NoCache))
             .with_disabled_status(value.is_disabled())
