@@ -23,6 +23,7 @@ use tokio::sync::OnceCell;
 use tokio_rustls::TlsAcceptor;
 
 pub const DEFAULT_HOST: &'static str = "0.0.0.0";
+pub const DEFAULT_SWAGGER_HOST: &'static str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 8080;
 pub const DEFAULT_HTTPS_PORT: u16 = 8443;
 pub const DEFAULT_MOCKS_DIR_NAME: &'static str = "mocks";
@@ -430,7 +431,11 @@ impl ServerParams {
             false => "http",
         };
 
-        let host = self.get_host().await;
+        let raw_host = self.get_host().await;
+        let host = match raw_host.as_str() {
+            DEFAULT_HOST => DEFAULT_SWAGGER_HOST,
+            host => host,
+        };
         let port = match tls_enabled {
             true => self.get_https_port().await,
             false => self.get_port().await,
