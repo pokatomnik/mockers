@@ -144,7 +144,7 @@ impl CreateParams {
                     .unwrap_or(CacheMode::NoCache);
                 return Some(res);
             }
-            false => self.cache_mode().clone(),
+            false => self.cache_mode.clone(),
         }
     }
 
