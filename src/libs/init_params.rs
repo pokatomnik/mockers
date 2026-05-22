@@ -37,7 +37,7 @@ impl InitParams {
         Ok(home_dir.join(GLOBAL_CONFIG_FILE_NAME))
     }
 
-    async fn ask_to_overwrite(&self) -> bool {
+    fn ask_to_overwrite(&self) -> bool {
         let Ok(config_file_path) = self.get_user_config_path() else {
             return false;
         };
@@ -45,14 +45,10 @@ impl InitParams {
             "Are you sure you want to overwrite the file {}?",
             config_file_path.display()
         );
-        tokio::task::spawn_blocking(move || {
-            dialoguer::Confirm::new()
-                .with_prompt(prompt)
-                .interact()
-                .unwrap_or(false)
-        })
-        .await
-        .unwrap_or(false)
+        dialoguer::Confirm::new()
+            .with_prompt(prompt)
+            .interact()
+            .unwrap_or(false)
     }
 
     async fn check_if_config_exists(&self) -> Result<bool, anyhow::Error> {
@@ -229,34 +225,30 @@ impl InitParams {
     }
 
     async fn init_interactive(&self) -> Result<(), anyhow::Error> {
-        let global_config = tokio::task::spawn_blocking(|| {
-            let host = Self::ask_host();
-            let port: u16 = Self::ask_port();
-            let https_port: u16 = Self::ask_https_port();
-            let mocks: String = Self::ask_mocks();
-            let cors: bool = Self::ask_cors();
-            let preflight: PreflightType = Self::ask_preflight();
-            let delay_ms: u64 = Self::ask_delay();
-            let admin_base_url: String = Self::ask_admin_base_url();
-            let log_request: VerbosityLevel = Self::ask_log_request_level();
-            let verbosity: VerbosityLevel = Self::ask_verbosity_level();
-            let proxy_body_max_bytes = Self::ask_proxy_body_max_bytes();
+        let host = Self::ask_host();
+        let port: u16 = Self::ask_port();
+        let https_port: u16 = Self::ask_https_port();
+        let mocks: String = Self::ask_mocks();
+        let cors: bool = Self::ask_cors();
+        let preflight: PreflightType = Self::ask_preflight();
+        let delay_ms: u64 = Self::ask_delay();
+        let admin_base_url: String = Self::ask_admin_base_url();
+        let log_request: VerbosityLevel = Self::ask_log_request_level();
+        let verbosity: VerbosityLevel = Self::ask_verbosity_level();
+        let proxy_body_max_bytes = Self::ask_proxy_body_max_bytes();
 
-            GlobalConfig::default()
-                .with_host(host)
-                .with_port(port)
-                .with_https_port(https_port)
-                .with_mocks(mocks)
-                .with_cors(cors)
-                .with_preflight(preflight)
-                .with_delay_ms(delay_ms)
-                .with_admin_base_url(admin_base_url)
-                .with_log_request(log_request)
-                .with_verbosity(verbosity)
-                .with_proxy_body_max_bytes(proxy_body_max_bytes)
-        })
-        .await
-        .unwrap_or_else(|_| GlobalConfig::fair_defaults());
+        let global_config = GlobalConfig::default()
+            .with_host(host)
+            .with_port(port)
+            .with_https_port(https_port)
+            .with_mocks(mocks)
+            .with_cors(cors)
+            .with_preflight(preflight)
+            .with_delay_ms(delay_ms)
+            .with_admin_base_url(admin_base_url)
+            .with_log_request(log_request)
+            .with_verbosity(verbosity)
+            .with_proxy_body_max_bytes(proxy_body_max_bytes);
 
         let as_str = serde_json::to_string_pretty(&global_config)?;
         tokio::fs::write(self.get_user_config_path()?, as_str).await?;
@@ -268,7 +260,7 @@ impl InitParams {
         let exists = self.check_if_config_exists().await?;
 
         let proceed = match exists {
-            true => self.ask_to_overwrite().await,
+            true => self.ask_to_overwrite(),
             false => true,
         };
 
