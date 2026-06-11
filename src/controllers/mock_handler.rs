@@ -196,7 +196,7 @@ pub async fn mock_handler(
             req.body().clone().into_data_stream(),
         ));
 
-    // Send response if remove server is specified
+    // Send response if remote server is specified
     let Ok(response) = request_builder.send().await else {
         let response = Response::bad_gateway()
             .tap(|builder| if cors { builder.add_cors() } else { builder })

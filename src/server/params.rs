@@ -14,6 +14,7 @@ use hyper::service::Service;
 use hyper_util::rt::TokioIo;
 use hyper_util::server::graceful::GracefulShutdown;
 use log::{error, info};
+use reqwest::Proxy;
 use routerify_ng::RouterService;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
@@ -96,6 +97,12 @@ pub struct ServerParams {
 
     #[arg(long, help = "Maximum response size in bytes")]
     proxy_body_max_bytes: Option<usize>,
+
+    #[arg(
+        long = "proxy",
+        help = "Proxy connection string, example: socks5h://127.0.0.1:1080, https://proxy-gateway.whatever:443/"
+    )]
+    proxy: Option<String>,
 
     #[clap(skip)]
     global_config: OnceCell<GlobalConfigAPI>,
@@ -227,6 +234,13 @@ impl ServerParams {
         .unwrap_or(DEFAULT_PROXY_RESPONSE_BODY_BYTES);
 
         std::cmp::min(proxy_body_max_bytes, HARD_MAX_PROXY_RESPONSE_BODY_BYTES)
+    }
+
+    pub async fn proxy(&self) -> Option<Proxy> {
+        match self.proxy.as_ref() {
+            Some(p) => Proxy::all(p.as_str()).ok(),
+            None => self.get_global_config().await.get_proxy().await,
+        }
     }
 
     pub async fn test(&self) -> anyhow::Result<()> {

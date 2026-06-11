@@ -23,7 +23,7 @@ use crate::middlewares::logger::logger;
 use crate::server::mockers_context::MockersContext;
 use crate::server::params::ServerParams;
 use crate::server::route_error::MockersRouteError;
-use reqwest::Client;
+use reqwest::ClientBuilder;
 use routerify_ng::Router;
 use routerify_ng::{Middleware, RouteError};
 
@@ -79,8 +79,13 @@ pub async fn mockers_router(
     swagger_base_path: &'static str,
 ) -> Result<Router<MockersRouteError>, RouteError> {
     let router_builder = {
+        let mut client = ClientBuilder::new().no_proxy();
+        if let Some(proxy) = params.proxy().await {
+            client = client.proxy(proxy);
+        }
+        let client = client.build()?;
         let mut router = Router::builder().data(Arc::new(MockersContext {
-            client: Arc::new(Client::new()),
+            client: Arc::new(client),
             server_params: params.clone(),
         }));
         if let Some((admin_base_url, admin_router)) = params
