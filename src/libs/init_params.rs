@@ -164,6 +164,25 @@ impl InitParams {
             .unwrap_or_else(|_| DEFAULT_ADMIN_BASE_URL.to_string())
     }
 
+    fn ask_proxy_connection_string() -> Option<String> {
+        let default = "socks5h://127.0.0.1:1080";
+        let response = dialoguer::Input::new()
+            .with_initial_text(default.to_string())
+            .default(default.to_string())
+            .with_prompt(format!(
+                "Specify proxy connection string, example: \"{default}\". Leave empty to omit"
+            ))
+            .allow_empty(true)
+            .interact()
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        match response {
+            x if !x.is_empty() => Some(x),
+            _ => None,
+        }
+    }
+
     fn ask_log_request_level() -> VerbosityLevel {
         let items_to_select = vec![
             VerbosityLevel::Info,
@@ -205,6 +224,7 @@ impl InitParams {
             .with_initial_text(DEFAULT_PROXY_RESPONSE_BODY_BYTES.to_string())
             .default(DEFAULT_PROXY_RESPONSE_BODY_BYTES.to_string())
             .with_prompt("Specify the maximum size of the response body of the proxied server")
+            .report(false)
             .validate_with(|v: &String| -> Result<(), String> {
                 if let Ok(parsed) = v.parse::<usize>()
                     && parsed <= HARD_MAX_PROXY_RESPONSE_BODY_BYTES
@@ -236,6 +256,7 @@ impl InitParams {
         let log_request: VerbosityLevel = Self::ask_log_request_level();
         let verbosity: VerbosityLevel = Self::ask_verbosity_level();
         let proxy_body_max_bytes = Self::ask_proxy_body_max_bytes();
+        let proxy = Self::ask_proxy_connection_string();
 
         let global_config = GlobalConfig::default()
             .with_host(host)
@@ -248,7 +269,8 @@ impl InitParams {
             .with_admin_base_url(admin_base_url)
             .with_log_request(log_request)
             .with_verbosity(verbosity)
-            .with_proxy_body_max_bytes(proxy_body_max_bytes);
+            .with_proxy_body_max_bytes(proxy_body_max_bytes)
+            .with_proxy(proxy);
 
         let as_str = serde_json::to_string_pretty(&global_config)?;
         tokio::fs::write(self.get_user_config_path()?, as_str).await?;
