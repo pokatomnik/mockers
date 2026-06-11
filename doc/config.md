@@ -5,6 +5,7 @@
 The `config` command prints the **effective global Mockers configuration** resolved for the current working directory.
 
 It is intended for:
+
 - verifying what values Mockers will use when command-line flags are not passed,
 - troubleshooting unexpected runtime behavior,
 - validating hierarchical `.mockers` file resolution.
@@ -45,6 +46,7 @@ Mockers uses a global configuration file named:
 ```
 
 When `mockers config` runs, Mockers:
+
 1. takes the current working directory,
 2. builds a directory chain up to filesystem root,
 3. checks each directory for `.mockers`,
@@ -56,6 +58,7 @@ When `mockers config` runs, Mockers:
 The closest `.mockers` file to your current directory has higher priority than parent directories.
 
 In practice:
+
 - parent directory config provides base defaults,
 - nested project config overrides only specified fields,
 - unspecified fields are inherited.
@@ -77,6 +80,8 @@ In practice:
 - `Admin base URL`
 - `Requests log level`
 - `Verbosity level`
+- `Proxy body max bytes`
+- `Proxy` (shows `Proxy IS set` or `Proxy is NOT set`)
 
 If a value is not set in any discovered `.mockers`, it is displayed as:
 
@@ -102,6 +107,7 @@ The global configuration structure supports these keys (`camelCase`):
 - `logRequest` (`"info"`, `"debug"`, `"trace"`)
 - `verbosity` (`"info"`, `"debug"`, `"trace"`)
 - `proxyBodyMaxBytes` (number)
+- `proxy` (string) — proxy connection string for upstream requests (socks5, http, https)
 
 ---
 
@@ -128,6 +134,7 @@ mockers init --interactive
 `mockers config` reflects only values found in `.mockers` files.
 
 For `serve`, additional built-in runtime defaults are applied when values are missing:
+
 - `host = 0.0.0.0`
 - `port = 8080` (or `8443` when HTTPS enabled)
 - `mocks = mocks`
