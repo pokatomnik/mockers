@@ -53,6 +53,13 @@ Command aliases: `run`, `start`, `s`.
   - Default: `16 MiB`.
   - Hard cap: `32 MiB` (values above this are clamped).
 
+### Upstream proxy
+
+- `--proxy <PROXY>` — proxy connection string for upstream requests.
+  - Supports proxies compatible with `reqwest`: `socks5h://127.0.0.1:1080`, `http://proxy-gateway:8080`, `https://proxy-gateway:443`.
+  - Used only when proxying to `--origin`.
+  - If unset, upstream requests go through direct connection (`no_proxy`).
+
 ### Admin and logging
 
 - `--admin-base-url, -a <PATH>` — enables admin API + Swagger under the given absolute base path.
@@ -70,7 +77,7 @@ Command aliases: `run`, `start`, `s`.
 ## Configuration precedence
 
 For most `serve` parameters (`host`, `port`, `mocks`, `cors`, `preflight`, `delay`, `origin`,
-`admin_base_url`, `log_request`, `verbosity`, `proxy_body_max_bytes`), the resolution order is:
+`admin_base_url`, `log_request`, `verbosity`, `proxy_body_max_bytes`, `proxy`), the resolution order is:
 
 1. CLI flag value,
 2. global `.mockers` configuration value,

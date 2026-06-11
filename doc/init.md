@@ -23,9 +23,9 @@ Aliases:
 
 ## Parameters
 
-| Flag | Short | Type | Default | Description |
-| --- | --- | --- | --- | --- |
-| `--interactive` | `-i` | boolean flag | `false` | Enables interactive setup (prompts in terminal). |
+| Flag            | Short | Type         | Default | Description                                      |
+| --------------- | ----- | ------------ | ------- | ------------------------------------------------ |
+| `--interactive` | `-i`  | boolean flag | `false` | Enables interactive setup (prompts in terminal). |
 
 If `--interactive` is **not** specified, the command writes a config with built-in defaults.
 
@@ -64,6 +64,7 @@ When run without `--interactive`, the command writes a "fair defaults" configura
 Notes:
 
 - `origin` is not set by default.
+- `proxy` is not set by default.
 
 ---
 
@@ -83,6 +84,7 @@ Prompts include:
 8. Admin base URL
 9. Request log level (`info`, `debug`, `trace`)
 10. Verbosity level (`info`, `debug`, `trace`)
+11. Proxy connection string (e.g. `socks5h://127.0.0.1:1080`). Prompt accepts empty input to omit.
 
 Prompt behavior details:
 

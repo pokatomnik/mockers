@@ -1,4 +1,5 @@
 # Mockers — tiny but powerful HTTP mock server in Rust 🎯
+
 ![Mockers](./.assets/mockers-logo.svg)
 [![Rust](https://github.com/pokatomnik/mockers/actions/workflows/rust.yml/badge.svg)](https://github.com/pokatomnik/mockers/actions/workflows/rust.yml)
 
@@ -71,12 +72,75 @@ Available commands:
 - `serve` — run HTTP server
 - `create` — create a file-based mock + config entry
 - `list` — list all file-based mocks
-- `info` — show full info for a mock (status, headers, delay, mime, body)
+- `info` — show full info for a mock (status, headers, delay, cache mode, mime, body)
 - `delete` — delete a specific mock (and clean config entry)
 - `enable` — enable a disabled mock
 - `disable` — disable a mock
+- `config` — show effective global Mockers configuration
+- `init` — initialize global Mockers configuration file
+- `doc` — show built-in documentation for a command
+- `completion` — generate shell completion script
 
 There are also aliases (`run`, `start`, `ls`, `rm`, etc.), check `--help`.
+
+---
+
+## Global configuration file (`.mockers`)
+
+Mockers supports a **hierarchical global configuration** system via `.mockers` files.
+
+When any command runs, Mockers walks from the current working directory up to the filesystem root,
+reads every `.mockers` file it finds, and merges them. Config fields from closer directories override
+those from parent directories.
+
+You can create a user-level global config in your home directory:
+
+```bash
+mockers init           # non-interactive, writes defaults
+mockers init -i        # interactive setup with prompts
+```
+
+The file is written to `$HOME/.mockers` in JSON format.
+
+CLI flags always take precedence over global config values, which in turn override built-in defaults.
+
+Supported `.mockers` fields (all optional, `camelCase` keys):
+
+| Field               | Type                               | Description                                                         |
+| ------------------- | ---------------------------------- | ------------------------------------------------------------------- |
+| `host`              | string                             | Interface to bind                                                   |
+| `port`              | number                             | HTTP port                                                           |
+| `httpsPort`         | number                             | HTTPS port                                                          |
+| `mocks`             | string                             | Path to mocks directory                                             |
+| `cors`              | boolean                            | Enable CORS headers                                                 |
+| `preflight`         | `"mirror"` \| `"permissive"`       | Preflight handling                                                  |
+| `delayMs`           | number                             | Global response delay (ms)                                          |
+| `origin`            | string                             | Fallback upstream URL                                               |
+| `adminBaseUrl`      | string                             | Admin API base path                                                 |
+| `logRequest`        | `"info"` \| `"debug"` \| `"trace"` | Request logging level                                               |
+| `verbosity`         | `"info"` \| `"debug"` \| `"trace"` | Process verbosity level                                             |
+| `proxyBodyMaxBytes` | number                             | Max upstream response body (bytes)                                  |
+| `proxy`             | string                             | Proxy connection string for upstream requests (socks5, http, https) |
+
+---
+
+## `doc` command
+
+```bash
+mockers doc <COMMAND>
+```
+
+Shows detailed built-in documentation for any command (rendered as markdown in the terminal).
+
+Example:
+
+```bash
+mockers doc serve
+mockers doc create
+```
+
+The `<COMMAND>` argument corresponds to any available subcommand:
+`serve`, `create`, `list`, `info`, `delete`, `enable`, `disable`, `config`, `init`, `completion`.
 
 ---
 
@@ -88,18 +152,25 @@ mockers serve [OPTIONS]
 
 ### Options
 
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--host` | `0.0.0.0` | Interface to bind to |
-| `--port`, `-p` | `8080` | Port to listen on |
-| `--https-port` | `8443` | HTTPS port to listen on |
-| `--mocks`, `-m` | `mocks` | Directory with mock files |
-| `--cors`, `-c` | `false` | Adds CORS headers (`Access-Control-Allow-Origin: *`) |
-| `--preflight` | unset | Auto-handle browser OPTIONS preflight requests |
-| `--delay-ms`, `-d` | `0` | Global response delay in ms |
-| `--origin`, `-o` | unset | Fallback upstream server when mock is missing |
-| `--admin-base-url`, `-a` | unset | Enables admin API + Swagger under given absolute base path |
-| `--log-request`, `-l` | `info` | Request logging level: `info`, `debug`, `trace` |
+| Flag                     | Default             | Description                                                                                                     |
+| ------------------------ | ------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `--host`                 | `0.0.0.0`           | Interface to bind to                                                                                            |
+| `--port`, `-p`           | `8080`              | Port to listen on                                                                                               |
+| `--https-port`           | `8443`              | HTTPS port to listen on                                                                                         |
+| `--mocks`, `-m`          | `mocks`             | Directory with mock files                                                                                       |
+| `--cors`, `-c`           | `false`             | Adds CORS headers (`Access-Control-Allow-Origin: *`). Can be passed as `--cors` (true) or `--cors=false`        |
+| `--preflight`            | unset               | Auto-handle browser OPTIONS preflight requests                                                                  |
+| `--delay-ms`, `-d`       | `0`                 | Global response delay in ms                                                                                     |
+| `--origin`, `-o`         | unset               | Fallback upstream server when mock is missing                                                                   |
+| `--admin-base-url`, `-a` | unset               | Enables admin API + Swagger under given absolute base path                                                      |
+| `--log-request`, `-l`    | `info`              | Request logging level: `info`, `debug`, `trace`                                                                 |
+| `--verbosity`, `-v`      | `info`              | Process/service verbosity level: `info`, `debug`, `trace`. With `debug`/`trace`, startup parameters are printed |
+| `--proxy-body-max-bytes` | `16777216` (16 MiB) | Maximum upstream response body size when proxying. Hard capped at 32 MiB                                        |
+| `--proxy`                | unset               | Proxy connection string for upstream requests. Supports socks5, http, https — e.g. `socks5h://127.0.0.1:1080`   |
+
+### Graceful shutdown
+
+Mockers handles `Ctrl+C` (SIGINT) for a clean server shutdown. When interrupted, it stops accepting new connections and lets in-flight requests complete.
 
 ### HTTPS support
 
@@ -127,6 +198,14 @@ Good for local dev when CORS fights you.
 - `info`: method + path/query.
 - `debug`: method + path/query + headers.
 - `trace`: method + path/query + headers + body.
+
+### Verbosity levels
+
+Controls process/service output (separate from request logging):
+
+- `info`: normal startup/shutdown messages.
+- `debug`: startup parameters and additional diagnostics.
+- `trace`: detailed internal tracing.
 
 ---
 
@@ -222,13 +301,13 @@ Example:
 
 ### Supported fields
 
-| Field | Type | What it does |
-| --- | --- | --- |
-| `delayMs` | number | Per-mock delay in ms |
-| `statusCode` | number | Per-mock HTTP status |
-| `headers` | object string->string | Extra response headers |
-| `cacheMode` | `overwrite` \| `nocache` | Controls write-through behavior when proxying to `origin` |
-| `disabled` | boolean | If `true`, file mock is ignored |
+| Field        | Type                     | What it does                                              |
+| ------------ | ------------------------ | --------------------------------------------------------- |
+| `delayMs`    | number                   | Per-mock delay in ms                                      |
+| `statusCode` | number                   | Per-mock HTTP status                                      |
+| `headers`    | object string->string    | Extra response headers                                    |
+| `cacheMode`  | `overwrite` \| `nocache` | Controls write-through behavior when proxying to `origin` |
+| `disabled`   | boolean                  | If `true`, file mock is ignored                           |
 
 ### Precedence and defaults
 
@@ -262,7 +341,7 @@ So you can warm up mocks from a real backend automatically.
 ## `create` command
 
 ```bash
-mockers create [OPTIONS] <ROUTE>
+mockers create [OPTIONS] [ROUTE]
 ```
 
 Creates:
@@ -270,23 +349,30 @@ Creates:
 - a mock file (`<route>.<method>`),
 - and updates/creates `config.json` in the same directory.
 
+`ROUTE` is positional and represents the URL path (e.g. `/users/profile`).
+If omitted when using `--interactive`, you will be prompted for it.
+
 ### Options
 
-| Flag | Default | Description |
-| --- | --- | --- |
-| `--method` | `GET` | HTTP method |
-| `--status-code`, `-s` | `200` | Response status in config |
-| `--delay-ms`, `-d` | `0` | Delay in config |
-| `--header` | none | Add response header (`Key: Value`) |
-| `--contents`, `-c` | `{"hello":"world"}` | Mock body content |
-| `--cache-mode` | `nocache` | `overwrite` or `nocache` |
-| `--mocks`, `-m` | `mocks` | Mocks directory |
-| `--disabled` | `false` | Create mock as disabled |
+| Flag                  | Default             | Description                                         |
+| --------------------- | ------------------- | --------------------------------------------------- |
+| `--method`            | `GET`               | HTTP method                                         |
+| `--status-code`, `-s` | `200`               | Response status in config                           |
+| `--delay-ms`, `-d`    | `0`                 | Delay in config                                     |
+| `--header`            | none                | Add response header (`Key: Value`), can be repeated |
+| `--contents`, `-c`    | `{"hello":"world"}` | Mock body content                                   |
+| `--cache-mode`        | `nocache`           | `overwrite` or `nocache`                            |
+| `--mocks`, `-m`       | `mocks`             | Mocks directory                                     |
+| `--disabled`          | `false`             | Create mock as disabled                             |
+| `--interactive`, `-i` | `false`             | Interactive mode with prompts for each field        |
 
 ### Example
 
 ```bash
 mockers create /users/profile --method GET --status-code 200 --header "X-Env: local" --contents '{"id":1}'
+
+# Interactive mode
+mockers create --interactive
 ```
 
 ---
@@ -298,6 +384,12 @@ mockers list [OPTIONS]
 ```
 
 Shows all detected mock files with valid HTTP method extensions.
+
+### Options
+
+| Flag            | Default | Description                 |
+| --------------- | ------- | --------------------------- |
+| `--mocks`, `-m` | `mocks` | Path to the mocks directory |
 
 Example:
 
@@ -319,8 +411,16 @@ Searches by partial name/path (case-insensitive), then prints:
 - response status,
 - configured headers,
 - delay,
+- cache mode,
 - detected mime type,
-- body (`--show-body` only).
+- body (only with `--show-body`).
+
+### Options
+
+| Flag                | Default | Description                         |
+| ------------------- | ------- | ----------------------------------- |
+| `--mocks`, `-m`     | `mocks` | Path to the mocks directory         |
+| `--show-body`, `-s` | `false` | Display mock body content in output |
 
 If multiple mocks match, it will ask you to be more specific by listing candidates.
 
@@ -335,6 +435,12 @@ mockers delete [OPTIONS] <NAME>
 Deletes one matching mock file.
 Also removes that entry from `config.json` in the same directory.
 If config becomes empty, `config.json` is deleted too.
+
+### Options
+
+| Flag            | Default | Description                 |
+| --------------- | ------- | --------------------------- |
+| `--mocks`, `-m` | `mocks` | Path to the mocks directory |
 
 If your query matches multiple mocks, it prints candidates and does nothing.
 
@@ -352,7 +458,55 @@ These commands toggle the `disabled` flag in `config.json` for one matching mock
 - `disable` => mock is ignored at serve time.
 - `enable` => mock becomes active again.
 
+### Options
+
+| Flag            | Default | Description                 |
+| --------------- | ------- | --------------------------- |
+| `--mocks`, `-m` | `mocks` | Path to the mocks directory |
+
 If multiple matches are found, it asks for a more specific query.
+
+---
+
+## `config` command
+
+```bash
+mockers config
+```
+
+Shows the **effective global Mockers configuration** resolved for the current directory.
+Value are pulled from `.mockers` files (from CWD up to root) and merged.
+
+Aliases: `configuration`, `settings`, `preferences`, `prefs`.
+
+Takes no parameters. It prints a human-readable report with all supported fields:
+host, port, HTTPS port, mocks path, CORS, preflight, delay, origin, admin base URL,
+request log level, verbosity level, proxy body max bytes, proxy.
+
+If a value is not set in any `.mockers` file, it shows as `[unset]` (except `proxy`,
+which displays as `Proxy IS set` or `Proxy is NOT set`).
+
+---
+
+## `init` command
+
+```bash
+mockers init [OPTIONS]
+```
+
+Initializes the global Mockers configuration file at `$HOME/.mockers`.
+
+Alias: `setup`.
+
+### Options
+
+| Flag                  | Default | Description                                         |
+| --------------------- | ------- | --------------------------------------------------- |
+| `--interactive`, `-i` | `false` | Interactive mode with prompts for each config field |
+
+Without `--interactive`, writes built-in defaults to `~/.mockers`.
+
+If `~/.mockers` already exists, you will be asked for confirmation before overwriting.
 
 ---
 
@@ -495,7 +649,9 @@ In this example:
 - container port: `8080`
 
 ### Mocks directory
+
 The container always expects mocks at:
+
 ```sh
 /app/mocks
 ```
@@ -503,6 +659,7 @@ The container always expects mocks at:
 A local directory must be mounted there when the container is started.
 
 Read-only mount is recommended if mockers only needs to read mock files:
+
 ```sh
 -v "/path/to/host/mocks/directory:/app/mocks:ro"
 ```
@@ -514,6 +671,7 @@ If write access is required, remove `:ro`:
 ```
 
 ### Full example
+
 ```sh
 docker build -t mockers-dockers .
 
@@ -529,6 +687,7 @@ docker run --rm \
 ---
 
 ## Shell completions
+
 `mockers` can generate shell completion scripts for supported shells.  
 To enable completions, add the following line to your shell startup file:
 
@@ -547,36 +706,47 @@ Replace SHELL with one of the supported shells:
 ### Examples:
 
 #### Bash:
+
 Add this line to `~/.bashrc`:
+
 ```sh
 source <(mockers completion -s bash)
 ```
 
 #### Zsh
+
 Add this line to `~/.zshrc`:
+
 ```sh
 source <(mockers completion -s zsh)
 ```
 
 #### Fish
+
 Add this line to your Fish config file, usually ~/.config/fish/config.fish:
+
 ```sh
 source (mockers completion -s fish | psub)
 ```
 
 #### Elvish
+
 Add this line to your Elvish config file, usually ~/.config/elvish/rc.elv:
+
 ```sh
 eval (mockers completion -s elvish | slurp)
 ```
 
 #### PowerShell
+
 Add the generated script to your PowerShell profile:
 
 ```sh
 mockers completion -s powershell | Out-String | Invoke-Expression
 ```
+
 You can place this command in your PowerShell profile file so that completions are loaded automatically in every session.
+
 ---
 
 ## Shout-out

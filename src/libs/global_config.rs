@@ -44,6 +44,7 @@ pub(crate) trait GlobalConfigBuilder {
     fn with_log_request(self, log_request: VerbosityLevel) -> Self;
     fn with_verbosity(self, verbosity: VerbosityLevel) -> Self;
     fn with_proxy_body_max_bytes(self, proxy_body_max_bytes: usize) -> Self;
+    fn with_proxy(self, proxy: Option<String>) -> Self;
 }
 
 impl GlobalConfigBuilder for GlobalConfig {
@@ -104,6 +105,11 @@ impl GlobalConfigBuilder for GlobalConfig {
 
     fn with_proxy_body_max_bytes(mut self, proxy_body_max_bytes: usize) -> Self {
         self.proxy_body_max_bytes = Some(proxy_body_max_bytes);
+        self
+    }
+
+    fn with_proxy(mut self, proxy: Option<String>) -> Self {
+        self.proxy = proxy;
         self
     }
 }
@@ -413,6 +419,12 @@ impl GetInfoAsync for GlobalConfigAPI {
             Self::EOL,
         );
 
+        let proxy_text = match self.get_proxy().await {
+            Some(_) => "Proxy IS set",
+            None => "Proxy is NOT set",
+        };
+        let proxy = format!("Proxy:{}{}{}", Self::TAB.repeat(3), proxy_text, Self::EOL);
+
         buf.push_str(&host_info);
         buf.push_str(&port_info);
         buf.push_str(&https_port_info);
@@ -425,6 +437,7 @@ impl GetInfoAsync for GlobalConfigAPI {
         buf.push_str(&log_request_info);
         buf.push_str(&verbosity_level_info);
         buf.push_str(&proxy_body_max_bytes);
+        buf.push_str(&proxy);
 
         buf
     }
