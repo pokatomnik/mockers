@@ -2,6 +2,7 @@ use crate::libs::get_info_async::GetInfoAsync;
 use crate::libs::path_buf_ext::PathBufExt;
 use crate::libs::preflight_type::PreflightType;
 use crate::middlewares::logger::VerbosityLevel;
+use reqwest::Proxy;
 use serde::{Deserialize, Serialize};
 use std::collections::LinkedList;
 use std::env::current_dir;
@@ -26,6 +27,7 @@ pub(crate) struct GlobalConfig {
     log_request: Option<VerbosityLevel>,
     verbosity: Option<VerbosityLevel>,
     proxy_body_max_bytes: Option<usize>,
+    proxy: Option<String>,
 }
 
 pub(crate) trait GlobalConfigBuilder {
@@ -139,6 +141,10 @@ impl GlobalConfig {
             .map(|o| o.proxy_body_max_bytes)
             .flatten()
             .or(self.proxy_body_max_bytes);
+        let proxy = other
+            .map(|o| o.proxy.clone())
+            .flatten()
+            .or_else(|| self.proxy.clone());
         GlobalConfig {
             host,
             port,
@@ -152,6 +158,7 @@ impl GlobalConfig {
             log_request,
             verbosity,
             proxy_body_max_bytes,
+            proxy,
         }
     }
 }
@@ -287,6 +294,13 @@ impl GlobalConfigAPI {
 
     pub async fn get_proxy_body_max_bytes(&self) -> Option<usize> {
         self.get_config().await.proxy_body_max_bytes
+    }
+
+    pub async fn get_proxy(&self) -> Option<Proxy> {
+        match self.get_config().await.proxy {
+            Some(p) => Proxy::all(p).ok(),
+            None => None,
+        }
     }
 }
 
