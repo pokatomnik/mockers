@@ -481,9 +481,10 @@ Aliases: `configuration`, `settings`, `preferences`, `prefs`.
 
 Takes no parameters. It prints a human-readable report with all supported fields:
 host, port, HTTPS port, mocks path, CORS, preflight, delay, origin, admin base URL,
-request log level, verbosity level, proxy body max bytes.
+request log level, verbosity level, proxy body max bytes, proxy.
 
-If a value is not set in any `.mockers` file, it shows as `[unset]`.
+If a value is not set in any `.mockers` file, it shows as `[unset]` (except `proxy`,
+which displays as `Proxy IS set` or `Proxy is NOT set`).
 
 ---
 
