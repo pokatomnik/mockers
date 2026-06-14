@@ -36,7 +36,7 @@ impl PromptParser {
         }
     }
 
-    fn get_prompt(&self) -> &(Option<MockersFrontmatter>, String) {
+    pub fn get_prompt(&self) -> &(Option<MockersFrontmatter>, String) {
         self.processed
             .get_or_init(|| self.expect_process_source_typed())
     }
