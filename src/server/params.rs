@@ -2,6 +2,7 @@ use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
 use crate::libs::create_params::DEFAULT_DELAY_MS;
 use crate::libs::get_info_async::GetInfoAsync;
 use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
+use crate::libs::llm::profile::LLMProfile;
 use crate::libs::preflight_type::PreflightType;
 use crate::libs::tls_acceptor_ext::TLSAcceptorLoader;
 use crate::middlewares::logger::VerbosityLevel;
@@ -16,6 +17,7 @@ use hyper_util::server::graceful::GracefulShutdown;
 use log::{error, info};
 use reqwest::Proxy;
 use routerify_ng::RouterService;
+use std::collections::HashMap;
 use std::net::ToSocketAddrs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -241,6 +243,10 @@ impl ServerParams {
             Some(p) => Proxy::all(p.as_str()).ok(),
             None => self.get_global_config().await.get_proxy().await,
         }
+    }
+
+    pub async fn get_llm_profiles(&self) -> Arc<HashMap<String, LLMProfile>> {
+        self.get_global_config().await.get_llm_profiles().await
     }
 
     pub async fn test(&self) -> anyhow::Result<()> {

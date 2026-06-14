@@ -1,13 +1,14 @@
 use crate::libs::get_info_async::GetInfoAsync;
+use crate::libs::llm::profile::LLMProfile;
 use crate::libs::path_buf_ext::PathBufExt;
 use crate::libs::preflight_type::PreflightType;
 use crate::middlewares::logger::VerbosityLevel;
 use reqwest::Proxy;
 use serde::{Deserialize, Serialize};
-use std::collections::LinkedList;
+use std::collections::{HashMap, LinkedList};
 use std::env::current_dir;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use tokio::sync::RwLock;
 
 pub(crate) static GLOBAL_CONFIG_FILE_NAME: &'static str = ".mockers";
@@ -28,6 +29,10 @@ pub(crate) struct GlobalConfig {
     verbosity: Option<VerbosityLevel>,
     proxy_body_max_bytes: Option<usize>,
     proxy: Option<String>,
+    llm_profiles: Option<HashMap<String, LLMProfile>>,
+
+    #[serde(skip)]
+    llm_profiles_init: OnceLock<Arc<HashMap<String, LLMProfile>>>,
 }
 
 pub(crate) trait GlobalConfigBuilder {
@@ -151,6 +156,10 @@ impl GlobalConfig {
             .map(|o| o.proxy.clone())
             .flatten()
             .or_else(|| self.proxy.clone());
+        let llm_profiles = other
+            .map(|o| o.llm_profiles.clone())
+            .flatten()
+            .or_else(|| self.llm_profiles.clone());
         GlobalConfig {
             host,
             port,
@@ -165,6 +174,8 @@ impl GlobalConfig {
             verbosity,
             proxy_body_max_bytes,
             proxy,
+            llm_profiles,
+            llm_profiles_init: Default::default(),
         }
     }
 }
@@ -307,6 +318,17 @@ impl GlobalConfigAPI {
             Some(p) => Proxy::all(p).ok(),
             None => None,
         }
+    }
+
+    pub async fn get_llm_profiles(&self) -> Arc<HashMap<String, LLMProfile>> {
+        let config = self.get_config().await;
+        config
+            .llm_profiles_init
+            .get_or_init(|| {
+                let llm_profiles = config.llm_profiles.unwrap_or_default();
+                Arc::new(llm_profiles)
+            })
+            .clone()
     }
 }
 

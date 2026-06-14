@@ -54,6 +54,10 @@ pub async fn mock_handler(
 
     let client = context.map(|context| context.clone().client.clone());
 
+    let llm_profiles = context
+        .map(|context| context.clone().llm_profiles.clone())
+        .unwrap_or_default();
+
     let method = req.method().to_string().to_lowercase();
     let uri_pathname = req.uri().path().to_string();
 

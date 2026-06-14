@@ -84,9 +84,11 @@ pub async fn mockers_router(
             client = client.proxy(proxy);
         }
         let client = client.build()?;
+        let llm_profiles = params.get_llm_profiles().await;
         let mut router = Router::builder().data(Arc::new(MockersContext {
             client: Arc::new(client),
             server_params: params.clone(),
+            llm_profiles: llm_profiles.clone(),
         }));
         if let Some((admin_base_url, admin_router)) = params
             .admin_base_url()
