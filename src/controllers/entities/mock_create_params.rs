@@ -1,4 +1,5 @@
 use crate::{controllers::entities::mock_info::MockInfo, libs::mock_config::MockConfig};
+use serde::Deserialize;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]

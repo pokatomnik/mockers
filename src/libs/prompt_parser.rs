@@ -1,10 +1,24 @@
 use std::sync::OnceLock;
 
+use serde::{Deserialize, Serialize};
+
 const FRONTMATTER_EDGE: &str = "---";
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct MockersPromptParams {
+    #[serde(rename = "prompt")]
+    prompt: Option<bool>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct MockersFrontmatter {
+    #[serde(rename = "$mockers")]
+    mockers: Option<MockersPromptParams>,
+}
 
 pub(crate) struct PromptParser {
     source: String,
-    processed: OnceLock<(Option<String>, String)>,
+    processed: OnceLock<(Option<MockersFrontmatter>, String)>,
 }
 
 #[derive(Clone, Copy)]
@@ -20,6 +34,27 @@ impl PromptParser {
             source: source.as_ref().to_string(),
             processed: OnceLock::new(),
         }
+    }
+
+    fn get_prompt(&self) -> &(Option<MockersFrontmatter>, String) {
+        self.processed
+            .get_or_init(|| self.expect_process_source_typed())
+    }
+
+    fn expect_process_source_typed(&self) -> (Option<MockersFrontmatter>, String) {
+        let Ok((frontmatter, content)) = self.process_source_typed() else {
+            return (None, self.source.clone());
+        };
+        (frontmatter, content)
+    }
+
+    fn process_source_typed(&self) -> anyhow::Result<(Option<MockersFrontmatter>, String)> {
+        let (frontmatter, content) = self.process_source();
+        let Some(frontmatter) = frontmatter else {
+            return Ok((None, content));
+        };
+        let parsed = yaml_serde::from_str::<MockersFrontmatter>(frontmatter.as_str())?;
+        Ok((Some(parsed), content))
     }
 
     fn process_source(&self) -> (Option<String>, String) {
