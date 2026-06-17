@@ -8,6 +8,7 @@ pub(crate) struct MockersPromptParams {
     env_key: Option<String>,
     model: Option<String>,
     proxy: Option<String>,
+    ttl: Option<usize>,
 }
 
 impl MockersPromptParams {
@@ -17,6 +18,7 @@ impl MockersPromptParams {
         api_endpoint: Option<String>,
         env_key: Option<String>,
         proxy: Option<String>,
+        ttl: Option<usize>,
     ) -> Self {
         Self {
             prompt,
@@ -24,6 +26,7 @@ impl MockersPromptParams {
             api_endpoint,
             env_key,
             proxy,
+            ttl,
         }
     }
 
@@ -45,6 +48,10 @@ impl MockersPromptParams {
 
     pub fn model(&self) -> Option<&str> {
         self.model.as_deref()
+    }
+
+    pub fn ttl(&self) -> Option<usize> {
+        self.ttl
     }
 }
 
