@@ -89,49 +89,65 @@ impl PromptParser {
 mod tests {
     use super::*;
 
-    /// Helper that runs the parser and compares the result with the expected values.
-    fn assert_processed(source: &str, expected_fm: Option<&str>, expected_body: &str) {
-        let parser = PromptParser::new(source);
-        let (fm, body) = parser.process_source();
-        assert_eq!(fm.as_deref(), expected_fm, "frontmatter mismatch");
-        assert_eq!(body, expected_body, "prompt body mismatch");
-    }
-
     #[test]
-    fn frontmatter_and_prompt() {
+    fn get_prompt_frontmatter_and_prompt() {
         let src = "---\ntitle: Hello\nauthor: Me\n---\nThis is the prompt.\nSecond line.";
-        let expected_fm = Some("title: Hello\nauthor: Me");
-        let expected_body = "This is the prompt.\nSecond line.";
-        assert_processed(src, expected_fm, expected_body);
+        let parser = PromptParser::new(src);
+        let (frontmatter, body) = parser.get_prompt();
+
+        assert!(matches!(
+            frontmatter,
+            Some(MockersFrontmatter { mockers: None })
+        ));
+        assert_eq!(body, "This is the prompt.\nSecond line.");
     }
 
     #[test]
-    fn empty_source() {
-        assert_processed("", None, "");
+    fn get_prompt_empty_source() {
+        let parser = PromptParser::new("");
+        let (frontmatter, body) = parser.get_prompt();
+
+        assert!(frontmatter.is_none());
+        assert_eq!(body, "");
     }
 
     #[test]
-    fn frontmatter_no_prompt() {
+    fn get_prompt_frontmatter_no_prompt() {
         let src = "---\nkey: value\n---";
-        let expected_fm = Some("key: value");
-        let expected_body = "";
-        assert_processed(src, expected_fm, expected_body);
+        let parser = PromptParser::new(src);
+        let (frontmatter, body) = parser.get_prompt();
+
+        assert!(matches!(
+            frontmatter,
+            Some(MockersFrontmatter { mockers: None })
+        ));
+        assert_eq!(body, "");
     }
 
     #[test]
-    fn prompt_without_frontmatter() {
+    fn get_prompt_without_frontmatter() {
         let src = "Just a simple prompt line.\nAnother line.";
-        let expected_fm = None;
-        let expected_body = "Just a simple prompt line.\nAnother line.";
-        assert_processed(src, expected_fm, expected_body);
+        let parser = PromptParser::new(src);
+        let (frontmatter, body) = parser.get_prompt();
+
+        assert!(frontmatter.is_none());
+        assert_eq!(body, "Just a simple prompt line.\nAnother line.");
     }
 
     #[test]
-    fn extra_delimiters_inside_prompt() {
+    fn get_prompt_extra_delimiters_inside_prompt() {
         let src =
             "---\nfoo: bar\n---\nPrompt starts here\n---\nand continues\n---\nwith more dashes.";
-        let expected_fm = Some("foo: bar");
-        let expected_body = "Prompt starts here\n---\nand continues\n---\nwith more dashes.";
-        assert_processed(src, expected_fm, expected_body);
+        let parser = PromptParser::new(src);
+        let (frontmatter, body) = parser.get_prompt();
+
+        assert!(matches!(
+            frontmatter,
+            Some(MockersFrontmatter { mockers: None })
+        ));
+        assert_eq!(
+            body,
+            "Prompt starts here\n---\nand continues\n---\nwith more dashes."
+        );
     }
 }
