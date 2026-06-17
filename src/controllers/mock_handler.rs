@@ -1,6 +1,7 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use crate::libs::absolute_mocks_path::AbsoluteMocksPath;
+use crate::libs::frontmatter_parser::frontmatter_parser::FrontmatterParser;
 use crate::libs::header_map_ext::{HeaderMapConverter, HeaderMapSanitizer};
 use crate::libs::hyper_response_ext::HyperWellKnownResponses;
 use crate::libs::mock_config::MockConfig;
@@ -54,9 +55,7 @@ pub async fn mock_handler(
 
     let client = context.map(|context| context.clone().client.clone());
 
-    let llm_profiles = context
-        .map(|context| context.clone().llm_profiles.clone())
-        .unwrap_or_default();
+    let llm_client = context.map(|context| context.clone().llm_client.clone());
 
     let method = req.method().to_string().to_lowercase();
     let uri_pathname = req.uri().path().to_string();
@@ -150,8 +149,21 @@ pub async fn mock_handler(
     }
 
     // Try respond from file-based mock
-    if !is_disabled_by_config && let Ok(data) = tokio::fs::read(&absolute_mock_file_name).await {
-        let mime = get_mime(&data).await;
+    if !is_disabled_by_config
+        && let Ok(mut data) = tokio::fs::read_to_string(&absolute_mock_file_name).await
+    {
+        let frontmatter_parser = FrontmatterParser::from(data.as_str());
+        let frontmatter_params = frontmatter_parser.frontmatter().and_then(|f| f.mockers());
+        if let Some(frontmatter_params) = frontmatter_params {
+            let treat_as_prompt = frontmatter_params.prompt().unwrap_or(false);
+            if treat_as_prompt && let Some(llm_client) = llm_client {
+                if let Ok(result) = llm_client.ask(frontmatter_params, data.as_str()).await {
+                    data = result;
+                }
+            }
+        }
+
+        let mime = get_mime(data.as_bytes()).await;
         let response = Response::builder()
             .status(status_if_file_found)
             .add_content_type_header(&mime)

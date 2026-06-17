@@ -4,32 +4,21 @@ use serde::{Deserialize, Serialize};
 pub(crate) struct MockersPromptParams {
     #[serde(rename = "prompt")]
     prompt: Option<bool>,
+
+    #[serde(rename = "api_endpoint")]
     api_endpoint: Option<String>,
+
+    #[serde(rename = "env_key")]
     env_key: Option<String>,
+
+    #[serde(rename = "model")]
     model: Option<String>,
+
+    #[serde(rename = "proxy")]
     proxy: Option<String>,
-    ttl: Option<usize>,
 }
 
 impl MockersPromptParams {
-    fn new(
-        prompt: Option<bool>,
-        model: Option<String>,
-        api_endpoint: Option<String>,
-        env_key: Option<String>,
-        proxy: Option<String>,
-        ttl: Option<usize>,
-    ) -> Self {
-        Self {
-            prompt,
-            model,
-            api_endpoint,
-            env_key,
-            proxy,
-            ttl,
-        }
-    }
-
     pub fn prompt(&self) -> Option<bool> {
         self.prompt
     }
@@ -49,10 +38,6 @@ impl MockersPromptParams {
     pub fn model(&self) -> Option<&str> {
         self.model.as_deref()
     }
-
-    pub fn ttl(&self) -> Option<usize> {
-        self.ttl
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -62,10 +47,6 @@ pub(crate) struct MockersFrontmatter {
 }
 
 impl MockersFrontmatter {
-    pub fn new(mockers: Option<MockersPromptParams>) -> Self {
-        Self { mockers }
-    }
-
     pub fn mockers(&self) -> Option<&MockersPromptParams> {
         self.mockers.as_ref()
     }

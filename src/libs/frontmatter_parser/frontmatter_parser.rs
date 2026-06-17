@@ -16,13 +16,6 @@ enum ParseState {
 }
 
 impl FrontmatterParser {
-    pub fn new(source: impl AsRef<str>) -> Self {
-        Self {
-            source: source.as_ref().to_string(),
-            processed: OnceLock::new(),
-        }
-    }
-
     pub fn frontmatter(&self) -> Option<&MockersFrontmatter> {
         self.processed
             .get_or_init(|| self.expect_process_source_typed())
@@ -70,6 +63,15 @@ impl FrontmatterParser {
     }
 }
 
+impl From<&str> for FrontmatterParser {
+    fn from(value: &str) -> Self {
+        FrontmatterParser {
+            source: value.to_string(),
+            processed: Default::default(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -77,7 +79,7 @@ mod tests {
     #[test]
     fn get_prompt_frontmatter_and_prompt() {
         let src = "---\ntitle: Hello\nauthor: Me\n---\nThis is the prompt.\nSecond line.";
-        let parser = FrontmatterParser::new(src);
+        let parser = FrontmatterParser::from(src);
         let result = parser.frontmatter();
 
         let fm = result.expect("should parse frontmatter");
@@ -86,7 +88,7 @@ mod tests {
 
     #[test]
     fn get_prompt_empty_source() {
-        let parser = FrontmatterParser::new("");
+        let parser = FrontmatterParser::from("");
         let result = parser.frontmatter();
 
         assert!(result.is_none());
@@ -95,7 +97,7 @@ mod tests {
     #[test]
     fn get_prompt_frontmatter_no_prompt() {
         let src = "---\nkey: value\n---";
-        let parser = FrontmatterParser::new(src);
+        let parser = FrontmatterParser::from(src);
         let result = parser.frontmatter();
 
         let fm = result.expect("should parse frontmatter");
@@ -105,7 +107,7 @@ mod tests {
     #[test]
     fn get_prompt_without_frontmatter() {
         let src = "Just a simple prompt line.\nAnother line.";
-        let parser = FrontmatterParser::new(src);
+        let parser = FrontmatterParser::from(src);
         let result = parser.frontmatter();
 
         assert!(result.is_none());
@@ -115,7 +117,7 @@ mod tests {
     fn get_prompt_extra_delimiters_inside_prompt() {
         let src =
             "---\nfoo: bar\n---\nPrompt starts here\n---\nand continues\n---\nwith more dashes.";
-        let parser = FrontmatterParser::new(src);
+        let parser = FrontmatterParser::from(src);
         let result = parser.frontmatter();
 
         let fm = result.expect("should parse frontmatter");
@@ -125,7 +127,7 @@ mod tests {
     #[test]
     fn get_prompt_with_mockers_config() {
         let src = "---\n$mockers:\n  prompt: true\n  model: gpt-4\n---\nThis is the prompt body.";
-        let parser = FrontmatterParser::new(src);
+        let parser = FrontmatterParser::from(src);
         let result = parser.frontmatter();
 
         let fm = result.expect("should parse frontmatter");
@@ -137,7 +139,7 @@ mod tests {
     #[test]
     fn get_prompt_with_mockers_prompt_false() {
         let src = "---\n$mockers:\n  prompt: false\n---\nBody";
-        let parser = FrontmatterParser::new(src);
+        let parser = FrontmatterParser::from(src);
         let result = parser.frontmatter();
 
         let fm = result.expect("should parse frontmatter");
@@ -148,7 +150,7 @@ mod tests {
     #[test]
     fn get_prompt_only_model() {
         let src = "---\n$mockers:\n  model: claude-3\n---\nBody";
-        let parser = FrontmatterParser::new(src);
+        let parser = FrontmatterParser::from(src);
         let result = parser.frontmatter();
 
         let fm = result.expect("should parse frontmatter");
@@ -160,7 +162,7 @@ mod tests {
     #[test]
     fn get_prompt_with_api_endpoint() {
         let src = "---\n$mockers:\n  api_endpoint: https://api.openai.com/v1\n---\nBody";
-        let parser = FrontmatterParser::new(src);
+        let parser = FrontmatterParser::from(src);
         let result = parser.frontmatter();
 
         let fm = result.expect("should parse frontmatter");
@@ -175,7 +177,7 @@ mod tests {
     #[test]
     fn get_prompt_with_env_key() {
         let src = "---\n$mockers:\n  env_key: MY_CUSTOM_KEY\n---\nBody";
-        let parser = FrontmatterParser::new(src);
+        let parser = FrontmatterParser::from(src);
         let result = parser.frontmatter();
 
         let fm = result.expect("should parse frontmatter");
@@ -188,7 +190,7 @@ mod tests {
     #[test]
     fn get_prompt_with_proxy() {
         let src = "---\n$mockers:\n  proxy: http://localhost:8080\n---\nBody";
-        let parser = FrontmatterParser::new(src);
+        let parser = FrontmatterParser::from(src);
         let result = parser.frontmatter();
 
         let fm = result.expect("should parse frontmatter");
@@ -201,7 +203,7 @@ mod tests {
     #[test]
     fn get_prompt_with_all_mockers_fields() {
         let src = "---\n$mockers:\n  prompt: true\n  model: claude-opus\n  api_endpoint: https://api.anthropic.com\n  env_key: ANTHROPIC_KEY\n  proxy: http://proxy:3128\n---\nFull config";
-        let parser = FrontmatterParser::new(src);
+        let parser = FrontmatterParser::from(src);
         let result = parser.frontmatter();
 
         let fm = result.expect("should parse frontmatter");
@@ -216,7 +218,7 @@ mod tests {
     #[test]
     fn get_prompt_invalid_yaml() {
         let src = "---\ngarbage: [unclosed\n---\nbody";
-        let parser = FrontmatterParser::new(src);
+        let parser = FrontmatterParser::from(src);
         let result = parser.frontmatter();
 
         // invalid YAML should return None (not panic)
