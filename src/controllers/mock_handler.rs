@@ -159,6 +159,13 @@ pub async fn mock_handler(
             if treat_as_prompt && let Some(llm_client) = llm_client {
                 if let Ok(result) = llm_client.ask(frontmatter_params, data.as_str()).await {
                     data = result;
+                } else {
+                    let response = Response::bad_gateway()
+                        .tap(|builder| if cors { builder.add_cors() } else { builder })
+                        .add_custom_headers(custom_headers.into_iter())
+                        .empty_body()
+                        .unwrap_or_default();
+                    return Ok(response);
                 }
             }
         }
