@@ -52,6 +52,7 @@ impl LLMClient {
         &self,
         frontmatter: &MockersPromptParams,
         prompt: &str,
+        suffix: &str,
     ) -> anyhow::Result<String> {
         let Some(api_url) = frontmatter.api_endpoint() else {
             anyhow::bail!("API endpoint not specified");
@@ -60,7 +61,7 @@ impl LLMClient {
             anyhow::bail!("Model not defined");
         };
         let request_body =
-            request::LLMProviderRequestBody::new(model.to_string(), prompt.to_string());
+            request::LLMProviderRequestBody::new(model.to_string(), prompt.to_string(), suffix);
 
         let mut request = Self::client(frontmatter.proxy())?.request(Method::POST, api_url);
         let request_body_json = serde_json::to_string_pretty(&request_body)?;
@@ -112,12 +113,13 @@ impl LLMClient {
         &self,
         frontmatter: &MockersPromptParams,
         prompt: &str,
+        suffix: &str,
     ) -> anyhow::Result<String> {
         let _permit = self.semaphore.acquire().await?;
         if let Some(cached_response) = self.cache.get(prompt).await {
             return Ok(cached_response);
         }
-        let response = self.ask_internal(frontmatter, prompt).await?;
+        let response = self.ask_internal(frontmatter, prompt, suffix).await?;
         self.cache
             .set(
                 prompt,

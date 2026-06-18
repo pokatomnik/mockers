@@ -7,7 +7,7 @@ use crate::libs::header_map_ext::{HeaderMapConverter, HeaderMapSanitizer};
 use crate::libs::hyper_response_ext::HyperWellKnownResponses;
 use crate::libs::llm::client::LLMClient;
 use crate::libs::mock_config::MockConfig;
-use crate::libs::mockers_request_ext::MockersRequestExt;
+use crate::libs::mockers_request_ext::{MockersRequestExt, Prompt};
 use crate::libs::reqwest_response_ext::ReqwestResponseExt;
 use crate::libs::response_builder_ext::ResponseBuilderExt;
 use crate::libs::tap::Tap;
@@ -170,8 +170,14 @@ pub async fn mock_handler(
     if let Some(data) = mock_str {
         let frontmatter_parser = FrontmatterParser::from(data);
         let frontmatter_params = frontmatter_parser.frontmatter().and_then(|f| f.mockers());
+        let suffix = req.to_markdown().await;
         let llm_response = match llm_client.zip(frontmatter_params) {
-            Some((client, params)) => client.as_ref().process_prompt(params, data).await,
+            Some((client, params)) => {
+                client
+                    .as_ref()
+                    .process_prompt(params, data, suffix.as_str())
+                    .await
+            }
             None => None,
         };
         if let Some(Ok(llm_response)) = llm_response {
@@ -323,6 +329,7 @@ trait AskLLM {
         &self,
         frontmatter: &MockersPromptParams,
         prompt: &str,
+        suffix: &str,
     ) -> Option<anyhow::Result<String>>;
 }
 
@@ -331,11 +338,12 @@ impl AskLLM for &LLMClient {
         &self,
         frontmatter: &MockersPromptParams,
         prompt: &str,
+        suffix: &str,
     ) -> Option<anyhow::Result<String>> {
         let treat_as_prompt = frontmatter.prompt().unwrap_or(false);
         if !treat_as_prompt {
             return None;
         }
-        Some(self.ask(frontmatter, prompt).await)
+        Some(self.ask(frontmatter, prompt, suffix).await)
     }
 }

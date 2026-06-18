@@ -20,10 +20,16 @@ pub(crate) struct LLMProviderRequestBody {
 }
 
 impl LLMProviderRequestBody {
-    fn get_system_prompt() -> LLMProviderMessage {
+    fn get_system_prompt(suffix: &str) -> LLMProviderMessage {
+        let content = include_str!("./system.md").to_string();
+        let mut buf = String::with_capacity(content.len() + suffix.len() + 1);
+        buf.push_str(content.as_str());
+        buf.push('\n');
+        buf.push_str(suffix);
+
         LLMProviderMessage {
             role: Role::System,
-            content: include_str!("./system.md").to_string(),
+            content: buf,
         }
     }
 
@@ -34,14 +40,17 @@ impl LLMProviderRequestBody {
         }
     }
 
-    fn get_messages(prompt: String) -> Vec<LLMProviderMessage> {
-        vec![Self::get_system_prompt(), Self::get_user_message(prompt)]
+    fn get_messages(prompt: String, suffix: &str) -> Vec<LLMProviderMessage> {
+        vec![
+            Self::get_system_prompt(suffix),
+            Self::get_user_message(prompt),
+        ]
     }
 
-    pub fn new(model: String, prompt: String) -> Self {
+    pub fn new(model: String, prompt: String, suffix: &str) -> Self {
         Self {
             model,
-            messages: Self::get_messages(prompt),
+            messages: Self::get_messages(prompt, suffix),
             stream: false,
             temperature: 0f32,
         }
