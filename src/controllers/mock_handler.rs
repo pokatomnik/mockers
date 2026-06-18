@@ -2,8 +2,10 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use crate::libs::absolute_mocks_path::AbsoluteMocksPath;
 use crate::libs::frontmatter_parser::frontmatter_parser::FrontmatterParser;
+use crate::libs::frontmatter_parser::mockers_frontmatter::MockersPromptParams;
 use crate::libs::header_map_ext::{HeaderMapConverter, HeaderMapSanitizer};
 use crate::libs::hyper_response_ext::HyperWellKnownResponses;
+use crate::libs::llm::client::LLMClient;
 use crate::libs::mock_config::MockConfig;
 use crate::libs::mockers_request_ext::MockersRequestExt;
 use crate::libs::reqwest_response_ext::ReqwestResponseExt;
@@ -158,27 +160,44 @@ pub async fn mock_handler(
         return Ok(response);
     }
 
-    // Try respond from file-based mock
-    if let Ok(mut data) = tokio::fs::read_to_string(&absolute_mock_file_name).await {
-        let frontmatter_parser = FrontmatterParser::from(data.as_str());
-        let frontmatter_params = frontmatter_parser.frontmatter().and_then(|f| f.mockers());
-        if let Some(frontmatter_params) = frontmatter_params {
-            let treat_as_prompt = frontmatter_params.prompt().unwrap_or(false);
-            if treat_as_prompt && let Some(llm_client) = llm_client {
-                if let Ok(result) = llm_client.ask(frontmatter_params, data.as_str()).await {
-                    data = result;
-                } else {
-                    let response = Response::bad_gateway()
-                        .tap(|builder| if cors { builder.add_cors() } else { builder })
-                        .add_custom_headers(custom_headers.into_iter())
-                        .empty_body()
-                        .unwrap_or_default();
-                    return Ok(response);
-                }
-            }
-        }
+    let mock_bytes_result = tokio::fs::read(&absolute_mock_file_name).await;
+    let mock_str = mock_bytes_result
+        .as_ref()
+        .ok()
+        .and_then(|v| std::str::from_utf8(v).ok());
 
-        let mime = get_mime(data.as_bytes()).await;
+    // Try treat mock as LLM prompt
+    if let Some(data) = mock_str {
+        let frontmatter_parser = FrontmatterParser::from(data);
+        let frontmatter_params = frontmatter_parser.frontmatter().and_then(|f| f.mockers());
+        let llm_response = match llm_client.zip(frontmatter_params) {
+            Some((client, params)) => client.as_ref().process_prompt(params, data).await,
+            None => None,
+        };
+        if let Some(Ok(llm_response)) = llm_response {
+            let mime = get_mime(llm_response.as_bytes()).await;
+            let response = Response::builder()
+                .status(status_if_file_found)
+                .add_content_type_header(&mime)
+                .tap(|builder| if cors { builder.add_cors() } else { builder })
+                .add_custom_headers(custom_headers.into_iter())
+                .body(llm_response.into())
+                .unwrap_or_default();
+            return Ok(response);
+        }
+        if let Some(Err(_)) = llm_response {
+            let response = Response::bad_gateway()
+                .tap(|builder| if cors { builder.add_cors() } else { builder })
+                .add_custom_headers(custom_headers.into_iter())
+                .empty_body()
+                .unwrap_or_default();
+            return Ok(response);
+        }
+    }
+
+    // Try respond from file-based mock
+    if let Ok(data) = mock_bytes_result {
+        let mime = get_mime(data.as_slice()).await;
         let response = Response::builder()
             .status(status_if_file_found)
             .add_content_type_header(&mime)
@@ -297,4 +316,26 @@ pub async fn mock_handler(
     }
 
     Ok(response)
+}
+
+trait AskLLM {
+    async fn process_prompt(
+        &self,
+        frontmatter: &MockersPromptParams,
+        prompt: &str,
+    ) -> Option<anyhow::Result<String>>;
+}
+
+impl AskLLM for &LLMClient {
+    async fn process_prompt(
+        &self,
+        frontmatter: &MockersPromptParams,
+        prompt: &str,
+    ) -> Option<anyhow::Result<String>> {
+        let treat_as_prompt = frontmatter.prompt().unwrap_or(false);
+        if !treat_as_prompt {
+            return None;
+        }
+        Some(self.ask(frontmatter, prompt).await)
+    }
 }
