@@ -278,6 +278,53 @@ Important details:
 
 ---
 
+## LLM prompt mocks with frontmatter
+
+A mock file can be treated as a prompt for an OpenAI-compatible LLM provider instead of being returned as static bytes.
+To enable this, the file must be UTF-8 text and start with YAML frontmatter delimited by exact `---` lines.
+
+Example `mocks/users/profile.get`:
+
+```md
+---
+$mockers:
+  prompt: true
+  api_endpoint: https://api.openai.com/v1/chat/completions
+  env_key: OPENAI_API_KEY
+  model: gpt-4o-mini
+  ttl: 60000
+---
+Return a realistic JSON user profile for the current request.
+Use the request path and headers when useful.
+```
+
+Frontmatter format:
+
+- Frontmatter must be at the very beginning of the mock file.
+- Opening and closing delimiters must be lines containing exactly `---`.
+- The Mockers-specific config lives under the literal `$mockers` YAML key.
+- `$mockers.prompt: true` is required to call the LLM. If it is missing or `false`, the file is served as a normal static mock.
+- Invalid or unparsable frontmatter is ignored and the file is served as a normal static mock.
+
+Supported `$mockers` fields:
+
+| Field          | Type    | Required | What it does                                                                 |
+| -------------- | ------- | -------- | ---------------------------------------------------------------------------- |
+| `prompt`       | boolean | yes      | Enables LLM generation when `true`                                            |
+| `api_endpoint` | string  | yes      | OpenAI-compatible chat completions endpoint                                   |
+| `model`        | string  | yes      | Model name sent in the provider request                                       |
+| `env_key`      | string  | no       | Environment variable containing a bearer token for `Authorization`            |
+| `proxy`        | string  | no       | Proxy URL used only for this LLM provider request                             |
+| `ttl`          | number  | no       | In-memory generated-response cache TTL in milliseconds; default is `0`        |
+
+When a prompt mock is handled, Mockers sends the mock file content as the user prompt and appends request context to the system prompt: method, URI, headers, and body. The provider request uses `stream: false` and `temperature: 0` for deterministic responses.
+
+The provider response must look like an OpenAI chat completion response. Mockers uses the first choice only, requires `finish_reason: "stop"`, requires assistant role, and returns `message.content` as the HTTP response body. `Content-Type` is inferred from the generated body. Per-mock `statusCode` and `headers` from `config.json` are still applied.
+
+If the LLM request fails, the provider returns a non-success status, required frontmatter fields are missing, or the response shape is unsupported, Mockers returns `502 Bad Gateway` for that request.
+
+---
+
 ## Mock config file (`config.json`)
 
 In any mock directory, you can add a `config.json` file.
@@ -307,7 +354,7 @@ Example:
 | `statusCode` | number                   | Per-mock HTTP status                                      |
 | `headers`    | object string->string    | Extra response headers                                    |
 | `cacheMode`  | `overwrite` \| `nocache` | Controls write-through behavior when proxying to `origin` |
-| `disabled`   | boolean                  | If `true`, file mock is ignored                           |
+| `disabled`   | boolean                  | If `true`, mock returns `404` immediately                  |
 
 ### Precedence and defaults
 
@@ -328,11 +375,15 @@ If a config key is missing, defaults are used.
 For every incoming request, Mockers roughly does this:
 
 1. Build mock filename from request path + method.
-2. Try file-based mock.
-3. If file mock is missing (or disabled):
+2. Read adjacent `config.json`.
+3. If the mock is disabled, return `404` immediately.
+4. Handle preflight requests when `--preflight` is enabled.
+5. If the mock file exists and has `$mockers.prompt: true` frontmatter, try to generate the response through the configured LLM provider.
+6. Otherwise, try the static file-based mock.
+7. If file mock is missing:
    - if `--origin` is set -> proxy request to origin,
    - else -> return `404`.
-4. If proxied and `cacheMode=overwrite`, write response to disk asynchronously (`mock file + config.json`).
+8. If proxied and `cacheMode=overwrite`, write response to disk asynchronously (`mock file + config.json`).
 
 So you can warm up mocks from a real backend automatically.
 

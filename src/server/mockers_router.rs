@@ -17,6 +17,7 @@ use crate::controllers::swagger::get_swagger_json::get_swagger_json;
 use crate::controllers::swagger::get_swagger_ui_bundle_js::get_swagger_ui_bundle_js;
 use crate::controllers::swagger::get_swagger_ui_css::get_swagger_ui_css;
 use crate::controllers::swagger::get_swagger_ui_standalone_preset::get_swagger_ui_standalone_preset;
+use crate::libs::llm::client::LLMClient;
 use crate::middlewares::admin_api_cors::admin_api_cors;
 use crate::middlewares::check_request::check_request;
 use crate::middlewares::logger::logger;
@@ -87,6 +88,7 @@ pub async fn mockers_router(
         let mut router = Router::builder().data(Arc::new(MockersContext {
             client: Arc::new(client),
             server_params: params.clone(),
+            llm_client: Arc::new(LLMClient::new()),
         }));
         if let Some((admin_base_url, admin_router)) = params
             .admin_base_url()
