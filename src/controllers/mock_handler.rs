@@ -133,6 +133,16 @@ pub async fn mock_handler(
         .map(|x| x.is_disabled())
         .unwrap_or(false);
 
+    if is_disabled_by_config {
+        let response = Response::not_found()
+            .tap(|builder| if cors { builder.add_cors() } else { builder })
+            .add_custom_headers(custom_headers.into_iter())
+            .empty_body()
+            .unwrap_or_default();
+
+        return Ok(response);
+    }
+
     let handle_preflight = match (preflight, req.is_preflight()) {
         (Some(preflight), true) => Some(preflight),
         _ => None,
@@ -149,9 +159,7 @@ pub async fn mock_handler(
     }
 
     // Try respond from file-based mock
-    if !is_disabled_by_config
-        && let Ok(mut data) = tokio::fs::read_to_string(&absolute_mock_file_name).await
-    {
+    if let Ok(mut data) = tokio::fs::read_to_string(&absolute_mock_file_name).await {
         let frontmatter_parser = FrontmatterParser::from(data.as_str());
         let frontmatter_params = frontmatter_parser.frontmatter().and_then(|f| f.mockers());
         if let Some(frontmatter_params) = frontmatter_params {
