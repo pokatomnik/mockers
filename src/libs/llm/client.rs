@@ -1,4 +1,4 @@
-use std::{num::NonZeroUsize, sync::Arc, time::Duration};
+use std::{num::NonZeroUsize, sync::Arc};
 
 use anyhow::Context;
 use hyper::Method;
@@ -11,7 +11,6 @@ use crate::libs::llm::response::OpenAILikeProviderGenerateResponse;
 use crate::libs::llm::response::OpenAILikeProviderGenerateResponseFinishReason;
 use crate::libs::llm::response_cache::LLMProfileResponseCache;
 
-const DEFAULT_CACHE_TTL_DURATION: Duration = Duration::from_millis(120_000);
 const DEFAULT_CACHE_MAX_SIZE: NonZeroUsize = NonZeroUsize::new(42).unwrap();
 const SIMULTANEOUS_REQUESTS: usize = 1;
 
@@ -24,10 +23,7 @@ pub(crate) struct LLMClient {
 impl LLMClient {
     pub fn new() -> Self {
         let semaphore = Arc::new(Semaphore::new(SIMULTANEOUS_REQUESTS));
-        let cache = Arc::new(LLMProfileResponseCache::new(
-            DEFAULT_CACHE_TTL_DURATION,
-            DEFAULT_CACHE_MAX_SIZE,
-        ));
+        let cache = Arc::new(LLMProfileResponseCache::new(DEFAULT_CACHE_MAX_SIZE));
         Self { semaphore, cache }
     }
 
@@ -122,7 +118,13 @@ impl LLMClient {
             return Ok(cached_response);
         }
         let response = self.ask_internal(frontmatter, prompt).await?;
-        self.cache.set(prompt, response.clone()).await;
+        self.cache
+            .set(
+                prompt,
+                response.clone(),
+                frontmatter.ttl_ms().unwrap_or_default(),
+            )
+            .await;
         Ok(response)
     }
 }

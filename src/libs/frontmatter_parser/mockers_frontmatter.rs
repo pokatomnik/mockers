@@ -1,6 +1,8 @@
-use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+use serde::Deserialize;
+
+#[derive(Clone, Debug, Deserialize)]
 pub(crate) struct MockersPromptParams {
     #[serde(rename = "prompt")]
     prompt: Option<bool>,
@@ -16,6 +18,9 @@ pub(crate) struct MockersPromptParams {
 
     #[serde(rename = "proxy")]
     proxy: Option<String>,
+
+    #[serde(rename = "ttl")]
+    ttl_ms: Option<u64>,
 }
 
 impl MockersPromptParams {
@@ -38,9 +43,13 @@ impl MockersPromptParams {
     pub fn model(&self) -> Option<&str> {
         self.model.as_deref()
     }
+
+    pub fn ttl_ms(&self) -> Option<Duration> {
+        self.ttl_ms.map(Duration::from_millis)
+    }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub(crate) struct MockersFrontmatter {
     #[serde(rename = "$mockers")]
     mockers: Option<MockersPromptParams>,
