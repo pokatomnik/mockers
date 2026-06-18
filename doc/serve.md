@@ -142,7 +142,7 @@ $mockers:
   api_endpoint: https://api.openai.com/v1/chat/completions
   env_key: OPENAI_API_KEY
   model: gpt-4o-mini
-  proxy: http://localhost:3128
+  proxy: socks5h://127.0.0.1:1080
   ttl: 60000
 ---
 Return a realistic JSON profile for the requested user.
