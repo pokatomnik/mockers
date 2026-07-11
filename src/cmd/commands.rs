@@ -1,14 +1,14 @@
-use crate::libs::activity_params::ActivityParams;
-use crate::libs::completion_params::CompletionParams;
-use crate::libs::create_params::CreateParams;
-use crate::libs::doc_params::DocParams;
-use crate::libs::init_params::InitParams;
-use crate::libs::ls_params::LsParams;
+use crate::cmd::controllers::activity_params::ActivityParams;
+use crate::cmd::controllers::completion_params::CompletionParams;
+use crate::cmd::controllers::create_params::CreateParams;
+use crate::cmd::controllers::doc_params::DocParams;
+use crate::cmd::controllers::init_params::InitParams;
+use crate::cmd::controllers::ls_params::LsParams;
 use crate::server::params::ServerParams;
 
-use crate::libs::config::ConfigParams;
-use crate::libs::delete_params::DeleteParams;
-use crate::libs::info_params::InfoParams;
+use crate::cmd::controllers::config::ConfigParams;
+use crate::cmd::controllers::delete_params::DeleteParams;
+use crate::cmd::controllers::info_params::InfoParams;
 use clap::Subcommand;
 use strum_macros::EnumDiscriminants;
 

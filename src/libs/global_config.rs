@@ -1,7 +1,7 @@
 use crate::libs::get_info_async::GetInfoAsync;
 use crate::libs::path_buf_ext::PathBufExt;
 use crate::libs::preflight_type::PreflightType;
-use crate::middlewares::logger::VerbosityLevel;
+use crate::server::middlewares::logger::VerbosityLevel;
 use reqwest::Proxy;
 use serde::{Deserialize, Serialize};
 use std::collections::LinkedList;
