@@ -1,4 +1,4 @@
-use crate::libs::global_config::WithGlobalConfigAPI;
+use crate::entities::global_config::WithGlobalConfigAPI;
 use crate::server::params::DEFAULT_MOCKS_DIR_NAME;
 use path_absolutize::Absolutize;
 use std::env::{current_dir, home_dir};

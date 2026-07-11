@@ -1,5 +1,5 @@
 use crate::libs::get_info_async::GetInfoAsync;
-use crate::libs::global_config::GlobalConfigAPI;
+use crate::entities::global_config::GlobalConfigAPI;
 use clap::Args;
 use tokio::sync::OnceCell;
 

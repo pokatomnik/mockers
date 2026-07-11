@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
-use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
+use crate::entities::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
 use crate::libs::{fs_walker::FSWalker, http_method::StandardMethodValidator};
 use clap::Args;
 use hyper::Method;

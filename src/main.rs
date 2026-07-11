@@ -1,4 +1,5 @@
 mod cmd;
+mod entities;
 mod libs;
 mod server;
 

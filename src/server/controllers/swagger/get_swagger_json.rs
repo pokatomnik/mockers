@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use crate::server::controllers::swagger::static_files::SWAGGER_JSON;
 use crate::libs::absolute_mocks_path::AbsoluteMocksPath;
-use crate::cmd::controllers::create_params::DEFAULT_STATUS_CODE;
+use crate::entities::mock_defaults::DEFAULT_STATUS_CODE;
 use crate::libs::fs_cached_reader::FSCachedReader;
 use crate::libs::fs_walker::FSWalker;
 use crate::libs::get_mime::get_mime;
 use crate::libs::hyper_response_ext::HyperWellKnownResponses;
-use crate::libs::mock_config::MockConfig;
+use crate::entities::mock_config::MockConfig;
 use crate::libs::path_buf_ext::PathBufExt;
 use crate::libs::response_builder_ext::ResponseBuilderExt;
 use crate::server::mockers_context::MockersContext;

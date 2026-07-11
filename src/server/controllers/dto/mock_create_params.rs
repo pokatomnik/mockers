@@ -1,4 +1,4 @@
-use crate::{libs::mock_config::MockConfig, server::controllers::entities::mock_info::MockInfo};
+use crate::{entities::mock_config::MockConfig, server::controllers::dto::mock_info::MockInfo};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]

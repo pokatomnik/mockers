@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use crate::entities::cache_mode::CacheMode;
+use crate::entities::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
+use crate::entities::mock_config::MockConfig;
+use crate::entities::mock_defaults::{DEFAULT_DELAY_MS, DEFAULT_STATUS_CODE};
 use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
-use crate::libs::cache_mode::CacheMode;
-use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
 use crate::libs::http_method::HyperHTTPMethodExt;
-use crate::libs::mock_config::MockConfig;
 use crate::libs::path_buf_ext::PathBufExt;
 use crate::libs::status_code_ext::StatusCode;
 use crate::server::params::CONFIG_FILE_NAME;
@@ -16,8 +17,6 @@ use tokio::sync::OnceCell;
 use tokio::try_join;
 
 pub(crate) const DEFAULT_METHOD: &'static str = "GET";
-pub(crate) const DEFAULT_STATUS_CODE: u16 = 200;
-pub(crate) const DEFAULT_DELAY_MS: u64 = 0;
 
 #[derive(Args, Debug, Clone)]
 pub struct CreateParams {

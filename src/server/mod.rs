@@ -5,6 +5,7 @@ pub mod llm;
 pub mod middlewares;
 pub mod mockers_context;
 pub mod params;
+pub mod protocol_result;
 pub mod route_error;
 pub mod router;
 pub mod signal;

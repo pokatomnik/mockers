@@ -1,4 +1,4 @@
-use crate::libs::preflight_type::PreflightType;
+use crate::entities::preflight_type::PreflightType;
 use http_body_util::{BodyExt, Full};
 use hyper::{Method, Request, body::Bytes};
 use std::collections::HashMap;

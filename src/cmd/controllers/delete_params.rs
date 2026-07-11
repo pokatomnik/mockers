@@ -1,8 +1,8 @@
 use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
 use crate::libs::fs_walker::FSWalker;
-use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
+use crate::entities::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
 use crate::libs::http_method::StandardMethodValidator;
-use crate::libs::mock_config::MockConfig;
+use crate::entities::mock_config::MockConfig;
 use crate::libs::path_buf_ext::PathBufExt;
 use crate::server::params::CONFIG_FILE_NAME;
 use clap::Args;

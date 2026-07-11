@@ -1,16 +1,14 @@
-use std::fmt::Debug;
-use std::{fmt::Display, sync::Arc};
+use std::sync::Arc;
 
+use crate::entities::verbosity_level::VerbosityLevel;
 use crate::libs::header_map_ext::HeaderMapConverter;
 use crate::libs::mockers_request_ext::BodyReader;
 use crate::server::mockers_context::MockersContext;
 use crate::server::route_error::MockersRouteError;
-use clap::ValueEnum;
 use http_body_util::Full;
 use hyper::Request;
 use log::info;
 use routerify_ng::ext::RequestExt;
-use serde::{Deserialize, Serialize};
 
 static NL: char = '\n';
 
@@ -60,34 +58,4 @@ pub async fn logger(
     }
     info!("{}", output);
     Ok(req)
-}
-
-#[derive(ValueEnum, Debug, Clone, Copy, Serialize, Deserialize)]
-#[clap(rename_all = "kebab-case")]
-#[serde(rename_all = "lowercase")]
-pub(crate) enum VerbosityLevel {
-    /// Log only request path and query params
-    Info,
-
-    /// Log request path, query params and headers
-    Debug,
-
-    /// Log request path, query params, headers and body
-    Trace,
-}
-
-impl Default for VerbosityLevel {
-    fn default() -> Self {
-        VerbosityLevel::Info
-    }
-}
-
-impl Display for VerbosityLevel {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            VerbosityLevel::Info => f.write_str("info"),
-            VerbosityLevel::Debug => f.write_str("debug"),
-            VerbosityLevel::Trace => f.write_str("trace"),
-        }
-    }
 }

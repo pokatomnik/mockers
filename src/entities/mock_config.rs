@@ -1,5 +1,5 @@
-use crate::libs::cache_mode::CacheMode;
-use crate::cmd::controllers::create_params::{DEFAULT_DELAY_MS, DEFAULT_STATUS_CODE};
+use crate::entities::cache_mode::CacheMode;
+use crate::entities::mock_defaults::{DEFAULT_DELAY_MS, DEFAULT_STATUS_CODE};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::Path};
 

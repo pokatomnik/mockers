@@ -5,17 +5,17 @@ use hyper::{Request, Response, body::Bytes};
 use routerify_ng::ext::RequestExt;
 use tokio::join;
 
-use crate::server::controllers::entities::empty::Empty;
-use crate::server::controllers::entities::mock_create_params::MockCreateParams;
+use crate::entities::mockers_errors::MockersErrors;
 use crate::libs::absolute_mocks_path::AbsoluteMocksPath;
 use crate::libs::hyper_response_ext::HyperWellKnownResponses;
-use crate::libs::mockers_errors::MockersErrors;
 use crate::libs::mockers_request_ext::BodyReader;
 use crate::libs::path_buf_ext::PathBufExt;
-use crate::libs::protocol_result::ProtocolResultConverter;
 use crate::libs::response_builder_ext::ResponseBuilderExt;
+use crate::server::controllers::dto::empty::Empty;
+use crate::server::controllers::dto::mock_create_params::MockCreateParams;
 use crate::server::mockers_context::MockersContext;
 use crate::server::params::CONFIG_FILE_NAME;
+use crate::server::protocol_result::ProtocolResultConverter;
 use crate::server::route_error::MockersRouteError;
 
 /// Handles the creation of a new mock endpoint based on the incoming request parameters.
