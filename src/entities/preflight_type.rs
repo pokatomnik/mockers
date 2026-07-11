@@ -1,6 +1,6 @@
-use std::fmt::{Display, Formatter};
 use clap::ValueEnum;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 #[derive(ValueEnum, Copy, Clone, Debug, Serialize, PartialEq, PartialOrd)]
@@ -38,7 +38,7 @@ impl<'de> Deserialize<'de> for PreflightType {
 
 impl Display for PreflightType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self { 
+        match self {
             PreflightType::Mirror => write!(f, "mirror"),
             PreflightType::Permissive => write!(f, "permissive"),
         }

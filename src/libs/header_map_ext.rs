@@ -1,6 +1,6 @@
 use crate::libs::headers::{CORS_HEADER_KEYS, CORS_HEADER_VALUE};
-use hyper::header::HeaderValue;
 use hyper::HeaderMap;
+use hyper::header::HeaderValue;
 use std::collections::HashMap;
 
 pub(crate) trait HeaderMapSanitizer {

@@ -1,5 +1,5 @@
 use http_body_util::Full;
-use hyper::{body::Bytes, Response};
+use hyper::{Response, body::Bytes};
 
 use crate::libs::header_map_ext::HeaderMapExt;
 use crate::server::route_error::MockersRouteError;

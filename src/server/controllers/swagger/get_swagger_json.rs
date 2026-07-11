@@ -1,23 +1,24 @@
-use std::collections::HashMap;
-use crate::server::controllers::swagger::static_files::SWAGGER_JSON;
-use crate::libs::absolute_mocks_path::AbsoluteMocksPath;
+use crate::entities::mock_config::MockConfig;
 use crate::entities::mock_defaults::DEFAULT_STATUS_CODE;
 use crate::libs::fs_cached_reader::FSCachedReader;
 use crate::libs::fs_walker::FSWalker;
 use crate::libs::get_mime::get_mime;
 use crate::libs::hyper_response_ext::HyperWellKnownResponses;
-use crate::entities::mock_config::MockConfig;
 use crate::libs::path_buf_ext::PathBufExt;
 use crate::libs::response_builder_ext::ResponseBuilderExt;
+use crate::server::controllers::swagger::static_files::SWAGGER_JSON;
+use crate::server::mock_file_checker::MockFileChecker;
 use crate::server::mockers_context::MockersContext;
 use crate::server::params::{CONFIG_FILE_NAME, ServerParams};
 use crate::server::route_error::MockersRouteError;
+use crate::use_cases::absolute_mocks_path::AbsoluteMocksPath;
 use http_body_util::Full;
 use hyper::body::Bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::{Request, Response};
 use routerify_ng::ext::RequestExt;
 use serde_json::json;
+use std::collections::HashMap;
 use std::sync::{Arc, LazyLock};
 
 pub async fn get_swagger_json(
@@ -148,7 +149,11 @@ async fn add_mocks(
 
         let content_type_header_value = mock_config
             .headers()
-            .map(|h| h.into_iter().map(|(k, v)| (k.to_lowercase(), v.to_string())).collect::<HashMap<String, String>>())
+            .map(|h| {
+                h.into_iter()
+                    .map(|(k, v)| (k.to_lowercase(), v.to_string()))
+                    .collect::<HashMap<String, String>>()
+            })
             .map(|h| h.get(&CONTENT_TYPE.to_string()).cloned())
             .flatten();
         let mime = match content_type_header_value {

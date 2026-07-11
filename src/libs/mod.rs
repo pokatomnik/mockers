@@ -1,5 +1,3 @@
-pub mod absolute_mocks_path;
-
 pub mod fs_cached_reader;
 pub mod fs_walker;
 pub mod get_info_async;

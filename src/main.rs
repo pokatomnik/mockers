@@ -2,6 +2,7 @@ mod cmd;
 mod entities;
 mod libs;
 mod server;
+mod use_cases;
 
 use clap::Parser;
 use cmd::cli::Cli;

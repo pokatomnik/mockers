@@ -10,7 +10,8 @@ pub enum ProtocolResult<T, E> {
     Err(E),
 }
 
-static DEFAULT_ERROR: LazyLock<String> = LazyLock::new(|| json!({ "err": "UNKNOWN_ERROR" }).to_string());
+static DEFAULT_ERROR: LazyLock<String> =
+    LazyLock::new(|| json!({ "err": "UNKNOWN_ERROR" }).to_string());
 
 impl<T, E> Display for ProtocolResult<T, E>
 where

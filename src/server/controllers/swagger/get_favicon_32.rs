@@ -1,5 +1,5 @@
-use crate::server::controllers::swagger::static_files::SWAGGER_FAVICON_32_PNG;
 use crate::libs::hyper_response_ext::HyperWellKnownResponses;
+use crate::server::controllers::swagger::static_files::SWAGGER_FAVICON_32_PNG;
 use crate::server::route_error::MockersRouteError;
 use http_body_util::Full;
 use hyper::body::Bytes;

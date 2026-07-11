@@ -1,13 +1,9 @@
-use std::{path::PathBuf, str::FromStr};
-
-use crate::libs::http_method::StandardMethodValidator;
+use std::path::PathBuf;
 
 pub(crate) trait PathBufExt {
     fn with_last_removed(&self) -> Self;
 
     fn extend_with_url_path(&self, parts: impl Into<String>) -> PathBuf;
-
-    fn is_mock_file(&self) -> bool;
 }
 
 impl PathBufExt for PathBuf {
@@ -31,18 +27,6 @@ impl PathBufExt for PathBuf {
         } else {
             self.join(parts)
         }
-    }
-
-    fn is_mock_file(&self) -> bool {
-        let Some(extension) = self.extension().map(|e| e.to_string_lossy().to_uppercase()) else {
-            return false;
-        };
-
-        let Ok(method) = hyper::Method::from_str(&extension) else {
-            return false;
-        };
-
-        method.validate(|| ()).is_ok()
     }
 }
 
