@@ -1,14 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/pokatomnik/mockers/schemas/config.v1.json",
+  "$id": "https://github.com/pokatomnik/mockers/.agents/skills/new-mock/config.v1.json",
   "type": "object",
   "$defs": {
     "cacheMode": {
       "type": "string",
-      "enum": [
-        "overwrite",
-        "nocache"
-      ],
+      "enum": ["overwrite", "nocache"],
       "description": "Caching type: 'Overwrite' means the response will be written to disk, 'nocache' is no-op"
     },
     "statusCode": {

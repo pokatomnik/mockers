@@ -490,9 +490,9 @@ Open: `http://localhost:8080/__admin/swagger`
 
 ## Config schema
 
-JSON schema for `config.json`:
+JSON schema for per-directory `config.json`:
 
-- [`schemas/config.v1.json`](./schemas/config.v1.json)
+- [`.agents/skills/new-mock/config.v1.json`](./.agents/skills/new-mock/config.v1.json)
 
 ---
 
