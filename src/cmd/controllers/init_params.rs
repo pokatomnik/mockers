@@ -47,6 +47,7 @@ impl InitParams {
         );
         dialoguer::Confirm::new()
             .with_prompt(prompt)
+            .report(false)
             .interact()
             .unwrap_or(false)
     }
@@ -74,6 +75,7 @@ impl InitParams {
         dialoguer::Input::new()
             .with_initial_text(DEFAULT_HOST.to_string())
             .default(DEFAULT_HOST.to_string())
+            .report(false)
             .with_prompt("Specify a host/ip to work on")
             .interact_text()
             .unwrap_or_else(|_| DEFAULT_HOST.to_string())
@@ -83,6 +85,7 @@ impl InitParams {
         let port_input = dialoguer::Input::new()
             .with_initial_text(DEFAULT_PORT.to_string())
             .default(DEFAULT_PORT.to_string())
+            .report(false)
             .with_prompt("Specity a port to listen on")
             .validate_with(|v: &String| -> Result<(), &'static str> {
                 v.parse::<u16>()
@@ -98,6 +101,7 @@ impl InitParams {
         let https_port_input = dialoguer::Input::new()
             .with_initial_text(DEFAULT_HTTPS_PORT.to_string())
             .default(DEFAULT_HTTPS_PORT.to_string())
+            .report(false)
             .with_prompt("Specify https port to listen on")
             .validate_with(|v: &String| -> Result<(), &'static str> {
                 v.parse::<u16>()
@@ -113,6 +117,7 @@ impl InitParams {
         dialoguer::Input::new()
             .with_initial_text(DEFAULT_MOCKS_DIR_NAME.to_string())
             .default(DEFAULT_MOCKS_DIR_NAME.to_string())
+            .report(false)
             .with_prompt("Specify a path to mocks, absolute or relative")
             .interact_text()
             .unwrap_or_else(|_| DEFAULT_MOCKS_DIR_NAME.to_string())
@@ -121,6 +126,7 @@ impl InitParams {
     fn ask_cors() -> bool {
         dialoguer::Confirm::new()
             .default(DEFAULT_CORS_ENABLED)
+            .report(false)
             .with_prompt("Enable CORS headers")
             .interact()
             .unwrap_or(false)
@@ -131,6 +137,8 @@ impl InitParams {
         let idx = dialoguer::Select::new()
             .with_prompt("Select preflight behavior")
             .default(0)
+            .clear(true)
+            .report(false)
             .items(&items_to_select)
             .interact()
             .unwrap_or(0);
@@ -144,6 +152,7 @@ impl InitParams {
         let delay_input = dialoguer::Input::new()
             .with_initial_text(DEFAULT_DELAY_MS.to_string())
             .default(DEFAULT_DELAY_MS.to_string())
+            .report(false)
             .with_prompt("Specify delay in milliseconds before server starts responding")
             .validate_with(|v: &String| -> Result<(), &'static str> {
                 v.parse::<u16>()
@@ -159,6 +168,7 @@ impl InitParams {
         dialoguer::Input::new()
             .with_initial_text(DEFAULT_ADMIN_BASE_URL.to_string())
             .default(DEFAULT_ADMIN_BASE_URL.to_string())
+            .report(false)
             .with_prompt("Specify default admin base URL")
             .interact_text()
             .unwrap_or_else(|_| DEFAULT_ADMIN_BASE_URL.to_string())
@@ -166,9 +176,8 @@ impl InitParams {
 
     fn ask_proxy_connection_string() -> Option<String> {
         let default = "socks5h://127.0.0.1:1080";
-        let response = dialoguer::Input::new()
-            .with_initial_text(default.to_string())
-            .default(default.to_string())
+        let response = dialoguer::Input::<String>::new()
+            .report(false)
             .with_prompt(format!(
                 "Specify proxy connection string, example: \"{default}\". Leave empty to omit"
             ))
@@ -191,6 +200,8 @@ impl InitParams {
         ];
         let idx = dialoguer::Select::new()
             .with_prompt("Select log request level")
+            .clear(true)
+            .report(false)
             .default(0)
             .items(&items_to_select)
             .interact()
@@ -210,6 +221,8 @@ impl InitParams {
         let idx = dialoguer::Select::new()
             .with_prompt("Select verbosity level")
             .default(0)
+            .clear(true)
+            .report(false)
             .items(&items_to_select)
             .interact()
             .unwrap_or(0);
@@ -223,6 +236,7 @@ impl InitParams {
         let proxy_body_max_bytes = dialoguer::Input::new()
             .with_initial_text(DEFAULT_PROXY_RESPONSE_BODY_BYTES.to_string())
             .default(DEFAULT_PROXY_RESPONSE_BODY_BYTES.to_string())
+            .report(false)
             .with_prompt("Specify the maximum size of the response body of the proxied server")
             .report(false)
             .validate_with(|v: &String| -> Result<(), String> {
