@@ -11,7 +11,7 @@ pub(crate) struct ConfigParams {
 
 impl ConfigParams {
     pub async fn show_config(&self) {
-        let help_str = self.get_help("Global config").await;
+        let help_str = self.get_help("Global config (effective)").await;
         println!("{}", help_str);
     }
 }

@@ -1,6 +1,7 @@
 pub mod fs_cached_reader;
 pub mod fs_walker;
 pub mod get_info_async;
+pub mod get_info_table;
 pub mod get_mime;
 
 pub mod header_map_ext;

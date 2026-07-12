@@ -1,6 +1,7 @@
 use crate::entities::preflight_type::PreflightType;
 use crate::entities::verbosity_level::VerbosityLevel;
 use crate::libs::get_info_async::GetInfoAsync;
+use crate::libs::get_info_table::render_help_table;
 use crate::libs::path_buf_ext::PathBufExt;
 use reqwest::Proxy;
 use serde::{Deserialize, Serialize};
@@ -312,133 +313,96 @@ impl GlobalConfigAPI {
 
 impl GetInfoAsync for GlobalConfigAPI {
     async fn get_help(&self, title: &str) -> String {
-        let mut buf = String::from(format!("{}:{}", title, Self::EOL));
-        buf.push_str(&format!("================={}", Self::EOL));
-        let host_info = format!(
-            "Host:{}{}{}",
-            Self::TAB.repeat(3),
-            self.get_host()
-                .await
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL
-        );
-        let port_info = format!(
-            "Port:{}{}{}",
-            Self::TAB.repeat(3),
-            self.get_port()
-                .await
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL
-        );
-        let https_port_info = format!(
-            "HTTPS Port:{}{}{}",
-            Self::TAB.repeat(2),
-            self.get_https_port()
-                .await
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL
-        );
-        let mocks_path_info = format!(
-            "Mocks path:{}{}{}",
-            Self::TAB.repeat(2),
-            self.get_mocks()
-                .await
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL,
-        );
-        let cors_info = format!(
-            "Cors:{}{}{}",
-            Self::TAB.repeat(3),
-            self.get_cors()
-                .await
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL
-        );
-        let preflight_info = format!(
-            "Preflight:{}{}{}",
-            Self::TAB.repeat(2),
-            self.get_preflight()
-                .await
-                .map(|pt| pt.to_string())
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL
-        );
-        let delay_ms_info = format!(
-            "Delay in milliseconds:{}{}{}",
-            Self::TAB,
-            self.get_delay_ms()
-                .await
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL
-        );
-        let origin_info = format!(
-            "Origin:{}{}{}",
-            Self::TAB.repeat(3),
-            self.get_origin()
-                .await
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL,
-        );
-        let admin_base_url_info = format!(
-            "Admin base URL:{}{}{}",
-            Self::TAB.repeat(2),
-            self.get_admin_base_url()
-                .await
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL,
-        );
-        let log_request_info = format!(
-            "Requests log level:{}{}{}",
-            Self::TAB,
-            self.get_log_request()
-                .await
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL,
-        );
-        let verbosity_level_info = format!(
-            "Verbosity level:{}{}{}",
-            Self::TAB,
-            self.get_verbosity_level()
-                .await
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL
-        );
-        let proxy_body_max_bytes = format!(
-            "Proxy body max bytes:{}{}{}",
-            Self::TAB,
-            self.get_proxy_body_max_bytes()
-                .await
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| Self::UNSET.to_string()),
-            Self::EOL,
-        );
-
         let proxy_text = match self.get_proxy().await {
             Some(_) => "Proxy IS set",
             None => "Proxy is NOT set",
         };
-        let proxy = format!("Proxy:{}{}{}", Self::TAB.repeat(3), proxy_text, Self::EOL);
 
-        buf.push_str(&host_info);
-        buf.push_str(&port_info);
-        buf.push_str(&https_port_info);
-        buf.push_str(&mocks_path_info);
-        buf.push_str(&cors_info);
-        buf.push_str(&preflight_info);
-        buf.push_str(&delay_ms_info);
-        buf.push_str(&origin_info);
-        buf.push_str(&admin_base_url_info);
-        buf.push_str(&log_request_info);
-        buf.push_str(&verbosity_level_info);
-        buf.push_str(&proxy_body_max_bytes);
-        buf.push_str(&proxy);
-
-        buf
+        render_help_table(
+            title,
+            vec![
+                (
+                    "Host",
+                    self.get_host()
+                        .await
+                        .unwrap_or_else(|| Self::UNSET.to_string()),
+                ),
+                (
+                    "Port",
+                    self.get_port()
+                        .await
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| Self::UNSET.to_string()),
+                ),
+                (
+                    "HTTPS Port",
+                    self.get_https_port()
+                        .await
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| Self::UNSET.to_string()),
+                ),
+                (
+                    "Mocks path",
+                    self.get_mocks()
+                        .await
+                        .unwrap_or_else(|| Self::UNSET.to_string()),
+                ),
+                (
+                    "Cors",
+                    self.get_cors()
+                        .await
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| Self::UNSET.to_string()),
+                ),
+                (
+                    "Preflight",
+                    self.get_preflight()
+                        .await
+                        .map(|pt| pt.to_string())
+                        .unwrap_or_else(|| Self::UNSET.to_string()),
+                ),
+                (
+                    "Delay in milliseconds",
+                    self.get_delay_ms()
+                        .await
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| Self::UNSET.to_string()),
+                ),
+                (
+                    "Origin",
+                    self.get_origin()
+                        .await
+                        .unwrap_or_else(|| Self::UNSET.to_string()),
+                ),
+                (
+                    "Admin base URL",
+                    self.get_admin_base_url()
+                        .await
+                        .unwrap_or_else(|| Self::UNSET.to_string()),
+                ),
+                (
+                    "Requests log level",
+                    self.get_log_request()
+                        .await
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| Self::UNSET.to_string()),
+                ),
+                (
+                    "Verbosity level",
+                    self.get_verbosity_level()
+                        .await
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| Self::UNSET.to_string()),
+                ),
+                (
+                    "Proxy body max bytes",
+                    self.get_proxy_body_max_bytes()
+                        .await
+                        .map(|v| v.to_string())
+                        .unwrap_or_else(|| Self::UNSET.to_string()),
+                ),
+                ("Proxy", proxy_text.to_string()),
+            ],
+        )
     }
 }
