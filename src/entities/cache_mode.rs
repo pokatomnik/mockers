@@ -11,12 +11,6 @@ pub enum CacheMode {
     NoCache,
 }
 
-impl CacheMode {
-    pub fn all_values() -> Vec<CacheMode> {
-        return vec![CacheMode::NoCache, CacheMode::Overwrite];
-    }
-}
-
 impl Display for CacheMode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

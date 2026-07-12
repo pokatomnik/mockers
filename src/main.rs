@@ -21,19 +21,9 @@ async fn main() -> anyhow::Result<()> {
             Err(err) => Err(anyhow::Error::from(err)),
             Ok(_) => server_params.start_server().await,
         },
-        Commands::Create(create_params) => match create_params.test().await {
-            Err(err) => Err(anyhow::Error::from(err)),
-            Ok(_) => create_params.create_mock().await,
-        },
-        Commands::List(ls_params) => ls_params.ls_mocks().await,
-        Commands::Info(info_params) => info_params.show_info().await,
-        Commands::Delete(delete_params) => delete_params.delete_mock().await,
-        Commands::Enable(activity_params) => activity_params.enable().await,
-        Commands::Disable(activity_params) => activity_params.disable().await,
         Commands::Config(config_params) => Ok(config_params.show_config().await),
         Commands::Init(init_params) => init_params.init().await,
         Commands::Completion(completion_params) => completion_params.generate().await,
-        Commands::Doc(help_params) => help_params.show_help().await,
     };
 
     let result = result.map_err(|e| e.to_string());
