@@ -70,18 +70,11 @@ mockers <COMMAND>
 Available commands:
 
 - `serve` — run HTTP server
-- `create` — create a file-based mock + config entry
-- `list` — list all file-based mocks
-- `info` — show full info for a mock (status, headers, delay, cache mode, mime, body)
-- `delete` — delete a specific mock (and clean config entry)
-- `enable` — enable a disabled mock
-- `disable` — disable a mock
 - `config` — show effective global Mockers configuration
 - `init` — initialize global Mockers configuration file
-- `doc` — show built-in documentation for a command
 - `completion` — generate shell completion script
 
-There are also aliases (`run`, `start`, `ls`, `rm`, etc.), check `--help`.
+Aliases exist for `serve`, `config`, and `init`; check `--help`.
 
 ---
 
@@ -121,26 +114,6 @@ Supported `.mockers` fields (all optional, `camelCase` keys):
 | `verbosity`         | `"info"` \| `"debug"` \| `"trace"` | Process verbosity level                                             |
 | `proxyBodyMaxBytes` | number                             | Max upstream response body (bytes)                                  |
 | `proxy`             | string                             | Proxy connection string for upstream requests (socks5, http, https) |
-
----
-
-## `doc` command
-
-```bash
-mockers doc <COMMAND>
-```
-
-Shows detailed built-in documentation for any command (rendered as markdown in the terminal).
-
-Example:
-
-```bash
-mockers doc serve
-mockers doc create
-```
-
-The `<COMMAND>` argument corresponds to any available subcommand:
-`serve`, `create`, `list`, `info`, `delete`, `enable`, `disable`, `config`, `init`, `completion`.
 
 ---
 
@@ -295,6 +268,7 @@ $mockers:
   proxy: socks5h://127.0.0.1:1080
   ttl: 60000
 ---
+
 Return a realistic JSON user profile for the current request.
 Use the request path and headers when useful.
 ```
@@ -309,14 +283,14 @@ Frontmatter format:
 
 Supported `$mockers` fields:
 
-| Field          | Type    | Required | What it does                                                                 |
-| -------------- | ------- | -------- | ---------------------------------------------------------------------------- |
-| `prompt`       | boolean | yes      | Enables LLM generation when `true`                                            |
-| `api_endpoint` | string  | yes      | OpenAI-compatible chat completions endpoint                                   |
-| `model`        | string  | yes      | Model name sent in the provider request                                       |
-| `env_key`      | string  | no       | Environment variable containing a bearer token for `Authorization`            |
-| `proxy`        | string  | no       | Proxy URL used only for this LLM provider request                             |
-| `ttl`          | number  | no       | In-memory generated-response cache TTL in milliseconds; default is `0`        |
+| Field          | Type    | Required | What it does                                                           |
+| -------------- | ------- | -------- | ---------------------------------------------------------------------- |
+| `prompt`       | boolean | yes      | Enables LLM generation when `true`                                     |
+| `api_endpoint` | string  | yes      | OpenAI-compatible chat completions endpoint                            |
+| `model`        | string  | yes      | Model name sent in the provider request                                |
+| `env_key`      | string  | no       | Environment variable containing a bearer token for `Authorization`     |
+| `proxy`        | string  | no       | Proxy URL used only for this LLM provider request                      |
+| `ttl`          | number  | no       | In-memory generated-response cache TTL in milliseconds; default is `0` |
 
 When a prompt mock is handled, Mockers sends the mock file content as the user prompt and appends request context to the system prompt: method, URI, headers, and body. The provider request uses `stream: false` and `temperature: 0` for deterministic responses.
 
@@ -355,7 +329,7 @@ Example:
 | `statusCode` | number                   | Per-mock HTTP status                                      |
 | `headers`    | object string->string    | Extra response headers                                    |
 | `cacheMode`  | `overwrite` \| `nocache` | Controls write-through behavior when proxying to `origin` |
-| `disabled`   | boolean                  | If `true`, mock returns `404` immediately                  |
+| `disabled`   | boolean                  | If `true`, mock returns `404` immediately                 |
 
 ### Precedence and defaults
 
@@ -390,136 +364,6 @@ So you can warm up mocks from a real backend automatically.
 
 ---
 
-## `create` command
-
-```bash
-mockers create [OPTIONS] [ROUTE]
-```
-
-Creates:
-
-- a mock file (`<route>.<method>`),
-- and updates/creates `config.json` in the same directory.
-
-`ROUTE` is positional and represents the URL path (e.g. `/users/profile`).
-If omitted when using `--interactive`, you will be prompted for it.
-
-### Options
-
-| Flag                  | Default             | Description                                         |
-| --------------------- | ------------------- | --------------------------------------------------- |
-| `--method`            | `GET`               | HTTP method                                         |
-| `--status-code`, `-s` | `200`               | Response status in config                           |
-| `--delay-ms`, `-d`    | `0`                 | Delay in config                                     |
-| `--header`            | none                | Add response header (`Key: Value`), can be repeated |
-| `--contents`, `-c`    | `{"hello":"world"}` | Mock body content                                   |
-| `--cache-mode`        | `nocache`           | `overwrite` or `nocache`                            |
-| `--mocks`, `-m`       | `mocks`             | Mocks directory                                     |
-| `--disabled`          | `false`             | Create mock as disabled                             |
-| `--interactive`, `-i` | `false`             | Interactive mode with prompts for each field        |
-
-### Example
-
-```bash
-mockers create /users/profile --method GET --status-code 200 --header "X-Env: local" --contents '{"id":1}'
-
-# Interactive mode
-mockers create --interactive
-```
-
----
-
-## `list` command
-
-```bash
-mockers list [OPTIONS]
-```
-
-Shows all detected mock files with valid HTTP method extensions.
-
-### Options
-
-| Flag            | Default | Description                 |
-| --------------- | ------- | --------------------------- |
-| `--mocks`, `-m` | `mocks` | Path to the mocks directory |
-
-Example:
-
-```bash
-mockers list --mocks ./mocks
-```
-
----
-
-## `info` command
-
-```bash
-mockers info [OPTIONS] <NAME>
-```
-
-Searches by partial name/path (case-insensitive), then prints:
-
-- normalized mock path,
-- response status,
-- configured headers,
-- delay,
-- cache mode,
-- detected mime type,
-- body (only with `--show-body`).
-
-### Options
-
-| Flag                | Default | Description                         |
-| ------------------- | ------- | ----------------------------------- |
-| `--mocks`, `-m`     | `mocks` | Path to the mocks directory         |
-| `--show-body`, `-s` | `false` | Display mock body content in output |
-
-If multiple mocks match, it will ask you to be more specific by listing candidates.
-
----
-
-## `delete` command
-
-```bash
-mockers delete [OPTIONS] <NAME>
-```
-
-Deletes one matching mock file.
-Also removes that entry from `config.json` in the same directory.
-If config becomes empty, `config.json` is deleted too.
-
-### Options
-
-| Flag            | Default | Description                 |
-| --------------- | ------- | --------------------------- |
-| `--mocks`, `-m` | `mocks` | Path to the mocks directory |
-
-If your query matches multiple mocks, it prints candidates and does nothing.
-
----
-
-## `enable` / `disable` commands
-
-```bash
-mockers enable [OPTIONS] <NAME>
-mockers disable [OPTIONS] <NAME>
-```
-
-These commands toggle the `disabled` flag in `config.json` for one matching mock.
-
-- `disable` => mock is ignored at serve time.
-- `enable` => mock becomes active again.
-
-### Options
-
-| Flag            | Default | Description                 |
-| --------------- | ------- | --------------------------- |
-| `--mocks`, `-m` | `mocks` | Path to the mocks directory |
-
-If multiple matches are found, it asks for a more specific query.
-
----
-
 ## `config` command
 
 ```bash
@@ -527,7 +371,7 @@ mockers config
 ```
 
 Shows the **effective global Mockers configuration** resolved for the current directory.
-Value are pulled from `.mockers` files (from CWD up to root) and merged.
+Values are pulled from `.mockers` files (from CWD up to root) and merged.
 
 Aliases: `configuration`, `settings`, `preferences`, `prefs`.
 
@@ -646,9 +490,9 @@ Open: `http://localhost:8080/__admin/swagger`
 
 ## Config schema
 
-JSON schema for `config.json`:
+JSON schema for per-directory `config.json`:
 
-- [`schemas/config.v1.json`](./schemas/config.v1.json)
+- [`.agents/skills/new-mock/config.v1.json`](./.agents/skills/new-mock/config.v1.json)
 
 ---
 

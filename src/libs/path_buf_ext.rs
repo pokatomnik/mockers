@@ -1,13 +1,7 @@
-use std::{path::PathBuf, str::FromStr};
-
-use crate::libs::http_method::StandardMethodValidator;
+use std::path::PathBuf;
 
 pub(crate) trait PathBufExt {
     fn with_last_removed(&self) -> Self;
-
-    fn extend_with_url_path(&self, parts: impl Into<String>) -> PathBuf;
-
-    fn is_mock_file(&self) -> bool;
 }
 
 impl PathBufExt for PathBuf {
@@ -17,32 +11,6 @@ impl PathBufExt for PathBuf {
         let mut clone = self.clone();
         clone.pop();
         clone
-    }
-
-    /// Concatenates `PathBuf` with Path-like parts:
-    /// - `/foo/bar/baz`
-    /// - `foo/bar`
-    /// The result will be always fresh `PathBuf`
-    /// with desired parts at the end
-    fn extend_with_url_path(&self, parts: impl Into<String>) -> PathBuf {
-        let parts = parts.into();
-        if parts.starts_with("/") {
-            self.join(parts.trim_start_matches("/"))
-        } else {
-            self.join(parts)
-        }
-    }
-
-    fn is_mock_file(&self) -> bool {
-        let Some(extension) = self.extension().map(|e| e.to_string_lossy().to_uppercase()) else {
-            return false;
-        };
-
-        let Ok(method) = hyper::Method::from_str(&extension) else {
-            return false;
-        };
-
-        method.validate(|| ()).is_ok()
     }
 }
 
@@ -71,70 +39,6 @@ mod tests {
         let path = PathBuf::from("/");
         let actual = path.with_last_removed();
         let expected = PathBuf::from("/");
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn extend_with_relative() {
-        let path = PathBuf::from("/foo/bar");
-        let actual = path.extend_with_url_path("baz");
-        let expected = PathBuf::from("/foo/bar/baz");
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn extend_with_absolute() {
-        let path = PathBuf::from("/foo/bar");
-        let actual = path.extend_with_url_path("/baz");
-        let expected = PathBuf::from("/foo/bar/baz");
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn extend_with_empty_url_path() {
-        let path = PathBuf::from("/foo/bar");
-        let actual = path.extend_with_url_path("");
-        let expected = PathBuf::from("/foo/bar");
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn extend_with_trailing_slash() {
-        let path = PathBuf::from("/foo/bar");
-        let actual = path.extend_with_url_path("baz/");
-        let expected = PathBuf::from("/foo/bar/baz");
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn extend_with_nested_url_path() {
-        let path = PathBuf::from("/foo/bar");
-        let actual = path.extend_with_url_path("baz/qux/quux");
-        let expected = PathBuf::from("/foo/bar/baz/qux/quux");
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn extend_with_multiple_leading_slashes() {
-        let path = PathBuf::from("/foo/bar");
-        let actual = path.extend_with_url_path("///baz");
-        let expected = PathBuf::from("/foo/bar/baz");
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn extend_with_parent_dir_is_not_normalized() {
-        let path = PathBuf::from("/foo/bar");
-        let actual = path.extend_with_url_path("baz/../qux");
-        let expected = PathBuf::from("/foo/bar/baz/../qux");
-        assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn extend_with_dot_url_path() {
-        let path = PathBuf::from("/foo/bar");
-        let actual = path.extend_with_url_path(".");
-        let expected = PathBuf::from("/foo/bar");
         assert_eq!(actual, expected);
     }
 }

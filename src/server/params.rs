@@ -1,13 +1,13 @@
-use crate::libs::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
-use crate::libs::create_params::DEFAULT_DELAY_MS;
+use crate::entities::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
+use crate::entities::mock_defaults::DEFAULT_DELAY_MS;
+use crate::entities::preflight_type::PreflightType;
+use crate::entities::verbosity_level::VerbosityLevel;
 use crate::libs::get_info_async::GetInfoAsync;
-use crate::libs::global_config::{GlobalConfigAPI, WithGlobalConfigAPI};
-use crate::libs::preflight_type::PreflightType;
 use crate::libs::tls_acceptor_ext::TLSAcceptorLoader;
-use crate::middlewares::logger::VerbosityLevel;
-use crate::server::mockers_router::mockers_router;
 use crate::server::route_error::MockersRouteError;
+use crate::server::router::mockers_router;
 use crate::server::signal::make_signal;
+use crate::use_cases::absolute_mocks_path::{AbsoluteMocksPath, WithMocks};
 use clap::{ArgAction, Args};
 use hyper::server::conn::http1;
 use hyper::service::Service;
@@ -27,7 +27,7 @@ pub const DEFAULT_HOST: &'static str = "0.0.0.0";
 pub const DEFAULT_SWAGGER_HOST: &'static str = "127.0.0.1";
 pub const DEFAULT_PORT: u16 = 8080;
 pub const DEFAULT_HTTPS_PORT: u16 = 8443;
-pub const DEFAULT_MOCKS_DIR_NAME: &'static str = "mocks";
+
 pub const DEFAULT_MOCKS_RESPONSE_DELAY: u64 = 0;
 pub const DEFAULT_CORS_ENABLED: bool = false;
 pub const CONFIG_FILE_NAME: &'static str = "config.json";

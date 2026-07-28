@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/pokatomnik/mockers/.agents/skills/new-mock/config.v1.json",
+  "type": "object",
+  "$defs": {
+    "cacheMode": {
+      "type": "string",
+      "enum": ["overwrite", "nocache"],
+      "description": "Caching type: 'Overwrite' means the response will be written to disk, 'nocache' is no-op"
+    },
+    "statusCode": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599,
+      "description": "Well-known HTTP status codes"
+    },
+    "mockConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "delayMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615,
+          "description": "Time to wait before respond in milliseconds"
+        },
+        "statusCode": {
+          "$ref": "#/$defs/statusCode"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map of desired additional headers"
+        },
+        "cacheMode": {
+          "$ref": "#/$defs/cacheMode"
+        },
+        "disabled": {
+          "type": "boolean",
+          "description": "Whether mock is disabled or not. If true, will be ignored by Mockers"
+        }
+      }
+    }
+  },
+  "additionalProperties": {
+    "$ref": "#/$defs/mockConfig"
+  }
+}

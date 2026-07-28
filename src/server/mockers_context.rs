@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{libs::llm::client::LLMClient, server::params::ServerParams};
+use crate::{server::llm::client::LLMClient, server::params::ServerParams};
 use reqwest::Client;
 
 pub struct MockersContext {
